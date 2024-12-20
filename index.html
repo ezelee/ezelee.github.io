@@ -200,7 +200,12 @@
                         console.log("total:", total)
 
                         discountType = "10% a cada hijo entre 3-18 años";
-                    } else if (spouseAge > 0 && children.length && children.every(child => child.age >= 19)) {
+                    } else if (spouseAge > 0 && 
+                               (numChildren == 0 || 
+                                (numChildren > 0 &&
+                                    !children.every(child => child.age >= 3 && child.age <= 18))
+                               )
+                              ) {
                         total -= 15000;
                         discountType = "$185000 matrimonio con hijos mayores";
                     }
