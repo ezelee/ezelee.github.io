@@ -76,6 +76,20 @@
         src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.10.0/js/bootstrap-datepicker.min.js"></script>
     <script>
         $(document).ready(function () {
+            function formatCurrency(value) {
+                if (value != null) {
+                    return value.toLocaleString('es-419', {
+                        style: 'currency',
+                        currency: 'USD',
+                        currencyDisplay: "narrowSymbol",
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2
+                    });
+                } else {
+                    return '$0.00';
+                }
+            }
+
             $('.select2').select2();
             $('.select2SinSearch').select2({
                 minimumResultsForSearch: Infinity
@@ -197,14 +211,22 @@
                                     !children.every(child => child.age >= 3 && child.age <= 18))
                                )
                               ) {
-                        total -= 15000;
-                        discountType = "$185000 matrimonio sin hijos menores de edad (3 - 18 años) que pagan";
+
+                        let marriageBenefit = 0
+                        if (yourDays >= spouseDays) {
+                            marriageBenefit = [5, 10, 10, 15][yourDays - 1] * 1000
+                        } else {
+                            marriageBenefit = [5, 10, 10, 15][spouseDays - 1] * 1000
+                        }
+
+                        total -= marriageBenefit;
+                        discountType = `${formatCurrency(marriageBenefit)} - Beneficio de matrimonio sin hijos menores de edad (3 - 18 años) que pagan.`;
                     }
                 }
 
                 // Mostrar resultado
                 $('#result').removeClass('d-none').html(`
-                            <strong>Precio Total:</strong> $${total.toFixed(2)}<br>
+                            <strong>Precio Total:</strong> ${formatCurrency(total)}<br>
                             <strong>Descuento Aplicado (por pago anticipado):</strong> ${discountType}
                         `);
             });
