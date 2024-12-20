@@ -64,6 +64,8 @@
                 <button type="button" class="btn btn-primary" id="calculate">Calcular Precio</button>
             </div>
             <div id="result" class="alert alert-info d-none"></div>
+
+            <div><img src="img.png" alt="Valores CV 2025"></div>
         </form>
     </div>
 
@@ -159,8 +161,6 @@
                     amountSpouse = [40, 60, 80, 100][spouseDays - 1] * 1000;
                     total += amountSpouse
                 }
-                console.log(`age: ${age}| amount Main: ${amountMain}`)
-                console.log(`age: ${spouseAge}| amount Spouse: ${amountSpouse}`)
 
                 // Calcular costos para hijos
                 children.forEach(child => {
@@ -172,7 +172,6 @@
                         amount = [40, 60, 80, 100][child.days - 1] * 1000;
                         total += amount
                     }
-                    console.log(`age: ${child.age}| amount: ${amount}`)
                 });
 
                 // Aplicar descuentos
@@ -180,24 +179,16 @@
                 children.forEach(child => {
                     if (child.age >= 3 && child.age <= 12) {
                         childDiscount += 0.1 * [20, 30, 40, 50][child.days - 1] * 1000;
-                        console.log(`age: ${child.age}| childDiscount: ${childDiscount}`)
                     } else if (child.age >= 13 && child.age <= 18) {
                         childDiscount += 0.1 * [40, 60, 80, 100][child.days - 1] * 1000;
-                        console.log(`age: ${child.age}| childDiscount: ${childDiscount}`)
                     }
                 });
-                console.log("----------------")
 
                 if (paymentDate < discountDeadline) {
                     if (childDiscount > 0) {
-                        console.log("total:", total)
-                        console.log("childDiscount:", childDiscount)
                         total -= childDiscount;
-                        console.log("amountMain:", amountMain)
                         total -= amountMain/10;
-                        console.log("amountSpouse:", amountSpouse)
                         total -= amountSpouse/10;
-                        console.log("total:", total)
 
                         discountType = "10% a cada hijo entre 3-18 años";
                     } else if (spouseAge > 0 && 
@@ -207,7 +198,7 @@
                                )
                               ) {
                         total -= 15000;
-                        discountType = "$185000 matrimonio con hijos mayores";
+                        discountType = "$185000 matrimonio sin hijos menores de edad (3 - 18 años) que pagan";
                     }
                 }
 
