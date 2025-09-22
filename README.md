@@ -102,6 +102,3 @@ El sistema incluye los feriados nacionales argentinos:
 - **Node.js** (para ejecutar scripts de consola)
 - **Navegador web** moderno (para la interfaz web)
 
-## 📝 Licencia
-
-Este proyecto es de uso interno para Netrix/ProSIS.
