@@ -63,6 +63,23 @@ function isHoliday(date) {
     new Date(2025, 11, 25),
     new Date(2025, 11, 31),
     new Date(2026, 0, 1),
+    new Date(2026, 2, 23),  // Día de la Memoria por la Verdad y la Justicia
+    new Date(2026, 2, 24),  // Día Nacional de la Memoria por la Verdad y la Justicia
+    new Date(2026, 3, 2),   // Día del Veterano y de los Caídos en la Guerra de Malvinas
+    new Date(2026, 3, 3),   // Viernes Santo
+    new Date(2026, 4, 1),   // Día del Trabajador
+    new Date(2026, 4, 25),  // Día de la Revolución de Mayo
+    new Date(2026, 5, 15),  // Paso a la Inmortalidad del General Martín Miguel de Güemes
+    new Date(2026, 5, 20),  // Día de la Bandera
+    new Date(2026, 6, 9),   // Día de la Independencia
+    new Date(2026, 7, 17),  // Paso a la Inmortalidad del General José de San Martín
+    new Date(2026, 9, 12),  // Día del Respeto a la Diversidad Cultural
+    new Date(2026, 10, 20), // Día de la Soberanía Nacional
+    new Date(2026, 11, 8),  // Inmaculada Concepción de María
+    new Date(2026, 11, 24), // Nochebuena
+    new Date(2026, 11, 25), // Navidad
+    new Date(2026, 11, 31), // Fin de Año
+    new Date(2027, 0, 1), // año nuevo
   ];
 
   //console.log("isHoliday date", date);
