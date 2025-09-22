@@ -1,28 +1,4 @@
-function isWeekend(date) {
-  const day = date.getDay();
-  //console.log("isWeekend date", date, "day", day, "isWeekend", day === 0 || day === 6);
-  return day === 0 || day === 6; // Sunday or Saturday
-}
-
-function isMonday(date) {
-  //console.log("isMonday date", date, "day", date.getDay(), "isMonday", date.getDay() === 1);
-  return date.getDay() === 1;
-}
-
-function isSameDay(date1, date2) {
-  //console.log("isSameDay date1", date1);
-  //console.log("isSameDay date2", date2);
-  //console.log("isSameDay result", date1.getFullYear() === date2.getFullYear() &&
-  //       date1.getMonth() === date2.getMonth() &&
-  //       date1.getDate() === date2.getDate());
-
-  return date1.getFullYear() === date2.getFullYear() &&
-         date1.getMonth() === date2.getMonth() &&
-         date1.getDate() === date2.getDate();
-}
-
-function isHoliday(date) {
-  var holidays = [
+const holidays = [
     new Date(2024, 0, 1),
     new Date(2024, 2, 24), 
     new Date(2024, 2, 28), 
@@ -82,7 +58,24 @@ function isHoliday(date) {
     new Date(2027, 0, 1), // año nuevo
   ];
 
-  //console.log("isHoliday date", date);
+function isWeekend(date) {
+  const day = date.getDay();
+  //console.log("isWeekend date", date, "day", day, "isWeekend", day === 0 || day === 6);
+  return day === 0 || day === 6; // Sunday or Saturday
+}
+
+function isMonday(date) {
+  //console.log("isMonday date", date, "day", date.getDay(), "isMonday", date.getDay() === 1);
+  return date.getDay() === 1;
+}
+
+function isSameDay(date1, date2) {
+  return date1.getFullYear() === date2.getFullYear() &&
+         date1.getMonth() === date2.getMonth() &&
+         date1.getDate() === date2.getDate();
+}
+
+function isHoliday(date) {
   return holidays.some(holiday => isSameDay(date, holiday));
 }
 
@@ -139,6 +132,12 @@ function getPayDateFormatted(year, month) {
   return formatDate(payDate);
 }
 
+function getAvailableYears() {
+  const years = holidays.map(date => date.getFullYear());
+  const uniqueYears = [...new Set(years)].sort();
+  return uniqueYears;
+}
+
 module.exports = {
   getPayDate,
   getPayDateFormatted,
@@ -148,5 +147,6 @@ module.exports = {
   isWeekendOrHoliday,
   getFirstBusinessDayOfMonth,
   getLastBusinessDayOfMonth,
-  formatDate
+  formatDate,
+  getAvailableYears
 };
