@@ -1,133 +1,321 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" data-bs-theme="light">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Fechas de Cobro</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <title>Estimador de Precios para la Conferencia 2026</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.1.0/select2.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.10.0/css/bootstrap-datepicker.min.css"
+        rel="stylesheet">
+    <style>
+        /* Estilos para Select2 en modo dark */
+        [data-bs-theme="dark"] .select2-container--default .select2-selection--single {
+            background-color: #212529;
+            border-color: #495057;
+            color: #dee2e6;
+        }
+        [data-bs-theme="dark"] .select2-container--default .select2-selection--single .select2-selection__rendered {
+            color: #dee2e6;
+        }
+        [data-bs-theme="dark"] .select2-container--default .select2-selection--single .select2-selection__arrow b {
+            border-color: #dee2e6 transparent transparent transparent;
+        }
+        [data-bs-theme="dark"] .select2-dropdown {
+            background-color: #212529;
+            border-color: #495057;
+        }
+        [data-bs-theme="dark"] .select2-container--default .select2-search--dropdown .select2-search__field {
+            background-color: #2b3035;
+            border-color: #495057;
+            color: #dee2e6;
+        }
+        [data-bs-theme="dark"] .select2-container--default .select2-results__option {
+            color: #dee2e6;
+        }
+        [data-bs-theme="dark"] .select2-container--default .select2-results__option--highlighted[aria-selected] {
+            background-color: #0d6efd;
+        }
+        /* Estilos para Datepicker en modo dark */
+        [data-bs-theme="dark"] .datepicker {
+            background-color: #212529;
+            color: #dee2e6;
+        }
+        [data-bs-theme="dark"] .datepicker table tr td,
+        [data-bs-theme="dark"] .datepicker table tr th {
+            color: #dee2e6;
+        }
+        [data-bs-theme="dark"] .datepicker table tr td.day:hover {
+            background-color: #495057;
+        }
+        [data-bs-theme="dark"] .datepicker table tr td.active,
+        [data-bs-theme="dark"] .datepicker table tr td.active:hover {
+            background-color: #0d6efd;
+        }
+        /* Estilo del switch de tema */
+        .theme-switch-wrapper {
+            z-index: 1000;
+        }
+    </style>
 </head>
+
 <body>
-    <div class="container mt-5">
-        <div class="row justify-content-center">
-            <div class="col-lg-8">
-                <div class="card shadow">
-                    <div class="card-header bg-primary text-white text-center">
-                        <h1 class="mb-0" id="pageTitle">🗓️ Fechas de Cobro</h1>
-                        <p class="mb-0">Cronograma de pagos de sueldos</p>
-                    </div>
-                    <div class="card-body">
-                        <div class="row mb-3">
-                            <div class="col-md-6">
-                                <label for="yearSelector" class="form-label">Seleccionar Año:</label>
-                                <select class="form-select" id="yearSelector">
-                                    <!-- Options will be populated by JavaScript -->
-                                </select>
-                            </div>
-                        </div>
-                        <div class="table-responsive">
-                            <table class="table table-striped table-hover">
-                                <thead class="table-dark">
-                                    <tr>
-                                        <th scope="col">Mes</th>
-                                        <th scope="col">Fecha de Pago</th>
-                                        <th scope="col">Tipo</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="payrollTable">
-                                    <!-- Data will be populated by JavaScript -->
-                                </tbody>
-                            </table>
-                        </div>
-                        <div class="mt-4">
-                            <div class="alert alert-info" role="alert">
-                                <h6 class="alert-heading">📋 Reglas de Pago:</h6>
-                                <ul class="mb-0">
-                                    <li><strong>Adelanto:</strong> Si el primer día hábil del mes siguiente es lunes, fin de semana o feriado, se paga el último día hábil del mes actual.</li>
-                                    <li><strong>Fecha normal:</strong> Si el primer día hábil del mes siguiente es martes a viernes (no feriado), se paga ese mismo día.</li>
-                                </ul>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
+    <!-- Switch de tema -->
+    <div class="position-fixed top-0 end-0 p-3 theme-switch-wrapper">
+        <div class="form-check form-switch">
+            <input class="form-check-input" type="checkbox" role="switch" id="theme-switch">
+            <label class="form-check-label" for="theme-switch" id="theme-label">Dark</label>
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
-    <script src="payroll-dates.js"></script>
+    <div class="container mt-5">
+        <h1 class="mb-4">Estimador de Precios para la Conferencia 2026</h1>
+        <form id="insurance-form">
+            <!-- Edad y Días para el Solicitante Principal -->
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <label for="age" class="form-label">Tu Edad</label>
+                    <select id="age" class="form-select select2"></select>
+                </div>
+                <div class="col-md-6">
+                    <label for="your-days" class="form-label">Días de participación</label>
+                    <select id="your-days" class="form-select select2SinSearch"></select>
+                </div>
+            </div>
+
+            <!-- Edad y Días para el Cónyuge -->
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <label for="spouse-age" class="form-label">Edad del Cónyuge</label>
+                    <select id="spouse-age" class="form-select select2"></select>
+                </div>
+                <div class="col-md-6">
+                    <label for="spouse-days" class="form-label">Días de participación</label>
+                    <select id="spouse-days" class="form-select select2SinSearch"></select>
+                </div>
+            </div>
+
+            <!-- Número de Hijos -->
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <label for="num-children" class="form-label">Número de Hijos</label>
+                    <select id="num-children" class="form-select select2SinSearch"></select>
+                </div>
+            </div>
+
+            <!-- Detalles de los Hijos -->
+            <div id="children-details" class="mb-3"></div>
+
+            <!-- Fecha de Pago -->
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <label for="payment-date" class="form-label">Fecha de Pago <span class="text-danger">*</span></label>
+                    <input type="text" id="payment-date" class="form-control datepicker">
+                    <div id="payment-date-error" class="text-danger small d-none">La fecha de pago es requerida</div>
+                </div>
+            </div>
+
+            <!-- Resultado -->
+            <div class="mb-3">
+                <button type="button" class="btn btn-primary" id="calculate">Calcular Precio</button>
+            </div>
+            <div id="result" class="alert alert-info d-none"></div>
+
+            <div><img src="new-img.jpeg" alt="Valores CV 2026"></div>
+        </form>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+    <script
+        src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.10.0/js/bootstrap-datepicker.min.js"></script>
     <script>
-        function getPayType(year, month) {
-            const nextMonth = month === 11 ? 0 : month + 1;
-            const nextYear = month === 11 ? year + 1 : year;
-            const firstBusinessDayNextMonth = getFirstBusinessDayOfMonth(nextYear, nextMonth);
+        // Lógica de tema Light/Dark
+        (function() {
+            const THEME_KEY = 'theme-preference';
+            const htmlElement = document.documentElement;
+            const themeSwitch = document.getElementById('theme-switch');
+            const themeLabel = document.getElementById('theme-label');
 
-            if (isWeekendOrHoliday(firstBusinessDayNextMonth) || isMonday(firstBusinessDayNextMonth)) {
-                return { type: 'Adelanto', class: 'text-warning' };
-            } else {
-                return { type: 'Normal', class: 'text-success' };
+            // Cargar tema guardado o usar 'light' por defecto
+            function loadTheme() {
+                const savedTheme = localStorage.getItem(THEME_KEY) || 'light';
+                applyTheme(savedTheme);
             }
-        }
 
-        // Populate the year selector
-        function populateYearSelector() {
-            const yearSelector = document.getElementById('yearSelector');
-            const availableYears = getAvailableYears();
-            const currentYear = new Date().getFullYear();
+            // Aplicar tema
+            function applyTheme(theme) {
+                htmlElement.setAttribute('data-bs-theme', theme);
+                themeSwitch.checked = (theme === 'dark');
+                themeLabel.textContent = (theme === 'dark') ? 'Light' : 'Dark';
+            }
 
-            // Clear existing options
-            yearSelector.innerHTML = '';
+            // Cambiar tema
+            function toggleTheme() {
+                const currentTheme = htmlElement.getAttribute('data-bs-theme');
+                const newTheme = (currentTheme === 'dark') ? 'light' : 'dark';
+                applyTheme(newTheme);
+                localStorage.setItem(THEME_KEY, newTheme);
+            }
 
-            // Add year options
-            availableYears.forEach(year => {
-                const option = document.createElement('option');
-                option.value = year;
-                option.textContent = year;
-                if (year === currentYear) {
-                    option.selected = true;
+            // Event listener para el switch
+            themeSwitch.addEventListener('change', toggleTheme);
+
+            // Cargar tema al iniciar
+            loadTheme();
+        })();
+
+        $(document).ready(function () {
+            // Constantes de precios
+            const PRECIOS_ADULTO = [45000, 90000, 120000, 150000]; // [1 día, 2 días, 3 días, 4 días]
+            const PRECIOS_NINO = [22500, 45000, 60000, 75000];     // [1 día, 2 días, 3 días, 4 días]
+            const FECHA_LIMITE_DESCUENTO = new Date('2026-01-29');
+
+            function formatCurrency(value) {
+                if (value != null) {
+                    return value.toLocaleString('es-419', {
+                        style: 'currency',
+                        currency: 'USD',
+                        currencyDisplay: "narrowSymbol",
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2
+                    });
+                } else {
+                    return '$0.00';
                 }
-                yearSelector.appendChild(option);
-            });
-
-            // Add event listener for year change
-            yearSelector.addEventListener('change', function() {
-                populatePayrollTable(parseInt(this.value));
-            });
-        }
-
-        // Populate the table
-        function populatePayrollTable(selectedYear) {
-            const year = selectedYear || new Date().getFullYear();
-            const tbody = document.getElementById('payrollTable');
-            const months = [
-                'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-                'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
-            ];
-
-            // Update page title with selected year
-            document.getElementById('pageTitle').textContent = `🗓️ Fechas de Cobro ${year}`;
-
-            // Clear existing rows
-            tbody.innerHTML = '';
-
-            for (let month = 0; month < 12; month++) {
-                const payDate = getPayDate(year, month);
-                const payType = getPayType(year, month);
-
-                const row = document.createElement('tr');
-                row.innerHTML = `
-                    <td><strong>${months[month]}</strong></td>
-                    <td>${formatDate(payDate)}</td>
-                    <td><span class="${payType.class}">${payType.type}</span></td>
-                `;
-                tbody.appendChild(row);
             }
-        }
 
-        // Initialize the page
-        document.addEventListener('DOMContentLoaded', function() {
-            populateYearSelector();
-            populatePayrollTable();
+            $('.select2').select2();
+            $('.select2SinSearch').select2({
+                minimumResultsForSearch: Infinity
+            });
+            $('.datepicker').datepicker({
+                format: 'yyyy-mm-dd',
+                autoclose: true
+            }).on('changeDate', function() {
+                // Limpiar error cuando se selecciona una fecha
+                $('#payment-date-error').addClass('d-none');
+                $('#payment-date').removeClass('is-invalid');
+            });
+
+            // Poblar listas desplegables
+            for (let i = 0; i <= 100; i++) {
+                $('#age, #spouse-age').append(new Option(i, i));
+            }
+
+            for (let i = 1; i <= 4; i++) {
+                $('#your-days, #spouse-days').append(new Option(i, i));
+            }
+
+            for (let i = 0; i <= 10; i++) {
+                $('#num-children').append(new Option(i, i));
+            }
+
+            $('#num-children').on('change', function () {
+                const numChildren = parseInt($(this).val());
+                const childrenDetails = $('#children-details');
+                childrenDetails.empty();
+                for (let i = 1; i <= numChildren; i++) {
+                    childrenDetails.append(`
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <label for="child-age-${i}" class="form-label">Edad del Hijo ${i}</label>
+                                        <select id="child-age-${i}" class="form-select select2child child-age"></select>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label for="child-days-${i}" class="form-label">Días de participación</label>
+                                        <select id="child-days-${i}" class="form-select select2childSinSearch child-days"></select>
+                                    </div>
+                                </div>
+                            `);
+
+                    for (let j = 0; j <= 100; j++) {
+                        $(`#child-age-${i}`).append(new Option(j, j));
+                    }
+
+                    for (let j = 1; j <= 4; j++) {
+                        $(`#child-days-${i}`).append(new Option(j, j));
+                    }
+                }
+                $('.select2child').select2();
+                $('.select2childSinSearch').select2({
+                    minimumResultsForSearch: Infinity
+                });
+            });
+
+            $('#calculate').on('click', function () {
+                // Recopilar datos del formulario y calcular el precio
+                const age = parseInt($('#age').val());
+                const yourDays = parseInt($('#your-days').val());
+                const spouseAge = parseInt($('#spouse-age').val());
+                const spouseDays = parseInt($('#spouse-days').val());
+                const numChildren = parseInt($('#num-children').val());
+                const paymentDateValue = $('#payment-date').val();
+                const children = [];
+
+                // Validar fecha de pago
+                const fechaValida = paymentDateValue && paymentDateValue.trim() !== '';
+                if (!fechaValida) {
+                    $('#payment-date-error').removeClass('d-none');
+                    $('#payment-date').addClass('is-invalid');
+                }
+
+                const paymentDate = fechaValida ? new Date(paymentDateValue) : null;
+
+                for (let i = 1; i <= numChildren; i++) {
+                    const childAge = parseInt($(`#child-age-${i}`).val());
+                    const childDays = parseInt($(`#child-days-${i}`).val());
+                    children.push({ age: childAge, days: childDays });
+                }
+
+                let total = 0;
+                let amountMain = 0;
+                let amountSpouse = 0;
+                let discountType = "Ninguno";
+
+                // Calcular costos para adultos
+                if (age > 0) {
+                    amountMain = PRECIOS_ADULTO[yourDays - 1];
+                    total += amountMain;
+                }
+                if (spouseAge > 0) {
+                    amountSpouse = PRECIOS_ADULTO[spouseDays - 1];
+                    total += amountSpouse;
+                }
+
+                // Calcular costos para hijos
+                children.forEach(child => {
+                    let amount = 0;
+                    if (child.age >= 3 && child.age <= 12) {
+                        amount = PRECIOS_NINO[child.days - 1];
+                        total += amount;
+                    } else if (child.age >= 13) {
+                        amount = PRECIOS_ADULTO[child.days - 1];
+                        total += amount;
+                    }
+                });
+
+                // Aplicar descuento del 10% si aplica
+                const tieneHijos3a12 = children.some(child => child.age >= 3 && child.age <= 12);
+                const esMatrimonio = spouseAge > 0;
+
+                if (fechaValida && paymentDate < FECHA_LIMITE_DESCUENTO && (esMatrimonio || tieneHijos3a12)) {
+                    const descuento = total * 0.1;
+                    total -= descuento;
+                    discountType = `10% de descuento (${formatCurrency(descuento)}) - Matrimonio o familia con hijos de 3 a 12 años`;
+                }
+
+                // Mostrar resultado
+                $('#result').removeClass('d-none').html(`
+                            <strong>Precio Total:</strong> ${formatCurrency(total)}<br>
+                            <strong>Descuento Aplicado (por pago anticipado):</strong> ${discountType}
+                        `);
+            });
         });
     </script>
 </body>
+
 </html>
