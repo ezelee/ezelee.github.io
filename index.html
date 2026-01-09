@@ -275,41 +275,72 @@
                 let amountMain = 0;
                 let amountSpouse = 0;
                 let discountType = "Ninguno";
+                const esMatrimonio = spouseAge > 0;
+                const aplicaDescuento = fechaValida && paymentDate < FECHA_LIMITE_DESCUENTO && esMatrimonio;
+                const factorDescuento = aplicaDescuento ? 0.9 : 1;
 
-                // Calcular costos para adultos
+                // Calcular costos para adultos (con descuento si aplica)
+                let finalMain = 0;
+                let finalSpouse = 0;
                 if (age > 0) {
                     amountMain = PRECIOS_ADULTO[yourDays - 1];
-                    total += amountMain;
+                    finalMain = aplicaDescuento ? amountMain * factorDescuento : amountMain;
+                    total += finalMain;
                 }
                 if (spouseAge > 0) {
                     amountSpouse = PRECIOS_ADULTO[spouseDays - 1];
-                    total += amountSpouse;
+                    finalSpouse = aplicaDescuento ? amountSpouse * factorDescuento : amountSpouse;
+                    total += finalSpouse;
                 }
 
                 // Calcular costos para hijos
-                children.forEach(child => {
+                const childrenFinal = [];
+                children.forEach((child, index) => {
                     let amount = 0;
+                    let finalAmount = 0;
+                    let tieneDescuento = false;
                     if (child.age >= 3 && child.age <= 12) {
                         amount = PRECIOS_NINO[child.days - 1];
-                        total += amount;
+                        finalAmount = aplicaDescuento ? amount * factorDescuento : amount;
+                        tieneDescuento = aplicaDescuento;
                     } else if (child.age >= 13) {
                         amount = PRECIOS_ADULTO[child.days - 1];
-                        total += amount;
+                        finalAmount = amount; // Sin descuento para mayores de 12
+                        tieneDescuento = false;
+                    }
+                    if (amount > 0) {
+                        total += finalAmount;
+                        childrenFinal.push({ index: index + 1, age: child.age, amount, finalAmount, tieneDescuento });
                     }
                 });
 
-                // Aplicar descuento del 10% si aplica
-                const tieneHijos3a12 = children.some(child => child.age >= 3 && child.age <= 12);
-                const esMatrimonio = spouseAge > 0;
-
-                if (fechaValida && paymentDate < FECHA_LIMITE_DESCUENTO && (esMatrimonio || tieneHijos3a12)) {
-                    const descuento = total * 0.1;
-                    total -= descuento;
-                    discountType = `10% de descuento (${formatCurrency(descuento)}) - Matrimonio o familia con hijos de 3 a 12 años`;
+                // Calcular descuento total
+                let descuentoTotal = 0;
+                if (aplicaDescuento) {
+                    descuentoTotal = (amountMain + amountSpouse) * 0.1;
+                    childrenFinal.forEach(c => {
+                        if (c.tieneDescuento) {
+                            descuentoTotal += c.amount * 0.1;
+                        }
+                    });
+                    discountType = `10% de descuento (${formatCurrency(descuentoTotal)}) - Matrimonio (incluye hijos de 3 a 12 años)`;
                 }
+
+                // Construir desglose
+                let desglose = '<strong>Desglose:</strong><br>';
+                if (age > 0) {
+                    desglose += `&nbsp;&nbsp;• Solicitante: ${formatCurrency(finalMain)}${aplicaDescuento ? ' (con 10% desc.)' : ''}<br>`;
+                }
+                if (spouseAge > 0) {
+                    desglose += `&nbsp;&nbsp;• Cónyuge: ${formatCurrency(finalSpouse)}${aplicaDescuento ? ' (con 10% desc.)' : ''}<br>`;
+                }
+                childrenFinal.forEach(c => {
+                    desglose += `&nbsp;&nbsp;• Hijo ${c.index} (${c.age} años): ${formatCurrency(c.finalAmount)}${c.tieneDescuento ? ' (con 10% desc.)' : ''}<br>`;
+                });
 
                 // Mostrar resultado
                 $('#result').removeClass('d-none').html(`
+                            ${desglose}
                             <strong>Precio Total:</strong> ${formatCurrency(total)}<br>
                             <strong>Descuento Aplicado (por pago anticipado):</strong> ${discountType}
                         `);
