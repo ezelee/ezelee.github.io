@@ -1,0 +1,442 @@
+{
+  "module_title": "Module 04: Storage Services",
+  "estimated_duration_min": 44,
+  "turns": [
+    {
+      "speaker": "ana",
+      "text": "Imaginate este escenario: una empresa necesita guardar millones de imágenes subidas por usuarios, que se acceden frecuentemente durante el primer mes, casi nunca después. ¿Qué servicio usás y qué configuración? La respuesta involucra S3 con Lifecycle Policies para mover objetos entre storage classes automáticamente. Hoy vemos todos los servicios de storage de AWS — S3, EBS, EFS, Storage Gateway, Snow Family y FSx — que juntos representan entre quince y veinte por ciento del examen."
+    },
+    {
+      "speaker": "carlos",
+      "text": "Dale. Yo usé S3 bastante pero solo para casos muy específicos — guardar datos de scrapers y hostear una SPA. Nunca miré bien todas las opciones de storage classes ni otros servicios como EBS o EFS."
+    },
+    {
+      "speaker": "ana",
+      "text": "Perfecto punto de partida. Este módulo tiene seis servicios principales. S3 para object storage. EBS para block storage adjunto a E.C. 2. EFS para file system compartido en Linux. Storage Gateway como puente híbrido con on-premises. Snow Family para migración física de datos. Y FSx para file systems managed de Windows y HPC. Cada uno tiene un caso de uso diferente y el examen testea que sepas cuándo usar cuál."
+    },
+    {
+      "speaker": "carlos",
+      "text": "¿Por dónde empezamos?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Por S3, que es el más usado y el que más pregunta el examen. Simple Storage Service es object storage — guardás archivos como objetos dentro de buckets. Lo que lo hace especial: storage prácticamente ilimitado, objetos de hasta cinco terabytes, y una durabilidad de once nueves — eso es 99.999999999 por ciento. Para que tengas noción: si guardás diez millones de objetos, en promedio perdés uno cada diez mil años."
+    },
+    {
+      "speaker": "carlos",
+      "text": "Uy, eso es impresionante. ¿Y un objeto qué es exactamente? ¿Solo un archivo?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Un objeto tiene tres partes: el dato en sí, metadata que son pares clave-valor describiendo el objeto, y una key única dentro del bucket que funciona como su path. Por ejemplo: 'uploads/2024/01/imagen.jpg'. Esa key no es un directorio real, es solo un string. Pero la barra diagonal le da estructura visual. Eso es lo que llamamos prefix."
+    },
+    {
+      "speaker": "carlos",
+      "text": "Ah, y los bucket names tienen que ser únicos globalmente, ¿no? ¿Por qué?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Porque los buckets tienen una URL pública del tipo bucket-name punto s3 amazonaws com. Como esa URL tiene que ser única en toda la internet, el nombre del bucket tiene que ser único en todos los AWS accounts del mundo. Por eso a veces armás un nombre como mi-empresa-prod-data-2024 — para que no colisione con otro account."
+    },
+    {
+      "speaker": "carlos",
+      "text": "Eso lo viví — yo armaba los paths con un prefix estructurado, tipo año, mes, día y un ID de ejecución para cada run del scraper en Fargate. Así si el scraper corría dos veces el mismo día, los datos quedaban en prefixes distintos y no se pisaban."
+    },
+    {
+      "speaker": "ana",
+      "text": "Eso es exactamente el patrón correcto. Y tiene otra ventaja de performance que quizás no sabías: S3 distribuye las requests por prefix, entonces si tenés prefixes variados en vez de que todo empiece con el mismo string, las requests se distribuyen en más particiones y podés sacar más throughput. S3 aguanta tres mil quinientas operaciones de escritura y cinco mil quinientas de lectura por segundo por prefix."
+    },
+    {
+      "speaker": "carlos",
+      "text": "Ah, eso no lo sabía — que el prefix afecta el performance. Dale, hablame de las storage classes, que eso nunca lo implementé — explicámelo de cero."
+    },
+    {
+      "speaker": "ana",
+      "text": "Las storage classes de S3 definen el costo y el tiempo de recuperación de los objetos. La más cara y más rápida es S3 Standard — acceso en milisegundos, para datos que usás constantemente. S3 Standard-IA, donde IA es Infrequent Access, es más barata por GB guardado pero cobra un fee por cada recuperación — para datos que accedés pocas veces al mes."
+    },
+    {
+      "speaker": "carlos",
+      "text": "¿Y cuándo uso Standard-IA en vez de Standard?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Cuando el patrón de acceso es infrecuente pero predecible — backups que recuperás solo en caso de desastre, logs de auditoría que revisás una vez al mes. El punto de equilibrio es aproximadamente treinta días: si un objeto no se va a acceder en treinta días, Standard-IA es más barato. También existe One Zone-IA, que es igual de barata pero guarda los datos en una sola A.Z. — útil para datos reproducibles que podés reconstruir si se pierden."
+    },
+    {
+      "speaker": "carlos",
+      "text": "¿Y Intelligent-Tiering para qué sirve?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Intelligent-Tiering es para cuando no sabés con certeza el patrón de acceso. Monitorea cada objeto y lo mueve automáticamente entre capas de acceso frecuente e infrecuente según cómo lo estés usando. Tiene un pequeño fee mensual por objeto monitoreado, pero eliminás el riesgo de pagar de más por Standard si el objeto se vuelve frío, o de pagar retrieval fees inesperados con IA."
+    },
+    {
+      "speaker": "carlos",
+      "text": "Dale. ¿Y Glacier para archivos? Hay varios tipos, ¿no?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Sí, tres. Glacier Instant Retrieval es para archivos que accedés quizás una vez por trimestre pero necesitás que estén disponibles en milisegundos. Glacier Flexible Retrieval es para archivos que podés esperar minutos u horas en recuperar — backups anuales, por ejemplo. Y Glacier Deep Archive es el más barato de todo S3, para datos que accedés una o dos veces al año — el retrieval puede tardar hasta cuarenta y ocho horas."
+    },
+    {
+      "speaker": "carlos",
+      "text": "Capté. Deep Archive para datos que prácticamente nunca se tocan, como archivos de compliance. ¿Y versioning? Tampoco lo implementé."
+    },
+    {
+      "speaker": "ana",
+      "text": "Versioning guarda todas las versiones de un objeto cada vez que lo sobreescribís o borrás. Si subís imagen.jpg dos veces, S3 conserva las dos versiones. Si borrás imagen.jpg, S3 pone un delete marker pero las versiones anteriores siguen existiendo y las podés recuperar. La regla más importante del examen: una vez que habilitás versioning en un bucket, no lo podés deshabilitar, solo suspender."
+    },
+    {
+      "speaker": "carlos",
+      "text": "Esperá, ¿no se puede deshabilitar nunca?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Nunca. Podés suspenderlo, lo que significa que los nuevos objetos no generan versiones nuevas, pero todas las versiones anteriores quedan ahí. Para borrarlas tenés que hacerlo manualmente objeto por objeto. Ojo con esto en el examen: si pregunta cómo proteger contra borrado accidental, la respuesta es habilitar versioning. Si pregunta si se puede revertir versioning, la respuesta es no."
+    },
+    {
+      "speaker": "carlos",
+      "text": "Capté. ¿Y Lifecycle Policies cómo funcionan en práctica?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Las Lifecycle Policies son reglas que definís para automatizar transiciones entre storage classes o expirar objetos. Por ejemplo: después de treinta días, mover a Standard-IA. Después de noventa días, mover a Glacier Flexible. Después de trescientos sesenta y cinco días, borrar. Eso aplica automáticamente a todos los objetos que coincidan con el prefix o tag que especificaste, sin intervención manual."
+    },
+    {
+      "speaker": "carlos",
+      "text": "Ah, eso es justo lo que el examen preguntó en el hook — las imágenes frecuentes el primer mes y frías después. Con Lifecycle lo resolvés."
+    },
+    {
+      "speaker": "ana",
+      "text": "Exacto. Regla: después de treinta días mover a Standard-IA. Si después de un año ya no importan, una regla más para expirarlas. Todo automático. También vale saber que replication — tanto CRR que es Cross-Region Replication como SRR que es Same-Region Replication — requiere versioning habilitado en el bucket de origen. Sin versioning, no hay replication."
+    },
+    {
+      "speaker": "carlos",
+      "text": "¿Para qué usaría CRR en vez de tener todo en una región?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Tres casos de uso. Compliance: algunas regulaciones requieren copias de los datos en regiones geográficamente separadas. Latencia: si tenés usuarios en Asia y tu bucket principal está en us-east-1, replicar a ap-southeast-1 reduce la latencia de lectura para ellos. Y disaster recovery: si hay un evento que afecta toda una región, la copia en otra región está intacta. SRR se usa para agregar logs de múltiples buckets en uno o para replicar entre ambientes prod y dev."
+    },
+    {
+      "speaker": "carlos",
+      "text": "Dale. ¿Y el tema de encryption en S3?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Cuatro opciones de cifrado. SSE-S3: cifrado server-side con claves que AWS maneja completamente. Es el default desde 2023, todos los objetos nuevos se cifran automáticamente. SSE-KMS: mismo cifrado server-side pero las claves viven en KMS, lo que te da un audit trail de quién usó cada clave y cuándo. SSE-C: vos proveés la clave, S3 la usa para cifrar pero no la guarda. Y Client-Side: cifrás antes de subir."
+    },
+    {
+      "speaker": "carlos",
+      "text": "¿Cuándo usaría SSE-KMS en vez de SSE-S3?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Cuando necesitás un audit trail o control de acceso a las claves. Con SSE-KMS, CloudTrail registra cada vez que alguien descifra un objeto, lo que es importante para compliance. También podés configurar que solo ciertos roles I A M puedan usar la KMS key, así aunque alguien tenga acceso al bucket, no puede leer los datos si no tiene permiso a la key. SSE-S3 no te da ese nivel de control."
+    },
+    {
+      "speaker": "carlos",
+      "text": "Tiene sentido para datos sensibles. Dale, ¿y el access control? Ahí tuve una confusión en el pasado."
+    },
+    {
+      "speaker": "ana",
+      "text": "Tres mecanismos principales. Bucket Policies: documentos JSON adjuntos al bucket que definen quién puede hacer qué. IAM Policies: adjuntas al usuario o role que hace la request. Y Block Public Access: configuración a nivel de cuenta y de bucket que overridea cualquier policy que intente hacer un objeto o bucket público. Por default, todos los buckets nuevos tienen Block Public Access habilitado en todas sus opciones."
+    },
+    {
+      "speaker": "carlos",
+      "text": "Ahí justo — yo una vez deployé una SPA con CloudFront y creía que el bucket de S3 tenía que ser público para que CloudFront pudiera accederlo. Lo hice público y resulta que estaba mal."
+    },
+    {
+      "speaker": "ana",
+      "text": "Error muy común. El bucket tiene que ser completamente privado — Block Public Access todo en true. CloudFront accede a través de OAC, Origin Access Control, que firma las requests con SigV4. La bucket policy solo permite requests cuyo encabezado venga del ARN específico de tu CloudFront distribution. Así el contenido es accesible vía CloudFront pero no directamente por URL del bucket."
+    },
+    {
+      "speaker": "carlos",
+      "text": "Ah, o sea el bucket privado funciona igual para los usuarios porque CloudFront es el que hace la request con su identidad. ¿Y las ACLs?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Las ACLs son el sistema legacy de control de acceso de S3, anterior a las bucket policies. AWS recomienda deshabilitarlas y usar solo bucket policies e IAM policies. Para el examen: si ves una opción con ACLs y otra con bucket policies, casi siempre la correcta es bucket policies. Las ACLs no tienen la granularidad ni la expresividad de las policies JSON."
+    },
+    {
+      "speaker": "carlos",
+      "text": "Dale. ¿Y S3 performance con Multipart Upload y S3 Select?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Multipart Upload divide un objeto grande en partes y las sube en paralelo. Es obligatorio para objetos mayores a cinco gigabytes, y recomendado a partir de cien megabytes porque mejora el throughput y permite reintentar solo la parte que falló. Para el examen: si pregunta cómo optimizar la subida de archivos grandes, Multipart Upload es la respuesta."
+    },
+    {
+      "speaker": "carlos",
+      "text": "¿Y S3 Select para qué sirve?"
+    },
+    {
+      "speaker": "ana",
+      "text": "S3 Select te permite hacer queries SQL sobre el contenido de un objeto directamente en S3, sin bajar el objeto entero. Si tenés un CSV de cien megabytes y solo necesitás las filas donde el país sea Argentina, S3 Select filtra en S3 y te devuelve solo esas filas. El beneficio es enorme: hasta cuatrocientos por ciento más rápido y ochenta por ciento más barato en transferencia comparado con bajar todo y filtrar localmente."
+    },
+    {
+      "speaker": "carlos",
+      "text": "Ah, eso está bueno para data lakes. ¿Y Transfer Acceleration?"
+    },
+    {
+      "speaker": "ana",
+      "text": "S3 Transfer Acceleration es para subir datos a S3 más rápido cuando estás geográficamente lejos del bucket. En vez de ir directo al bucket en us-east-1 desde Europa o Asia, el cliente sube al Edge Location más cercano de CloudFront, y desde ahí va por la red backbone privada de AWS — que es mucho más rápida que el internet público — hasta el bucket. Cuesta extra pero puede reducir el tiempo de transfer significativamente."
+    },
+    {
+      "speaker": "carlos",
+      "text": "Dale. ¿Y los Event Notifications?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Event Notifications de S3 te permiten disparar acciones automáticas cuando pasan cosas en el bucket. Los eventos más comunes: objeto creado, objeto borrado, objeto restaurado desde Glacier. Los destinos pueden ser Lambda para procesamiento inmediato, SQS para encolar el evento, o SNS para notificaciones. El patrón más común del examen: usuario sube una imagen a S3, eso dispara Lambda que la procesa o le hace thumbnail."
+    },
+    {
+      "speaker": "carlos",
+      "text": "Capté. Pasemos a EBS. Esto no lo toqué nunca — te pregunto desde cero."
+    },
+    {
+      "speaker": "ana",
+      "text": "EBS, Elastic Block Store, es block storage para E.C. 2. Pensalo como un disco rígido que adjuntás a tu servidor virtual. La diferencia clave con S3 es que EBS es block storage — el OS lo ve como un disco y puede crear un filesystem encima. Es específico a una A.Z.: si tu E.C. 2 está en us-east-1a, el volumen EBS tiene que estar también en us-east-1a. No lo podés adjuntar a E.C. 2 en otra A.Z.."
+    },
+    {
+      "speaker": "carlos",
+      "text": "¿Y persiste si apago el E.C. 2?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Por default sí — cuando lanzás un E.C. 2 el volumen root tiene la opción 'delete on termination' activada, pero los volúmenes adicionales que adjuntás persisten aunque termines la instancia. También se pueden desvincular de un E.C. 2 y vincular a otro E.C. 2 en la misma A.Z.. Es como desenchufar el disco de un servidor y enchufarlo en otro."
+    },
+    {
+      "speaker": "carlos",
+      "text": "¿Y los tipos de volúmenes?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Dos familias. SSD: gp3 que es el general purpose más moderno y es la opción default para la mayoría de los casos, e io2 para workloads de muy alto IOPS como bases de datos Oracle o SAP que necesitan performance garantizada. HDD: st1 para workloads de throughput secuencial como Big Data o logs, y sc1 que es Cold HDD, el más barato, para datos que se acceden con poca frecuencia. Importante: los HDD no pueden ser boot volumes."
+    },
+    {
+      "speaker": "carlos",
+      "text": "¿Cuándo elegirías io2 sobre gp3?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Cuando necesitás más de dieciséis mil IOPS — el máximo de gp3 — o cuando necesitás IOPS garantizados sin variación. gp3 puede burstear pero tiene límites. io2 te da hasta sesenta y cuatro mil IOPS con latencia consistente de un solo dígito de milisegundos. Para el examen: si la pregunta menciona una base de datos crítica con alta demanda de IOPS, io2. Para todo lo demás, gp3."
+    },
+    {
+      "speaker": "carlos",
+      "text": "¿Y los Snapshots de EBS?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Los Snapshots son backups incrementales del volumen que se guardan en S3. El primero es una copia completa. Los siguientes solo copian los bloques que cambiaron desde el snapshot anterior. Podés copiar snapshots entre regiones, lo que te permite tomar un volumen de us-east-1 y recrearlo en eu-west-1. También podés crear una AMI desde un snapshot, que es como un template para lanzar nuevas instancias."
+    },
+    {
+      "speaker": "carlos",
+      "text": "¿Y Multi-Attach?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Multi-Attach solo existe para io1 e io2 — los de alta performance. Te permite adjuntar el mismo volumen a hasta dieciséis instancias E.C. 2 simultáneamente, pero todas tienen que estar en la misma A.Z.. Se usa para aplicaciones de clustering que necesitan acceso compartido a los mismos bloques de storage. Para el examen es un caso de uso muy específico — si ves 'multiple E.C. 2 instances need shared block storage', es Multi-Attach io2."
+    },
+    {
+      "speaker": "carlos",
+      "text": "Dale. Pasemos a EFS. Yo esto no lo toqué, así que te pregunto desde cero."
+    },
+    {
+      "speaker": "ana",
+      "text": "EFS, Elastic File System, es un file system de red managed — es como un shared drive que podés montar desde múltiples instancias E.C. 2 al mismo tiempo. A diferencia de EBS que es A.Z.-specific y se adjunta a una sola instancia, EFS es regional y multi-A.Z. por default. Podés montar el mismo file system desde miles de instancias en distintas A.Z. de la misma región simultáneamente."
+    },
+    {
+      "speaker": "carlos",
+      "text": "¿Y cuándo usaría EFS en vez de S3?"
+    },
+    {
+      "speaker": "ana",
+      "text": "S3 es object storage — accedés a cada objeto individualmente por su key, vía HTTP. EFS es un file system POSIX — los procesos en el OS lo ven como un directorio normal, pueden hacer operaciones de archivo convencionales: abrir, leer, escribir, append, mover archivos. Si tu aplicación necesita una ruta de sistema de archivos como slash data slash uploads y múltiples instancias necesitan leer y escribir ahí, EFS. Si solo guardás y recuperás archivos por key, S3."
+    },
+    {
+      "speaker": "carlos",
+      "text": "¿Y el protocolo que usa? ¿Cómo se monta?"
+    },
+    {
+      "speaker": "ana",
+      "text": "EFS usa NFSv4.1, Network File System versión cuatro punto uno. Por eso es solo compatible con Linux — Windows no soporta NFS nativamente. Para montar en Linux usás el AWS EFS mount helper o el comando mount estándar con NFS. El storage escala automáticamente de gigabytes a petabytes sin que vos hagas nada. Pagás por lo que usás, no por lo que aprovisionás."
+    },
+    {
+      "speaker": "carlos",
+      "text": "¿Y los performance modes?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Dos performance modes. General Purpose es el default — baja latencia, ideal para web servers, CMS, ambientes de desarrollo. Max I/O tiene mayor latencia pero mucho más throughput agregado — para casos como Big Data o procesamiento de video donde muchos procesos acceden al file system simultáneamente y el throughput importa más que la latencia individual. Para la mayoría de los casos, General Purpose es suficiente."
+    },
+    {
+      "speaker": "carlos",
+      "text": "¿Y los throughput modes?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Tres. Bursting: el throughput escala con el tamaño del file system, acumula créditos cuando está idle y puede burstar cuando necesita. Provisioned: especificás un throughput fijo independiente del tamaño, pagás por lo provisionado aunque no lo uses. Elastic es el más nuevo y el más simple: escala automáticamente el throughput según la demanda y pagás por lo que usás. Para cargas variables o impredecibles, Elastic es la mejor opción hoy."
+    },
+    {
+      "speaker": "carlos",
+      "text": "Capté. Dale, Storage Gateway — esto tampoco lo toqué nunca, explicámelo de cero."
+    },
+    {
+      "speaker": "ana",
+      "text": "Storage Gateway es el puente entre tu infraestructura on-premises y AWS. Es una virtual appliance o appliance físico que instalás en tu datacenter y que expone interfaces de almacenamiento familiares hacia adentro — NFS, SMB, iSCSI — pero por atrás guarda los datos en AWS. Tiene tres tipos según lo que necesitás: File Gateway, Volume Gateway, y Tape Gateway."
+    },
+    {
+      "speaker": "carlos",
+      "text": "¿File Gateway para qué sirve?"
+    },
+    {
+      "speaker": "ana",
+      "text": "File Gateway expone un file share por NFS o SMB que las aplicaciones on-premises usan como si fuera un servidor de archivos local. Pero los archivos se guardan automáticamente como objetos en S3. Tiene caché local para los archivos más accedidos, así la latencia para los datos frecuentes es baja aunque el backend sea S3. Caso de uso típico: backup de archivos on-premises a S3, o migrar file shares a la nube gradualmente."
+    },
+    {
+      "speaker": "carlos",
+      "text": "¿Y Volume Gateway?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Volume Gateway expone block storage iSCSI para aplicaciones on-premises que necesitan un disco. Tiene dos modos. Cached Volumes: el dataset completo está en AWS S3 y solo los datos más accedidos están cacheados localmente — minimiza el storage on-premises. Stored Volumes: el dataset completo está almacenado localmente para baja latencia de acceso, y de forma asíncrona se hace backup en S3 como EBS Snapshots."
+    },
+    {
+      "speaker": "carlos",
+      "text": "¿Y Tape Gateway reemplaza cintas físicas?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Exactamente. Muchas empresas grandes todavía usan infraestructura de backup en cintas físicas por compliance o costo. Tape Gateway presenta una Virtual Tape Library que los software de backup existentes ven como si fueran cintas reales. Pero las cintas virtuales se guardan en S3 o Glacier. Así podés seguir usando tu software de backup sin cambios, pero eliminás la gestión física de las cintas."
+    },
+    {
+      "speaker": "carlos",
+      "text": "Dale. Snow Family — dispositivos físicos para mover datos. ¿Cuándo es mejor eso que simplemente subir por internet?"
+    },
+    {
+      "speaker": "ana",
+      "text": "La regla del examen es simple: si la transferencia tardaría más de una semana por la conexión de red disponible, usás Snow. Por ejemplo, a diez megabits por segundo, transferir cincuenta terabytes tomaría cuarenta y seis días. Un Snowball Edge te lo envían, cargás los datos localmente, lo devolvés y AWS carga todo. Además, sin consumo de ancho de banda de tu conexión a internet durante la migración."
+    },
+    {
+      "speaker": "carlos",
+      "text": "¿Y hay diferentes tamaños?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Tres dispositivos. Snowcone es el más pequeño — ocho a catorce terabytes, portátil y resistente, para edge computing en locaciones remotas o colectar datos en el campo. Snowball Edge tiene dos versiones: Storage Optimized con ochenta terabytes y Compute Optimized con cuarenta y dos terabytes más poder de cómputo para correr E.C. 2 o Lambda localmente durante la migración. Y Snowmobile es literalmente un camión — cien petabytes — para migrar datacenters enteros."
+    },
+    {
+      "speaker": "carlos",
+      "text": "Un camión. Con GPS y seguridad armada, leí. ¿Y FSx, los últimos dos servicios?"
+    },
+    {
+      "speaker": "ana",
+      "text": "FSx son file systems managed por AWS. Dos principales para el examen. FSx for Windows File Server es un file system Windows completamente managed que usa el protocolo SMB, se integra con Active Directory, y soporta todas las features de Windows como DFS namespaces y shadow copies. Es la respuesta cuando ves 'Windows applications', 'SMB protocol', o 'Active Directory integration' en el examen."
+    },
+    {
+      "speaker": "carlos",
+      "text": "¿Y cuándo usar FSx Windows versus EFS?"
+    },
+    {
+      "speaker": "ana",
+      "text": "EFS es para Linux con NFS. FSx for Windows es para aplicaciones Windows que usan SMB y necesitan features de Windows como permisos NTFS o integración con Active Directory. No son intercambiables. Si la pregunta menciona Windows, Active Directory, o SMB — FSx for Windows. Si menciona Linux, NFS, o múltiples instancias en distintas A.Z. — EFS."
+    },
+    {
+      "speaker": "carlos",
+      "text": "¿Y FSx for Lustre?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Lustre es un file system de alta performance diseñado para cargas de HPC — High Performance Computing — machine learning, procesamiento de video y análisis financiero. Latencias sub-milisegundo y throughput de cientos de gigabytes por segundo. Lo que lo hace especial para el examen: se integra nativamente con S3. Podés hacer que Lustre lea y escriba datos directamente de un bucket de S3 como si fuera un disco local."
+    },
+    {
+      "speaker": "carlos",
+      "text": "¿Para qué sirve la integración con S3?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Para workflows de machine learning o HPC donde tus datos están en S3 pero necesitás procesarlos con latencia muy baja. Creás un Lustre file system apuntando a tu bucket, Lustre importa los objetos de S3 como archivos, tu job de HPC los procesa a alta velocidad, y los resultados se escriben de vuelta a S3 automáticamente. Eliminás el paso manual de bajar los datos, procesarlos, y subirlos de vuelta."
+    },
+    {
+      "speaker": "carlos",
+      "text": "Ah, tiene sentido para pipelines de ML. Dale, el Storage Decision Matrix antes de los exam tips."
+    },
+    {
+      "speaker": "ana",
+      "text": "La matriz de decisión para el examen. Archivos y backups por HTTP o API — S3. Block storage adjunto a E.C. 2 — EBS. File system compartido entre múltiples Linux E.C. 2 — EFS. File system compartido para Windows con Active Directory — FSx for Windows. HPC o machine learning con alta performance — FSx for Lustre. Integración híbrida on-premises — Storage Gateway. Migración física offline — Snow Family."
+    },
+    {
+      "speaker": "carlos",
+      "text": "Dale, claro. ¿Los exam tips?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Los puntos críticos de S3 para el examen. Bucket names son globalmente únicos. Los objetos son de hasta cinco terabytes, y para subir más de cinco gigabytes hay que usar Multipart Upload obligatoriamente. La durabilidad es once nueves. Block Public Access está activado por default en todos los buckets nuevos. Y desde dos mil veintitrés, todos los objetos se cifran con SSE-S3 por default."
+    },
+    {
+      "speaker": "carlos",
+      "text": "¿Y sobre las storage classes qué es lo más importante?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Para el examen: Standard para acceso frecuente. Standard-IA para datos que accedés esporádicamente pero necesitás en milisegundos cuando los pedís. One Zone-IA igual pero solo para datos que podés reconstruir si se pierden. Intelligent-Tiering cuando el patrón es impredecible. Glacier Instant para archivos trimestrales. Glacier Flexible para backups mensuales. Deep Archive para compliance o datos que accedés una vez al año como máximo."
+    },
+    {
+      "speaker": "carlos",
+      "text": "¿Y el gotcha de versioning?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Una vez habilitado, no se puede deshabilitar. Solo suspender. Y replicación — tanto CRR como SRR — requiere versioning habilitado en el bucket de origen. Sin versioning activo en source, la replication no funciona. Otro gotcha: los delete markers de versioning no se replican por default — si borrás un objeto en el source, eso no borra el objeto en el destino a menos que configures explícitamente la replication de delete markers."
+    },
+    {
+      "speaker": "carlos",
+      "text": "¿Y los gotchas de EBS?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Tres puntos. Primero: EBS es A.Z.-specific — si el examen pregunta por shared storage entre instancias en múltiples A.Z., la respuesta no es EBS, es EFS. Segundo: los volúmenes HDD, st1 y sc1, no pueden ser boot volumes — solo SSD. Tercero: para cifrar un volumen EBS existente que no está cifrado, el proceso es: crear un snapshot, copiar el snapshot con cifrado habilitado, y crear un volumen nuevo desde esa copia cifrada."
+    },
+    {
+      "speaker": "carlos",
+      "text": "¿Y Snow Family en el examen cómo aparece?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Siempre como escenario de migración con restricción de red. La regla: si el tiempo de transferencia vía internet supera una semana, Snow. Si el volumen es de petabytes y necesita mínima disrupción de red — Snowmobile, el camión. Si es decenas de terabytes — Snowball Edge. Si es edge computing en lugares remotos sin conectividad — Snowcone. Para el examen también importa: Snowball Edge puede correr E.C. 2 y Lambda localmente en el borde."
+    },
+    {
+      "speaker": "carlos",
+      "text": "¿Algo más sobre Storage Gateway?"
+    },
+    {
+      "speaker": "ana",
+      "text": "La distinción más importante del examen: File Gateway para migrar o extender file shares on-premises a S3 via NFS o SMB. Volume Gateway para block storage on-premises con backup en S3. Tape Gateway para reemplazar infraestructura de cintas físicas. Y el gotcha: Volume Gateway Cached Volumes versus Stored Volumes. Cached: los datos viven en S3, solo el cache local. Stored: los datos viven on-premises, backup asíncrono a S3."
+    },
+    {
+      "speaker": "carlos",
+      "text": "Capté. ¿Hacemos el recap?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Dale. Contame el framework de decisión de storage."
+    },
+    {
+      "speaker": "carlos",
+      "text": "Object storage para archivos y web content — S3. Block storage adjunto a una E.C. 2 en la misma A.Z. — EBS, con gp3 para general purpose y io2 para alta demanda de IOPS. File system compartido Linux multi-A.Z. — EFS. File system Windows con Active Directory — FSx for Windows. HPC y machine learning — FSx for Lustre que además se integra con S3. Hybrid on-premises — Storage Gateway. Migración física offline cuando la red tardaría más de una semana — Snow Family."
+    },
+    {
+      "speaker": "ana",
+      "text": "Perfecto. ¿Los gotchas más importantes?"
+    },
+    {
+      "speaker": "carlos",
+      "text": "EBS es A.Z.-specific y los HDD no pueden ser boot volumes. Versioning de S3 no se puede deshabilitar una vez activado. Block Public Access está habilitado por default en buckets nuevos. Replication requiere versioning. Y para CloudFront con S3, el bucket tiene que ser privado con OAC, nunca público — ese error lo cometí yo."
+    },
+    {
+      "speaker": "ana",
+      "text": "Excelente. Este módulo es el que más servicios distintos cubre en un solo episodio — seis servicios con lógicas muy diferentes. La clave para el examen es internalizar la matriz de decisión: cuándo S3 versus EBS versus EFS versus FSx, y para qué escenario hybrid o físico. Con eso claro, las preguntas de storage se vuelven muy directas. Nos vemos en el módulo cinco: Database Services, donde vamos a ver RDS, Aurora, DynamoDB y el resto de la familia de bases de datos de AWS."
+    }
+  ]
+}

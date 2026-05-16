@@ -1,0 +1,570 @@
+{
+  "module_title": "Module 05: Database Services",
+  "estimated_duration_min": 40,
+  "turns": [
+    {
+      "speaker": "ana",
+      "text": "Imaginá esto: sos arquitecto de una startup de fintech y tu CTO te pregunta qué base de datos van a usar para el sistema de pagos. Hay cinco equipos tirando para lados distintos — uno quiere PostgreSQL, otro quiere DynamoDB, otro Redshift. Hoy vamos a armar el mapa mental para que en el examen, y en producción, puedas responder esa pregunta con confianza."
+    },
+    {
+      "speaker": "carlos",
+      "text": "Uh, eso suena a una reunión que puede durar horas. ¿Cuántos servicios de base de datos tiene AWS exactamente?"
+    },
+    {
+      "speaker": "ana",
+      "text": "En este módulo vemos los principales: RDS, Aurora, DynamoDB, ElastiCache, Redshift, y después un grupo de especializadas — DocumentDB, Neptune, Keyspaces, Q L D B y Timestream. Parece mucho, pero cada una tiene un caso de uso muy claro. El examen casi siempre te da las pistas en el enunciado."
+    },
+    {
+      "speaker": "carlos",
+      "text": "A ver, antes de arrancar — bases de datos en AWS no las toqué nunca. Sé de bases de datos relacionales en general, pero todo lo managed de AWS es nuevo para mí. Así que te pregunto todo desde cero."
+    },
+    {
+      "speaker": "ana",
+      "text": "Perfecto, ese es el punto de partida ideal. El examen tiene entre el diez y el quince por ciento de preguntas sobre bases de datos. La mayoría son de selección de servicio: te dan un escenario y preguntás cuál elegís. Si entendés los trade-offs, las preguntas se vuelven muy predecibles."
+    },
+    {
+      "speaker": "carlos",
+      "text": "Dale, ¿arrancamos por cuál?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Por Amazon RDS, que significa Relational Database Service. Es el servicio managed de bases de datos relacionales de AWS. Managed significa que AWS se encarga de provisioning, patching, backups, recovery y failover. Vos solo configurás parámetros y usás la base de datos."
+    },
+    {
+      "speaker": "carlos",
+      "text": "Esperá, ¿managed significa que no tengo acceso SSH al servidor donde corre la base de datos?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Exacto. No tenés SSH, no manejás el sistema operativo. AWS abstrae todo eso. Hay una excepción que se llama RDS Custom, pero la regla general es: si usás RDS, no tocás el OS. Ese es el trade-off managed versus instalar la base de datos vos mismo en una instancia E.C. 2."
+    },
+    {
+      "speaker": "carlos",
+      "text": "Capté. ¿Y qué motores de base de datos soporta RDS?"
+    },
+    {
+      "speaker": "ana",
+      "text": "PostgreSQL, MySQL, MariaDB, Oracle, SQL Server, y Aurora — que es el motor propio de AWS. Aurora es técnicamente parte del ecosistema RDS pero tiene características tan distintas que lo vemos separado. Para el examen, memorizá esa lista de seis motores."
+    },
+    {
+      "speaker": "carlos",
+      "text": "Okay. ¿Los backups cómo funcionan en RDS?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Hay dos tipos. Automated backups: un full backup diario durante la maintenance window, más transaction logs cada cinco minutos. Eso te da Point-in-Time Recovery, o sea PITR. El retention va de uno a treinta y cinco días, por default son siete. El otro tipo son manual snapshots — los disparás vos y se quedan hasta que los borrás."
+    },
+    {
+      "speaker": "carlos",
+      "text": "¿Y si borro la instancia de RDS, los backups desaparecen?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Ojo con esto, que cae en el examen. Los automated backups se borran cuando eliminás la instancia, a menos que actives la opción de retenerlos. Los manual snapshots NO se borran automáticamente — sobreviven aunque elimines la instancia. Por eso antes de borrar una instancia importante, sacás un snapshot manual primero."
+    },
+    {
+      "speaker": "carlos",
+      "text": "Importante eso. ¿Y qué es Multi-AZ en RDS?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Multi-AZ es la estrategia de disaster recovery. AWS crea una instancia standby en una Availability Zone distinta y replica sincrónicamente. Sincrónico significa que cada write en la primaria se confirma recién cuando también está en la standby. Tenés un solo DNS name y el failover es automático, sin intervención manual."
+    },
+    {
+      "speaker": "carlos",
+      "text": "¿Y cuánto tarda ese failover?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Entre sesenta y ciento veinte segundos. El DNS apunta a la nueva primaria y las aplicaciones que usan ese DNS reconectan. Fijate que Multi-AZ aumenta la disponibilidad, no el rendimiento. Eso es punto clave para el examen: Multi-AZ no sirve para escalar lecturas."
+    },
+    {
+      "speaker": "carlos",
+      "text": "A ver, entonces si quiero escalar lecturas no es Multi-AZ, ¿son las Read Replicas?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Exactamente. Muy buena lectura. Read Replicas usan replicación asincrónica, eventualmente consistente. Tenés hasta quince Read Replicas por instancia — dentro de la misma AZ, cross-AZ, o cross-region. Cada replica tiene su propio DNS endpoint. Y si necesitás, podés promoverla a base de datos independiente."
+    },
+    {
+      "speaker": "carlos",
+      "text": "¿Las replicas cross-region tienen algún costo especial?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Sí. Replicas dentro de la misma región son gratuitas en cuanto a data transfer. Replicas cross-region tienen costo de replicación de red. Para el examen: si ves un escenario de disaster recovery en otra región con RDS, ese costo de replicación entra en la arquitectura."
+    },
+    {
+      "speaker": "carlos",
+      "text": "Tiene sentido. ¿Y la encriptación en RDS?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Encryption at rest con KMS — y acá viene algo importante: debés habilitarlo al crear la instancia. Si ya tenés una instancia sin encriptar, no podés activarlo directamente. El proceso es: snapshot, copiás el snapshot con encryption habilitada, restaurás desde ese snapshot encriptado. Es un proceso que cae en el examen."
+    },
+    {
+      "speaker": "carlos",
+      "text": "Uy, eso es un proceso manual. ¿Y la encriptación en tránsito?"
+    },
+    {
+      "speaker": "ana",
+      "text": "SSL y TLS. También tenés IAM Authentication para MySQL y PostgreSQL — en vez de usuario y contraseña, el token de IAM autentica la conexión. Los security groups controlan el acceso de red a la instancia. Y recordá: no hay SSH salvo en RDS Custom."
+    },
+    {
+      "speaker": "carlos",
+      "text": "¿Qué es RDS Proxy?"
+    },
+    {
+      "speaker": "ana",
+      "text": "RDS Proxy es un proxy managed entre tu aplicación y la base de datos. Su función principal es connection pooling: agrupa y reutiliza conexiones de base de datos, reduciendo la carga. Reduce el tiempo de failover en un sesenta y seis por ciento. Fuerza IAM Authentication. Y solo es accesible desde dentro de la VPC, no tiene endpoint público."
+    },
+    {
+      "speaker": "carlos",
+      "text": "¿Por qué el patrón Lambda más RDS necesita Proxy?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Lambda puede abrir miles de conexiones simultáneas porque cada invocación puede iniciar la suya propia. Sin Proxy, eso satura el connection pool de RDS. RDS Proxy absorbe esas conexiones, las reutiliza internamente, y la base de datos solo ve unas pocas conexiones activas. Es el patrón estándar para serverless más relacional."
+    },
+    {
+      "speaker": "carlos",
+      "text": "Ah, eso tiene mucho sentido. ¿Y RDS Custom?"
+    },
+    {
+      "speaker": "ana",
+      "text": "RDS Custom existe para Oracle y SQL Server cuando necesitás acceso al sistema operativo subyacente: instalar patches propios, configurar settings del OS, cosas que RDS standard no permite. Pero ojo — si necesitás control total, AWS recomienda instalar la base de datos directo en E.C. 2 en lugar de usar RDS Custom."
+    },
+    {
+      "speaker": "carlos",
+      "text": "Dale, creo que entendí RDS. ¿Pasamos a Aurora?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Vamos. Amazon Aurora es el motor propio de AWS — es propietario, no open source. Pero es compatible con PostgreSQL y MySQL. Eso significa que tu aplicación que hoy usa MySQL puede conectarse a Aurora MySQL sin cambiar el código de conexión. La diferencia está en el motor interno y en las capacidades."
+    },
+    {
+      "speaker": "carlos",
+      "text": "Esto no lo toqué nunca, te pregunto desde cero. ¿Qué lo hace mejor que RDS MySQL directamente?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Cinco veces la performance de MySQL en RDS y tres veces la de PostgreSQL. El storage escala automáticamente desde diez gigabytes hasta ciento veintiocho terabytes. Tiene hasta quince Read Replicas con replicación más rápida. El failover es en menos de treinta segundos. A cambio es veinte por ciento más caro que RDS."
+    },
+    {
+      "speaker": "carlos",
+      "text": "Treinta segundos de failover versus sesenta a ciento veinte de RDS — eso es enorme para producción."
+    },
+    {
+      "speaker": "ana",
+      "text": "Exacto, y el examen te va a preguntar esa diferencia. Si ves escenario donde piden el failover más rápido en base de datos relacional, la respuesta casi siempre es Aurora. Ahora, el high availability de Aurora también funciona distinto: guarda seis copias de los datos distribuidas en tres Availability Zones."
+    },
+    {
+      "speaker": "carlos",
+      "text": "¿Seis copias en tres A.Z.? ¿Cómo funciona eso para writes y reads?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Para writes necesita cuatro de las seis copias disponibles. Para reads con tres de seis es suficiente. El storage está distribuido en cientos de volúmenes y se auto-repara con replicación peer-to-peer. Perdés uno o dos nodos y seguís operando sin interrupciones. Eso es lo que hace a Aurora extremadamente resiliente."
+    },
+    {
+      "speaker": "carlos",
+      "text": "¿Y los endpoints de Aurora? Mencionaste Writer y Reader."
+    },
+    {
+      "speaker": "ana",
+      "text": "El Aurora DB Cluster tiene varios endpoints. El Writer Endpoint siempre apunta al master — si hay failover, se redirige automáticamente. El Reader Endpoint hace load balancing entre todas las Read Replicas. Y los Custom Endpoints te dejan definir subsets de instancias, por ejemplo para queries analíticas en réplicas más potentes."
+    },
+    {
+      "speaker": "carlos",
+      "text": "¿Y Aurora Serverless? ¿Es diferente a Aurora standard?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Aurora Serverless instancia y escala la base de datos automáticamente, sin que especifiques la capacidad. Pagás por segundo de uso. Ideal para workloads impredecibles, ambientes de dev y test, o aplicaciones con períodos de inactividad. Si no hay tráfico, puede escalar a cero y no pagás nada."
+    },
+    {
+      "speaker": "carlos",
+      "text": "¿Y Aurora Multi-Master?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Multi-Master convierte todos los nodos en writers. Cualquier nodo puede recibir reads y writes. Eso da write availability continua y failover de escritura inmediato — si un nodo writer cae, otro toma el lugar sin pausa. Es para casos donde no podés tolerar ni un segundo de downtime en escrituras."
+    },
+    {
+      "speaker": "carlos",
+      "text": "¿Y Aurora Global Database?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Global Database replica en múltiples regiones de AWS. Una región primaria que hace reads y writes, hasta cinco regiones secundarias read-only con menos de un segundo de lag. Para disaster recovery, podés promover una región secundaria a primaria en menos de un minuto. Es el estándar para aplicaciones globales con baja latencia."
+    },
+    {
+      "speaker": "carlos",
+      "text": "Menos de un segundo de lag cross-region es impresionante. ¿Y Backtrack?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Backtrack te permite volver la base de datos a cualquier punto en el tiempo sin restaurar desde un backup. Usa los logs internos de Aurora para retroceder — es más rápido que PITR, cuestión de segundos en vez de minutos. Solo disponible en Aurora MySQL-compatible. Muy útil para rollback rápido de un error."
+    },
+    {
+      "speaker": "carlos",
+      "text": "Okay, empiezo a entender por qué Aurora es más cara. Tiene todo. ¿Seguimos con DynamoDB?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Vamos. DynamoDB es muy distinto a todo lo anterior. Es una base de datos NoSQL, completamente serverless y managed. Soporta millones de requests por segundo, latencia de un solo dígito de milisegundos, alta disponibilidad en tres A.Z. automáticamente. No hay servidor ni cluster que administrar."
+    },
+    {
+      "speaker": "carlos",
+      "text": "Yo esto no lo toqué, así que te pregunto desde cero. ¿NoSQL qué significa? ¿No tiene tablas?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Tiene tablas, pero sin schema rígido — cada item puede tener atributos distintos. No hay JOINs entre tablas como en SQL. DynamoDB usa un modelo simple: tablas que contienen items, y cada item tiene atributos. Pensalo como un mapa de clave-valor muy poderoso que escala horizontalmente de forma automática."
+    },
+    {
+      "speaker": "carlos",
+      "text": "¿Y cómo se identifica cada item? ¿Con una primary key?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Exacto, dos opciones. Partition Key sola: un atributo que debe ser único y diversamente distribuido. O Partition Key más Sort Key: la combinación debe ser única, pero la partition key puede repetirse. Ejemplo clásico: user underscore id como partition key y timestamp como sort key para guardar el historial de un usuario."
+    },
+    {
+      "speaker": "carlos",
+      "text": "¿Por qué importa que la partition key sea diversa?"
+    },
+    {
+      "speaker": "ana",
+      "text": "DynamoDB distribuye los datos en nodos internos basándose en la partition key. Si todos los items tienen la misma partition key, todos los requests van al mismo nodo. Eso se llama hot partition y degrada la performance. Una partition key con buena cardinalidad distribuye la carga uniformemente entre nodos."
+    },
+    {
+      "speaker": "carlos",
+      "text": "¿Y los modos de capacidad?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Provisioned Mode es el default: especificás cuántos R C U — Read Capacity Units — y W C U — Write Capacity Units — necesitás. Podés activar auto-scaling para que ajuste dentro de rangos. Pagás por la capacidad reservada. Es más barato si el tráfico es predecible y consistente."
+    },
+    {
+      "speaker": "carlos",
+      "text": "¿Y el otro modo?"
+    },
+    {
+      "speaker": "ana",
+      "text": "On-Demand: DynamoDB escala automáticamente sin que especifiques nada. Pagás por cada request. La contra es que es dos punto cinco veces más caro que Provisioned bien configurado. Para el examen: workload impredecible o con picos abruptos va a On-Demand. Workload estable y predecible va a Provisioned para ahorrar costos."
+    },
+    {
+      "speaker": "carlos",
+      "text": "¿Qué significa exactamente un RCU?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Un RCU equivale a un strongly consistent read por segundo para un item de hasta cuatro kilobytes. O dos eventually consistent reads para el mismo tamaño. Un WCU es una escritura por segundo para items de hasta un kilobyte. Items más grandes consumen más unidades — un item de ocho kilobytes necesita dos RCU."
+    },
+    {
+      "speaker": "carlos",
+      "text": "Capté. ¿Y DAX?"
+    },
+    {
+      "speaker": "ana",
+      "text": "DAX — DynamoDB Accelerator — es un cache in-memory específico para DynamoDB. Te da latencia de microsegundos en vez de milisegundos. La gran ventaja: no necesitás cambiar el código de la aplicación, DAX se comporta igual que DynamoDB ante la app. Mínimo tres nodos en Multi-AZ. Resuelve el problema de hot partition."
+    },
+    {
+      "speaker": "carlos",
+      "text": "¿Por qué no usar ElastiCache en vez de DAX para DynamoDB?"
+    },
+    {
+      "speaker": "ana",
+      "text": "DAX está optimizado para DynamoDB específicamente y no requiere cambios de código. ElastiCache es general-purpose — funciona con cualquier base de datos pero necesitás agregar lógica de cache en tu aplicación. Para el examen: DynamoDB más cache sin cambios de código — la respuesta es siempre DAX."
+    },
+    {
+      "speaker": "carlos",
+      "text": "Claro. ¿Y DynamoDB Streams?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Streams es un log ordenado de modificaciones a la tabla. Cada insert, update o delete genera un registro en el stream. La retención es de veinticuatro horas. Lo puede consumir una función Lambda con Event Source Mapping, o Kinesis Data Streams. Es el mecanismo de DynamoDB para reaccionar a cambios en tiempo real."
+    },
+    {
+      "speaker": "carlos",
+      "text": "¿Para qué se usa en la práctica?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Varios casos. Mandar un email de bienvenida cuando se inserta un usuario nuevo. Agregar estadísticas en tiempo real. Sincronizar datos a tablas derivadas. Y también es lo que habilita Global Tables internamente — la replicación multi-región usa Streams como base. Para activar Global Tables, Streams debe estar habilitado."
+    },
+    {
+      "speaker": "carlos",
+      "text": "¿Qué son Global Tables exactamente?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Global Tables es replicación multi-región con modelo active-active. Active-active significa que podés leer y escribir en cualquier región — no hay una región primaria exclusiva. Los cambios se propagan automáticamente a todas las regiones. Baja latencia para usuarios globales porque leen y escriben en la región más cercana."
+    },
+    {
+      "speaker": "carlos",
+      "text": "¿Eso es distinto de Aurora Global Database?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Sí, diferencia importante para el examen. Aurora Global Database es active-passive: una región primaria escribe, las secundarias son read-only. DynamoDB Global Tables es active-active: todas las regiones leen y escriben. Si el enunciado pide writes en múltiples regiones simultáneamente — DynamoDB Global Tables es la respuesta."
+    },
+    {
+      "speaker": "carlos",
+      "text": "Entendido. ¿Y T T L en DynamoDB?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Time To Live. Agregás un atributo en cada item con un timestamp de expiración en Unix epoch. DynamoDB revisa ese atributo y elimina automáticamente los items vencidos. Sin costo extra. Ideal para datos temporales: sesiones de usuario, tokens de autenticación, compliance de retención de datos con fecha límite."
+    },
+    {
+      "speaker": "carlos",
+      "text": "Buena esa. ¿Y los indexes, L S I y G S I?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Local Secondary Index, o L S I: misma partition key pero sort key alternativa. Debés crearlo cuando creás la tabla — no podés agregarlo después. Máximo cinco por tabla. Global Secondary Index, o G S I: diferente partition key, más sort key opcional. Podés crearlo o borrarlo en cualquier momento. Máximo veinte por tabla y tiene sus propios RCU y WCU."
+    },
+    {
+      "speaker": "carlos",
+      "text": "Entonces si ya creé la tabla sin LSI, estoy limitado a GSI para queries nuevos."
+    },
+    {
+      "speaker": "ana",
+      "text": "Exactamente. Por eso en DynamoDB es crítico planificar los access patterns antes de crear la tabla. Sin JOINs disponibles, los índices son tu herramienta principal para hacer queries eficientes desde ángulos distintos al de la primary key. LSI comparte el storage de la tabla; GSI consume capacidad propia."
+    },
+    {
+      "speaker": "carlos",
+      "text": "¿Y las transacciones en DynamoDB?"
+    },
+    {
+      "speaker": "ana",
+      "text": "DynamoDB soporta transacciones ACID — Atomicity, Consistency, Isolation, Durability. Son operaciones todo-o-nada coordinadas en múltiples items o tablas. Ideal para operaciones financieras donde o todo se aplica o nada. La contra: consumen el doble de RCU y WCU normales. En el examen: atomicity más DynamoDB — transacciones."
+    },
+    {
+      "speaker": "carlos",
+      "text": "Okay. ¿ElastiCache?"
+    },
+    {
+      "speaker": "ana",
+      "text": "ElastiCache es el servicio managed de bases de datos in-memory de AWS. Soporta dos engines: Redis y Memcached. El objetivo principal es reducir la carga en la base de datos principal cacheando datos de lectura frecuente. También sirve para hacer las aplicaciones stateless guardando el estado de sesión en el cache."
+    },
+    {
+      "speaker": "carlos",
+      "text": "No, esto nunca lo configuré — explicámelo de cero. ¿Cuál es la diferencia entre Redis y Memcached?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Redis tiene persistencia en disco, backup y restore, replicación, Multi-AZ con failover automático, y estructuras de datos avanzadas como sorted sets. Memcached es más simple, multi-threaded, sin persistencia ni replicación. Para el examen: si el enunciado pide persistencia, backup o alta disponibilidad en el cache — Redis. Cache simple sin esas necesidades — Memcached."
+    },
+    {
+      "speaker": "carlos",
+      "text": "¿Y las estrategias de cache?"
+    },
+    {
+      "speaker": "ana",
+      "text": "La más común es Lazy Loading, también llamada Cache-Aside. La aplicación primero consulta el cache. Si hay hit, devuelve el resultado. Si hay miss, va a la base de datos, escribe el resultado en el cache, y devuelve. Ventaja: solo cacheás data que se pide. Desventaja: el primer acceso siempre tiene latencia extra."
+    },
+    {
+      "speaker": "carlos",
+      "text": "¿Y si el dato en el cache queda desactualizado?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Ese es el problema de stale data. La estrategia Write-Through lo soluciona: cada vez que escribís en la base de datos, también escribís en el cache simultáneamente. Nunca tenés data stale. Desventaja: write penalty — cada escritura es más lenta — y podés cachear datos que nadie nunca lea."
+    },
+    {
+      "speaker": "carlos",
+      "text": "¿Y el T T L en cache?"
+    },
+    {
+      "speaker": "ana",
+      "text": "TTL agrega expiración a los entries del cache. Balanceás entre frescura y cache misses: TTL corto significa datos más frescos pero más misses y más carga en la base de datos. TTL largo significa menos misses pero datos más viejos. Lo ajustás según qué tan crítico sea tener el dato actualizado."
+    },
+    {
+      "speaker": "carlos",
+      "text": "¿Y el Cluster Mode de Redis?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Redis Cluster Mode Disabled: un nodo primario más hasta cinco réplicas, Multi-AZ con failover automático. Todos operan sobre el mismo dataset. Redis Cluster Mode Enabled: los datos se particionan en shards. Hasta quinientos nodos por cluster. Mejor write scalability porque distribuís las escrituras entre múltiples shards."
+    },
+    {
+      "speaker": "carlos",
+      "text": "¿Y Redshift? ¿Para qué es?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Redshift es el data warehouse de AWS — OLAP, Online Analytical Processing. Usa columnar storage y Massively Parallel Processing. No es para transacciones operativas del día a día. Redshift es para queries analíticas: reportes, aggregaciones históricas, business intelligence. Se integra con herramientas como Tableau, PowerBI y QuickSight."
+    },
+    {
+      "speaker": "carlos",
+      "text": "Esto no lo toqué nunca, te pregunto desde cero. ¿Columnar storage qué diferencia hace versus row-based?"
+    },
+    {
+      "speaker": "ana",
+      "text": "En row-based, cada fila se guarda junta. Para analytics que leen solo algunas columnas de millones de filas, leés mucha data que no necesitás. En columnar storage, cada columna se guarda junta. Si tu query es SELECT suma de ventas, Redshift solo lee la columna de ventas. Mucho más eficiente para aggregations."
+    },
+    {
+      "speaker": "carlos",
+      "text": "Ah, tiene sentido. ¿Y Redshift Spectrum?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Spectrum te permite hacer queries SQL directamente sobre datos en S3 sin cargarlos en Redshift. Usás tu cluster existente, Redshift agrega nodos de procesamiento temporales para la query. Ideal para data lake: tenés datos históricos fríos en S3 y los consultás con SQL estándar junto con los datos calientes en Redshift."
+    },
+    {
+      "speaker": "carlos",
+      "text": "¿Redshift versus Athena? Los dos pueden consultar S3."
+    },
+    {
+      "speaker": "ana",
+      "text": "Sí, ambos consultan S3 pero con enfoques distintos. Athena es serverless, sin infraestructura que gestionar, mejor para queries ad-hoc simples. Redshift Spectrum usa un cluster existente y es más rápido para queries complejas con JOINs y aggregaciones pesadas. En el examen: cluster Redshift ya existente más S3 — Spectrum. Sin infraestructura — Athena."
+    },
+    {
+      "speaker": "carlos",
+      "text": "Dale, ¿las bases de datos especializadas?"
+    },
+    {
+      "speaker": "ana",
+      "text": "DocumentDB primero. Es compatible con MongoDB — si tenés una aplicación MongoDB, podés migrar a DocumentDB sin grandes cambios de código. Piénsalo como el Aurora del mundo MongoDB: managed, replicación en tres A.Z., storage auto-scale hasta sesenta y cuatro terabytes, millones de requests por segundo."
+    },
+    {
+      "speaker": "carlos",
+      "text": "¿Cuándo uso DocumentDB versus DynamoDB?"
+    },
+    {
+      "speaker": "ana",
+      "text": "DocumentDB es para workloads con modelo de documentos JSON flexibles, especialmente si venís del mundo MongoDB o necesitás compatibilidad con esa API. DynamoDB es key-value y document a escala masiva, nativo AWS, con integraciones como DAX, Streams y TTL. Para el examen: MongoDB en el enunciado casi siempre es DocumentDB."
+    },
+    {
+      "speaker": "carlos",
+      "text": "¿Neptune?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Neptune es la base de datos de grafos de AWS. Guarda entidades y las relaciones entre ellas — puede almacenar billones de relaciones y hacer queries en milisegundos. Multi-AZ con Read Replicas. Casos de uso: redes sociales, detección de fraude donde los patrones de relación importan, motores de recomendación, knowledge graphs."
+    },
+    {
+      "speaker": "carlos",
+      "text": "¿Y Keyspaces?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Amazon Keyspaces es Apache Cassandra-compatible. Si tenés una aplicación Cassandra, Keyspaces la absorbe sin reescribir el código — usás Cassandra Query Language, o C Q L. Es serverless, auto-scaling, con tablas replicadas en tres A.Z.. Para el examen: Cassandra o C Q L en el enunciado — la respuesta es Keyspaces."
+    },
+    {
+      "speaker": "carlos",
+      "text": "¿Y Q L D B?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Quantum Ledger Database, o QLDB. Es una base de datos ledger inmutable. Cada cambio queda registrado criptográficamente y no se puede alterar ni borrar. Como el libro contable de un banco: podés ver toda la historia de cada transacción. Tiene autoridad central — no es descentralizada. Casos: transacciones financieras, cadena de suministro, registros legales."
+    },
+    {
+      "speaker": "carlos",
+      "text": "¿Cómo lo diferencio de Managed Blockchain en el examen?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Acá viene lo importante. QLDB tiene autoridad central — vos sos el dueño del ledger. Managed Blockchain es descentralizado: múltiples partidos sin autoridad central, frameworks como Hyperledger Fabric o Ethereum. En el examen: inmutable con autoridad central — QLDB. Blockchain descentralizado sin confianza central — Managed Blockchain."
+    },
+    {
+      "speaker": "carlos",
+      "text": "Buenísimo ese tip. ¿Y Timestream?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Timestream es la base de datos time-series de AWS. Diseñada para datos indexados por tiempo: métricas de IoT, telemetría de aplicaciones, datos operacionales. Serverless, auto-scaling, puede almacenar y analizar trillones de eventos por día. Mil veces más rápida y diez veces más barata que bases de datos relacionales para ese caso de uso."
+    },
+    {
+      "speaker": "carlos",
+      "text": "Okay. ¿Pasamos a los tips de examen?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Dale. El primer gotcha, y el más frecuente: Multi-AZ es sinónimo de disponibilidad. Read Replicas es sinónimo de scalability de lectura. Si el enunciado dice mejorar disponibilidad ante falla de AZ — Multi-AZ. Si dice mejorar performance de lectura — Read Replicas. No los confundas, es el trap más clásico del módulo."
+    },
+    {
+      "speaker": "carlos",
+      "text": "¿Y los tiempos de failover?"
+    },
+    {
+      "speaker": "ana",
+      "text": "RDS Multi-AZ: sesenta a ciento veinte segundos. Aurora: menos de treinta segundos. Aurora Multi-Master: inmediato, cero downtime en writes. Aurora Global Database promote a primaria: menos de un minuto. Memorizá esa escala — el examen pregunta cuál es el failover más rápido para workloads críticos."
+    },
+    {
+      "speaker": "carlos",
+      "text": "¿El gotcha de encriptación en RDS?"
+    },
+    {
+      "speaker": "ana",
+      "text": "No podés habilitar encriptación en una instancia RDS ya existente. La ruta es: crear snapshot de la instancia no encriptada, copiar ese snapshot con KMS encryption habilitada, restaurar desde el snapshot encriptado. Y acordate: los automated backups se borran con la instancia. Los manual snapshots persisten."
+    },
+    {
+      "speaker": "carlos",
+      "text": "¿Gotchas de DynamoDB?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Varios. Primero: LSI debe crearse al momento de crear la tabla, nunca después. Segundo: transacciones consumen el doble de RCU y WCU. Tercero: On-Demand es dos punto cinco veces más caro que Provisioned bien calibrado. Cuarto: Global Tables requiere que Streams esté habilitado. Son cuatro datos que aparecen en preguntas de examen."
+    },
+    {
+      "speaker": "carlos",
+      "text": "¿Cómo elijo la base de datos correcta cuando veo una pregunta en el examen?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Buscá las palabras clave del enunciado. OLAP o analytics — Redshift. Relacional con MySQL o PostgreSQL — RDS o Aurora. NoSQL key-value a escala masiva — DynamoDB. Cache in-memory — ElastiCache. MongoDB — DocumentDB. Grafos y relaciones — Neptune. Cassandra o C Q L — Keyspaces. Ledger inmutable central — QLDB. Time series o IoT — Timestream."
+    },
+    {
+      "speaker": "carlos",
+      "text": "¿Algún gotcha de RDS Proxy?"
+    },
+    {
+      "speaker": "ana",
+      "text": "RDS Proxy solo es accesible desde dentro de una VPC — no tiene endpoint público. El patrón más preguntado: Lambda más RDS. Sin Proxy, Lambda puede agotar el connection pool de RDS porque cada invocación abre una conexión nueva. Con Proxy, esas conexiones se poolean. Si ves Lambda más RDS en el examen — incluí RDS Proxy en la arquitectura."
+    },
+    {
+      "speaker": "carlos",
+      "text": "¿Y algo de ElastiCache que sorprenda?"
+    },
+    {
+      "speaker": "ana",
+      "text": "La distinción Redis versus Memcached. Memcached no tiene persistencia, no tiene replicación, no tiene Multi-AZ. Redis tiene todo eso. En el examen, cualquier mención de persistencia, backup, failover automático o sorted sets en el contexto de cache — la respuesta es Redis. Memcached solo para cache simple sin esas necesidades."
+    },
+    {
+      "speaker": "carlos",
+      "text": "Okay, hagamos el recap. RDS es el managed relational database — Multi-AZ para alta disponibilidad sincrónica, Read Replicas para escalar lecturas de forma asincrónica."
+    },
+    {
+      "speaker": "ana",
+      "text": "Muy bien. Automated backups se borran con la instancia, manual snapshots no. Para encriptar una instancia existente: snapshot, copia con KMS, restore. RDS Proxy para el patrón Lambda más RDS — connection pooling, failover sesenta y seis por ciento más rápido."
+    },
+    {
+      "speaker": "carlos",
+      "text": "Aurora es la versión propietaria de AWS, compatible con MySQL y PostgreSQL. Cinco veces más rápida, seis copias en tres A.Z., failover en menos de treinta segundos, Global Database con menos de un segundo de lag. Serverless para workloads impredecibles, Backtrack para restaurar sin backup en MySQL."
+    },
+    {
+      "speaker": "ana",
+      "text": "Exacto. Writer Endpoint siempre apunta al master, Reader Endpoint balancea las réplicas. Y acordate la diferencia clave: Aurora Global Database es active-passive — las secundarias son read-only. DynamoDB Global Tables es active-active — todas las regiones leen y escriben."
+    },
+    {
+      "speaker": "carlos",
+      "text": "DynamoDB: NoSQL serverless, partition key diversa para evitar hot partitions, DAX para microsegundos sin cambiar código, Streams para eventos en tiempo real que habilitan Global Tables, TTL sin costo extra."
+    },
+    {
+      "speaker": "ana",
+      "text": "Y los índices: LSI solo al crear la tabla, GSI en cualquier momento con capacidad propia. Provisioned si el tráfico es predecible, On-Demand si es impredecible pero pagás dos punto cinco veces más. Transacciones ACID consumen el doble de capacidad."
+    },
+    {
+      "speaker": "carlos",
+      "text": "ElastiCache: Redis para cache con persistencia y alta disponibilidad, Memcached para cache simple. Lazy Loading para no sobrecargar el cache, Write-Through para nunca tener stale data. Redshift para OLAP y analytics, columnar storage, Spectrum para consultar S3 sin cargar data."
+    },
+    {
+      "speaker": "ana",
+      "text": "Perfecto. Y el mapa de especializadas: DocumentDB para MongoDB, Neptune para grafos, Keyspaces para Cassandra, QLDB para ledger inmutable con autoridad central, Timestream para series de tiempo y IoT. Aprendé las palabras clave del enunciado y el servicio correcto aparece solo. Muy buen trabajo hoy, Carlos."
+    }
+  ]
+}
