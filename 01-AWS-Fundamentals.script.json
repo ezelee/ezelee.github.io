@@ -1,0 +1,422 @@
+{
+  "module_title": "Module 01: AWS Fundamentals",
+  "estimated_duration_min": 38,
+  "turns": [
+    {
+      "speaker": "ana",
+      "text": "Imaginate que te preguntan en el examen: una empresa necesita que su aplicación siga funcionando aunque falle un data center entero. ¿Qué hacés? Mucha gente confunde Availability Zones con Regions, o cree que los Edge Locations sirven para alta disponibilidad. Hoy arrancamos desde lo más básico: la infraestructura global de AWS y los conceptos que van a aparecer en casi todas las preguntas del examen."
+    },
+    {
+      "speaker": "carlos",
+      "text": "A ver, yo trabajé con algunos servicios de AWS pero nunca me paré a entender cómo está organizado todo globalmente. Sé que existen las Regions, que hay us-east-1 y esas cosas, pero más allá de eso no tengo claro qué diferencia hay entre todos esos conceptos de infraestructura."
+    },
+    {
+      "speaker": "ana",
+      "text": "Ese es el punto de partida perfecto. La infraestructura global de AWS tiene tres capas principales: arriba están las Regions, adentro de cada Region hay Availability Zones, y por fuera están los Edge Locations para distribución de contenido. Cada capa tiene un propósito distinto y el examen va a testear que sepas cuándo usar cada una. Vamos por partes."
+    },
+    {
+      "speaker": "ana",
+      "text": "Este módulo cubre los fundamentos que son la base de todo lo demás en el examen. No es el peso más grande, quizás un diez por ciento de preguntas directas, pero sin entender esto bien los otros dominios no tienen sentido. Vamos a ver infraestructura global, el Well-Architected Framework con sus seis pilares, el Shared Responsibility Model, y cómo se maneja multi-cuenta con Organizations y SCPs."
+    },
+    {
+      "speaker": "carlos",
+      "text": "Empecemos con las Regions entonces. Cuando configuro algo en AWS siempre me pide elegir una región, pero nunca entendí bien qué significa que sean independientes. ¿Independientes de qué exactamente?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Una Region es un área geográfica con múltiples data centers adentro. Independiente significa que si cae toda la Region us-east-1, la Region eu-west-1 sigue funcionando sin ningún problema — no comparten infraestructura física. AWS tiene más de treinta Regions globalmente, cada una con un código único como us-east-1, eu-west-1, ap-southeast-1."
+    },
+    {
+      "speaker": "carlos",
+      "text": "Ah, capté. Entonces una Region es como una isla separada. ¿Y los datos que tengo en una Region se pueden ver desde otra automáticamente?"
+    },
+    {
+      "speaker": "ana",
+      "text": "No, y eso es clave para el examen. Los datos no salen de una Region a menos que vos explícitamente los configures para que lo hagan. Esto importa para compliance y soberanía de datos. Si una empresa europea tiene que guardar datos en Europa por regulación, elige eu-west-1 y los datos no cruzan fronteras salvo que alguien lo configure activamente."
+    },
+    {
+      "speaker": "carlos",
+      "text": "Tiene sentido. ¿Y cómo elijo qué Region usar para una aplicación? ¿Solo por cercanía?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Hay cuatro factores en orden de prioridad. Primero, compliance: si hay requisitos legales sobre dónde deben vivir los datos. Segundo, latencia: elegís la Region más cercana a tus usuarios. Tercero, costo: los precios varían por Region, us-east-1 suele ser la más barata. Y cuarto, disponibilidad de servicios: los servicios nuevos se lanzan primero en us-east-1 y no siempre están en todas las Regions."
+    },
+    {
+      "speaker": "carlos",
+      "text": "Uy, eso no lo sabía — que no todos los servicios están en todas las Regions. Dale. ¿Y qué son las Availability Zones? ¿Son lo mismo que las Regions?"
+    },
+    {
+      "speaker": "ana",
+      "text": "No, son distintas. Una Availability Zone, o A Z, es uno o más data centers físicos dentro de una Region. Cada Region tiene mínimo tres A Zs. La clave es que cada A Z tiene su propia energía eléctrica, refrigeración y networking — están aisladas entre sí. Una analogía: si la Region es una ciudad, las A Zs son edificios en distintos barrios. Si se incendia uno, los otros siguen en pie."
+    },
+    {
+      "speaker": "carlos",
+      "text": "Dale, esa analogía está buena. ¿Y cómo se llaman las A Zs?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Se nombran con el código de la Region más una letra: us-east-1a, us-east-1b, us-east-1c. Una Region típica tiene tres a seis A Zs. Ojo con esto: AWS no te dice qué data center físico corresponde a cada letra, porque esa asignación puede diferir entre cuentas. Lo hacen así para distribuir la carga y evitar que todos elijan us-east-1a por default."
+    },
+    {
+      "speaker": "carlos",
+      "text": "Ah, interesante, no sabía eso. ¿Entonces para alta disponibilidad tengo que deployar en varias A Zs, no en varias Regions?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Exacto, ese es un punto crítico del examen. Para alta disponibilidad dentro de una aplicación normal, desplegás en múltiples A Zs dentro de la misma Region. Multi-Region es para disaster recovery, cuando querés que la aplicación sobreviva a que caiga una Region completa. Son distintos niveles de resiliencia con distintos costos y complejidad. No los confundas en el examen."
+    },
+    {
+      "speaker": "carlos",
+      "text": "Capté. Multi-A.Z. para alta disponibilidad normal, Multi-Region para disaster recovery extremo. ¿Y qué son los Edge Locations? ¿Son como A Zs extra en otros países?"
+    },
+    {
+      "speaker": "ana",
+      "text": "No, son completamente distintos. Un Edge Location es un punto de presencia de AWS ubicado cerca de grandes centros de población, y se usa principalmente para CloudFront y Route 53. Hay más de cuatrocientos Edge Locations globalmente, muchos más que las Regions. Su función no es correr tu aplicación, sino cachear contenido cerca del usuario final para reducir latencia."
+    },
+    {
+      "speaker": "carlos",
+      "text": "A ver, entonces si tengo una imagen guardada en S3 en us-east-1 y un usuario en Tokio la pide, ¿CloudFront la cachea en el Edge Location más cercano a Tokio?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Exactamente así funciona. La primera vez, CloudFront va a buscar la imagen a us-east-1 y la guarda en el Edge Location de Tokio. Las siguientes requests del usuario en Tokio la reciben directo desde ese Edge Location, sin cruzar el océano. Eso es lo que reduce la latencia dramáticamente. Fíjate que los Edge Locations no son para correr workloads, solo para caché."
+    },
+    {
+      "speaker": "carlos",
+      "text": "Dale, tiene sentido. ¿Y qué son las Local Zones y las Wavelength Zones? Vi esos nombres en el material."
+    },
+    {
+      "speaker": "ana",
+      "text": "Son dos conceptos más específicos. Una Local Zone es una extensión de una Region que AWS instala físicamente cerca de grandes ciudades para dar latencia de un solo dígito de milisegundos. Por ejemplo, la Local Zone de Los Ángeles extiende la Region us-west-2 pero con infraestructura físicamente en Los Ángeles. Se usa para aplicaciones muy sensibles a la latencia con usuarios concentrados en esa ciudad."
+    },
+    {
+      "speaker": "carlos",
+      "text": "¿Y Wavelength Zones?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Las Wavelength Zones son infraestructura de AWS embebida dentro de las redes 5G de los proveedores de telecom. Se usan para casos como realidad aumentada, gaming en tiempo real, vehículos autónomos — aplicaciones donde los milisegundos extra de ir hasta un data center convencional ya son demasiado. Para el examen no son super profundas, pero podés ver una pregunta que las mencione."
+    },
+    {
+      "speaker": "carlos",
+      "text": "Capté. Entonces: Region es la isla independiente, A Z son los edificios dentro con infraestructura propia, Edge Location es para cachear contenido cerca del usuario, Local Zone para latencia ultra baja en ciudades, y Wavelength para 5G. ¿Está bien ese resumen?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Perfecto, exactamente así. Guardá eso. Ahora pasemos a las herramientas de management, que también el examen pregunta. La principal es el AWS Management Console, la interfaz web visual. Pero para el examen importa entender cuándo usar cada herramienta y cuál es su propósito específico."
+    },
+    {
+      "speaker": "carlos",
+      "text": "Ah, eso lo uso todo el tiempo. ¿Qué más hay aparte del Console?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Tenés cuatro herramientas principales. El Console es la interfaz gráfica, ideal para exploración y tareas puntuales. La CLI, el Command Line Interface, es para automatización y scripting. Los SDKs, como Boto3 para Python, son para programar sobre AWS desde tu aplicación. Y CloudFormation es para Infrastructure as Code, definir toda tu infraestructura en templates de JSON o YAML."
+    },
+    {
+      "speaker": "carlos",
+      "text": "Yo uso la CLI y Boto3 en mis scripts, y Terraform para la infra. ¿CloudFormation es lo mismo que Terraform?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Son similares en concepto — ambos son Infrastructure as Code — pero CloudFormation es el servicio nativo de AWS. Tiene rollback automático si algo falla y está integrado con todos los servicios. Para el examen, CloudFormation es la respuesta cuando preguntan sobre IaC en AWS. Terraform es muy popular en la industria pero no aparece en el examen."
+    },
+    {
+      "speaker": "carlos",
+      "text": "Ah capté, para el examen el foco está en CloudFormation. ¿Y CloudShell qué es? Vi ese nombre en la consola."
+    },
+    {
+      "speaker": "ana",
+      "text": "CloudShell es una terminal basada en browser, dentro del Console mismo, que ya viene pre-configurada con la CLI de AWS. No necesitás instalar nada, ya está autenticada con tus credenciales de la consola, y te da un gigabyte de storage por Region. Es útil para correr comandos rápidos sin configurar nada localmente. El examen puede preguntar en qué situación usarías CloudShell versus la CLI local."
+    },
+    {
+      "speaker": "carlos",
+      "text": "Dale, tiene sentido. Ahora lo que mencionaste, el Well-Architected Framework — escuché ese nombre pero nunca lo estudié formalmente. ¿Qué es exactamente?"
+    },
+    {
+      "speaker": "ana",
+      "text": "El Well-Architected Framework es la guía oficial de AWS para diseñar sistemas bien hechos en la nube. Tiene seis pilares y el examen los pregunta bastante, especialmente cuando te dan un escenario y preguntan qué pilar cubre la situación. Un mnemónico para recordarlos: C R O P S S — Cost Optimization, Reliability, Operational Excellence, Performance Efficiency, Security, y Sustainability."
+    },
+    {
+      "speaker": "carlos",
+      "text": "C R O P S S, dale. ¿Podemos ir pilar por pilar? Empecemos por Operational Excellence."
+    },
+    {
+      "speaker": "ana",
+      "text": "Operational Excellence es el pilar de operar bien. Los principios clave: hacer operaciones como código, hacer cambios pequeños y reversibles, anticipar fallas y aprender de los failures. Los servicios principales: CloudFormation para Infrastructure as Code, CloudTrail para auditoría de APIs, CloudWatch para monitoring, y Config para inventario y compliance de recursos."
+    },
+    {
+      "speaker": "carlos",
+      "text": "Capté. ¿Y el pilar de Security?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Security es el pilar de proteger todo. Principios: identity foundation sólida, habilitar trazabilidad, aplicar seguridad en todas las capas, automatizar best practices, proteger datos en tránsito y en reposo, y minimizar acceso humano a los datos. Los servicios estrella: I A M para identidades y permisos, K M S para cifrado de claves, WAF y Shield para protección web, y GuardDuty para detección de amenazas."
+    },
+    {
+      "speaker": "carlos",
+      "text": "Dale. ¿Reliability?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Reliability es la capacidad de recuperarse de fallas y escalar dinámicamente. Principios: recuperación automática, testear procedimientos de recovery, escalar horizontalmente en vez de verticalmente, y no adivinar la capacidad sino medirla. Los servicios clave: Route 53 para DNS y failover, Elastic Load Balancing, Auto Scaling, y RDS Multi-A.Z. para bases de datos de alta disponibilidad."
+    },
+    {
+      "speaker": "carlos",
+      "text": "Performance Efficiency sería el de usar los recursos eficientemente, ¿no?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Exacto. Es usar los recursos de cómputo eficientemente para cumplir los requisitos del sistema. Principios: democratizar tecnologías avanzadas, ser global en minutos, usar arquitecturas serverless, y experimentar frecuentemente. Los servicios: Lambda para serverless, CloudFront para distribución global, ElastiCache para caching de datos, y RDS Read Replicas para escalar reads en bases de datos."
+    },
+    {
+      "speaker": "carlos",
+      "text": "¿Y Cost Optimization?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Cost Optimization es lo que le importa al negocio. Principios: adoptar un modelo de consumo donde pagás lo que usás, medir eficiencia, eliminar gastos en trabajo no diferenciado, y analizar el gasto detalladamente. Los servicios: Cost Explorer para visualizar costos, Budgets para alertas, Reserved Instances y Savings Plans para reducir precios en workloads predecibles, y Trusted Advisor para recomendaciones."
+    },
+    {
+      "speaker": "carlos",
+      "text": "¿Y el último, Sustainability?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Sustainability es el sexto pilar, el más nuevo. Se enfoca en minimizar el impacto ambiental de tus workloads. Principios: entender tu impacto, maximizar utilización de recursos, adoptar servicios eficientes, usar managed services, y reducir el impacto downstream. Los servicios: E.C. 2 Auto Scaling para usar solo lo necesario, servicios serverless, y los procesadores Graviton de AWS que son más eficientes energéticamente."
+    },
+    {
+      "speaker": "carlos",
+      "text": "Capté. Para el examen necesito saber qué pilar corresponde a qué escenario. ¿Hay alguno que confunda más?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Sí, los que más confunden son Reliability y Performance Efficiency. Acá viene lo importante: si la pregunta habla de recuperarse de fallas, alta disponibilidad, tolerancia a fallos, es Reliability. Si habla de usar los recursos correctos, mejorar velocidad, usar serverless para eficiencia, es Performance Efficiency. Keyword de Reliability: recover. Keyword de Performance: efficient use of resources."
+    },
+    {
+      "speaker": "carlos",
+      "text": "Bien claro, gracias. Dale, sigamos con el Shared Responsibility Model, que también escucho mucho pero no lo tengo del todo claro."
+    },
+    {
+      "speaker": "ana",
+      "text": "El Shared Responsibility Model define qué le corresponde a AWS y qué te corresponde a vos como cliente. La frase clave para memorizar: AWS es responsable de la seguridad DE la nube, y el cliente es responsable de la seguridad EN la nube. AWS se encarga de todo lo físico: los data centers, el hardware, la red global, los hypervisors. Vos te encargás de lo que hacés adentro de ese hardware."
+    },
+    {
+      "speaker": "carlos",
+      "text": "Eso suena bien en abstracto, pero ¿cómo funciona en práctica? ¿Quién parchea qué en un E.C. 2?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Depende del tipo de servicio. E.C. 2 es Infrastructure as a Service, o IaaS — AWS parchea el hypervisor y el hardware físico, pero vos tenés que parchear el sistema operativo, configurar los security groups, cifrar tus datos. RDS es Platform as a Service, o PaaS — AWS maneja el OS y los parches del motor de base de datos. Vos solo manejás credenciales, acceso de red, y cifrado de datos."
+    },
+    {
+      "speaker": "carlos",
+      "text": "O sea, yo una vez configuré el security group de un scraper que corrí en Fargate — eso era responsabilidad mía, ¿no?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Exactamente. Todo lo que podés configurar en la consola es tu responsabilidad. En ese caso, la seguridad física del hardware de Fargate es de AWS, pero el security group, los permisos I A M de la task, el cifrado de los datos que escribías en S3 — todo eso era tuyo. Regla de oro para el examen: si podés configurarlo, sos responsable de ello."
+    },
+    {
+      "speaker": "carlos",
+      "text": "Capté, esa regla está buena. ¿Y para S3 cómo funciona el modelo?"
+    },
+    {
+      "speaker": "ana",
+      "text": "S3 se comporta más como SaaS en este contexto. AWS maneja toda la infraestructura, el software, la durabilidad. Vos sos responsable de clasificar los datos, configurar las bucket policies, habilitar cifrado, y asegurarte de que los buckets no sean públicos cuando no deben serlo. Los data breaches más famosos de S3 fueron porque clientes dejaron buckets públicos por error — eso es responsabilidad del cliente, no de AWS."
+    },
+    {
+      "speaker": "carlos",
+      "text": "Sí, eso lo vi en noticias. Dale, pasemos a Account Management. Yo solo tuve mi cuenta personal, esto no lo toqué nunca — explicámelo de cero."
+    },
+    {
+      "speaker": "ana",
+      "text": "Empecemos por el root user. Cuando creás una cuenta de AWS, se crea un root user con acceso completo a absolutamente todo. El primer consejo que el examen martilla constantemente: nunca usés el root user para tareas cotidianas. Lo primero al crear una cuenta: habilitás MFA en el root user, borrás las access keys del root, y creás usuarios I A M para el trabajo diario."
+    },
+    {
+      "speaker": "carlos",
+      "text": "Dale, eso tiene sentido. ¿Y AWS Organizations qué es? Esto no lo configuré nunca, explicámelo de cero."
+    },
+    {
+      "speaker": "ana",
+      "text": "AWS Organizations te permite gestionar múltiples cuentas de AWS desde una sola cuenta central llamada management account. En empresas grandes hay cuentas separadas para producción, desarrollo, seguridad, cada equipo. Con Organizations tenés billing consolidado — una sola factura para todas las cuentas — y podés aplicar políticas de seguridad a grupos de cuentas. Esas políticas se llaman Service Control Policies, o SCPs."
+    },
+    {
+      "speaker": "carlos",
+      "text": "A ver, ¿y qué son exactamente las SCPs?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Las Service Control Policies, o SCPs, son políticas JSON que definen los permisos máximos que pueden tener las cuentas miembro. Ojo con esto: las SCPs no otorgan permisos, solo los limitan. Si una SCP dice que no se puede usar E.C. 2 en eu-west-1, ningún usuario de esa cuenta puede hacerlo aunque su política I A M lo permita. Las SCPs actúan como guardrails que ninguna política I A M puede saltear."
+    },
+    {
+      "speaker": "carlos",
+      "text": "Esperá, eso es importante. ¿Entonces la SCP tiene prioridad sobre I A M?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Exacto, y ese es un punto clave del examen. Los permisos efectivos son la intersección entre lo que permite la SCP y lo que permite la política I A M. Si la SCP lo bloquea, da igual que la política I A M lo permita. Un detalle más crítico: las SCPs no afectan a la management account de la organización, solo a las cuentas miembro. Ese detalle aparece seguido en el examen."
+    },
+    {
+      "speaker": "carlos",
+      "text": "Ah, la management account queda exenta. ¿Y cómo se organiza la jerarquía de cuentas adentro de Organizations?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Hay una estructura de árbol. Arriba está el Organization Root, que contiene todo. Adentro hay Organizational Units, o OUs, que son como carpetas. Podés tener una OU de Producción, otra de Desarrollo, otra de Seguridad. Las cuentas van dentro de esas OUs. Las SCPs se aplican en cualquier nivel: en el Root afectan a toda la organización, en una OU a todas las cuentas de esa OU. Se heredan hacia abajo."
+    },
+    {
+      "speaker": "carlos",
+      "text": "Capté. ¿Y AWS Control Tower qué es? ¿Es lo mismo que Organizations?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Control Tower está construido encima de Organizations. La diferencia es que Control Tower es un setup automatizado y opinado — te da una arquitectura multi-cuenta bien diseñada desde el día uno, con guardrails pre-configurados, un dashboard de compliance, y una Account Factory para crear cuentas nuevas automáticamente. Si sos nuevo en multi-cuenta y querés buenas prácticas listas para usar, usás Control Tower."
+    },
+    {
+      "speaker": "carlos",
+      "text": "¿Y si querés más control sobre todo?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Mirá, si querés máxima flexibilidad y políticas completamente customizadas, vas directo a Organizations. Para el examen, el keyword de Control Tower es governance out-of-the-box o landing zone automatizada. Si la pregunta dice que una empresa quiere configurar rápidamente un ambiente multi-cuenta con buenas prácticas de seguridad pre-configuradas, la respuesta es Control Tower. Guardá esa distinción."
+    },
+    {
+      "speaker": "carlos",
+      "text": "Dale. ¿Y RAM, el Resource Access Manager, también es parte de esto?"
+    },
+    {
+      "speaker": "ana",
+      "text": "AWS RAM, que es Resource Access Manager, permite compartir recursos de AWS entre cuentas sin duplicarlos. El caso de uso más testeado en el examen: compartir subnets de una VPC centralizada con otras cuentas de la organización. Las cuentas receptoras pueden lanzar recursos en esas subnets, pero no pueden modificarlas ni borrarlas. Esto reduce la cantidad de VPCs y simplifica la arquitectura de red."
+    },
+    {
+      "speaker": "carlos",
+      "text": "¿Y ese sharing se puede hacer solo dentro de una Organization o también con cuentas externas?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Podés hacer las dos cosas. Dentro de tu organización, el sharing es más fluido. Con cuentas fuera de la organización, el destinatario tiene que aceptar el share explícitamente antes de poder usarlo. Para el examen, el keyword de RAM es share resources across accounts. Si ven un escenario de centralizar red compartida entre múltiples cuentas, la respuesta es RAM."
+    },
+    {
+      "speaker": "carlos",
+      "text": "Capté. ¿Y el billing consolidado cómo funciona exactamente?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Con Organizations, la management account paga todas las facturas de las cuentas miembro. La ventaja más importante para el examen: el uso se combina para descuentos por volumen. Si S3 da descuento a partir de ciertos terabytes, AWS suma el uso de todas las cuentas de la organización. Una sola cuenta puede no llegar al threshold de descuento, pero la organización completa sí. Es como comprar en volumen entre todos."
+    },
+    {
+      "speaker": "carlos",
+      "text": "Ah, tiene sentido. Dale, antes de los exam tips, ¿podés hacer un overview rápido de las categorías de servicios? Para tener el mapa mental completo."
+    },
+    {
+      "speaker": "ana",
+      "text": "Claro. Compute: E.C. 2 para servidores virtuales, Lambda para serverless, ECS y EKS para containers, Elastic Beanstalk para PaaS. Storage: S3 para objetos, EBS para bloques adjuntos a E.C. 2, EFS para sistema de archivos compartido, Glacier para archivos. Database: RDS y Aurora para relacional, DynamoDB para NoSQL, Redshift para data warehouse."
+    },
+    {
+      "speaker": "carlos",
+      "text": "¿Y networking y seguridad?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Networking: VPC para tu red virtual privada, Route 53 para DNS, CloudFront como CDN, Direct Connect para conexión dedicada desde tu datacenter a AWS. Seguridad e identidad: I A M para gestión de identidades y permisos, K M S para cifrado de claves, WAF como Web Application Firewall, GuardDuty para detección de amenazas. Management: CloudWatch para monitoring, CloudTrail para auditoría de APIs, Config para compliance."
+    },
+    {
+      "speaker": "carlos",
+      "text": "Perfecto, ese mapa me sirve. Dale, los exam tips entonces — qué es lo que más pregunta el examen de este módulo."
+    },
+    {
+      "speaker": "ana",
+      "text": "Primero, Region versus A Z versus Edge Location. Son tres cosas distintas. Region: área geográfica independiente. A Z: data center dentro de la región, usá múltiples A Zs para alta disponibilidad. Edge Location: punto de caché para CloudFront y Route 53, no para correr tu aplicación. El examen frecuentemente pone los tres en la misma pregunta para ver si los distinguís."
+    },
+    {
+      "speaker": "carlos",
+      "text": "¿Y algo más sobre cómo elegir Region?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Sí. Para elegir una Region, el examen a veces te da escenarios donde hay un requisito de compliance, y la respuesta es la región que cumple el requisito legal, no la más cercana ni la más barata. Compliance gana sobre latencia y costo. Si hay requisito de soberanía de datos, ese es el primer criterio. Eso aparece bastante en preguntas de arquitectura empresarial."
+    },
+    {
+      "speaker": "carlos",
+      "text": "Dale. ¿Qué más del Shared Responsibility Model?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Van a preguntarte quién parchea qué. Regla simple: E.C. 2 es IaaS, vos parcheas el OS. RDS es PaaS, AWS parchea el motor de base de datos. S3 es managed, AWS maneja todo excepto tus configuraciones de acceso y clasificación de datos. Y otra vez: si podés configurarlo en la consola, sos responsable de ello. Esa regla resuelve casi todos los escenarios de Shared Responsibility en el examen."
+    },
+    {
+      "speaker": "carlos",
+      "text": "Eso sí lo tengo claro ahora. ¿Y sobre el Well-Architected Framework qué me recomendás memorizar?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Memorizá los seis pilares con sus palabras clave. Operational Excellence: operaciones como código, cambios pequeños. Security: identidad, cifrado, trazabilidad. Reliability: recover, escalar, Multi-A.Z.. Performance Efficiency: serverless, recursos correctos. Cost Optimization: pagar lo que usás, Reserved Instances. Sustainability: eficiencia energética, Graviton. El examen usa escenarios, no definiciones — te describe una situación y pregunta qué pilar cubre."
+    },
+    {
+      "speaker": "carlos",
+      "text": "Dale, ese es el patrón de preguntas. ¿Y sobre Organizations y SCPs qué es lo más crítico?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Dos gotchas sobre SCPs. Primero: las SCPs no otorgan permisos, solo los restringen. Si tenés una SCP permisiva pero sin política I A M que permita la acción, igual no podés hacerla. Segundo: las SCPs no afectan a la management account. Si el examen pregunta si un admin en la management account puede hacer algo que una SCP prohíbe en las cuentas miembro, la respuesta es sí — la management account está exenta."
+    },
+    {
+      "speaker": "carlos",
+      "text": "Uy, ese detalle de la management account se me hubiese pasado. ¿Y sobre el root user qué pregunta el examen?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Siempre van a preguntarte cuándo usar el root user. La respuesta casi siempre es: no lo uses. Las únicas tareas que requieren root son muy específicas: cerrar la cuenta de AWS, cambiar el plan de soporte, configurar ciertas integraciones de billing, o recuperar acceso si todos los admins I A M están bloqueados. Para todo lo demás, usás usuarios o roles I A M."
+    },
+    {
+      "speaker": "carlos",
+      "text": "Capté. ¿Y sobre RAM y Control Tower?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Para RAM: si ves un escenario de centralizar gestión de red y compartirla entre múltiples cuentas sin duplicar VPCs, la respuesta es RAM. Para Control Tower: si el escenario dice que una empresa necesita configurar rápidamente un ambiente multi-cuenta gobernado con buenas prácticas automáticas, es Control Tower. La distinción con Organizations es que Control Tower te da todo listo, Organizations te da el control total."
+    },
+    {
+      "speaker": "carlos",
+      "text": "Bien claro. ¿Arrancamos el recap entonces?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Dale. Resumime lo que te llevás del módulo."
+    },
+    {
+      "speaker": "carlos",
+      "text": "La infraestructura global: Regions son las áreas geográficas independientes, A Zs son los data centers dentro con infraestructura propia, Edge Locations son para cachear contenido con CloudFront. Para alta disponibilidad, múltiples A Zs. Para disaster recovery, múltiples Regions. Los datos no salen de una Region a menos que lo configures explícitamente."
+    },
+    {
+      "speaker": "ana",
+      "text": "Perfecto. ¿Y el Well-Architected Framework?"
+    },
+    {
+      "speaker": "carlos",
+      "text": "Los seis pilares son C R O P S S: Cost Optimization, Reliability, Operational Excellence, Performance Efficiency, Security, Sustainability. Cada pilar tiene sus servicios clave. Reliability tiene Route 53, ELB, Auto Scaling. Security tiene I A M, K M S, GuardDuty. Los confundo si me dan un escenario, así que me quedo con los keywords."
+    },
+    {
+      "speaker": "ana",
+      "text": "Exacto, los keywords son todo en el examen. ¿Y el Shared Responsibility Model?"
+    },
+    {
+      "speaker": "carlos",
+      "text": "AWS es responsable de la seguridad DE la nube, el cliente de la seguridad EN la nube. La regla práctica: si lo podés configurar en la consola, es tuyo. E.C. 2 vos parcheas el OS, RDS AWS parchea el motor, S3 AWS maneja la infraestructura pero yo configuro acceso y cifrado."
+    },
+    {
+      "speaker": "ana",
+      "text": "Muy bien. ¿Y Account Management?"
+    },
+    {
+      "speaker": "carlos",
+      "text": "Root user solo para tareas específicas como cerrar la cuenta, nunca para el día a día. Organizations para gestionar múltiples cuentas, SCPs como guardrails que limitan permisos pero no afectan a la management account. Control Tower para setup multi-cuenta rápido con buenas prácticas. RAM para compartir recursos como subnets entre cuentas. Billing consolidado para combinar uso y aprovechar descuentos por volumen."
+    },
+    {
+      "speaker": "ana",
+      "text": "Impecable. Este módulo es la base sobre la que se construye todo lo demás en el examen. Con la infraestructura global clara, el Well-Architected Framework internalizado, el Shared Responsibility bien definido y el modelo multi-cuenta entendido, estás en una posición sólida para atacar los módulos más técnicos. Nos vemos en el módulo dos: Identity and Access Management, o sea, I A M, que es donde esto se empieza a poner más interesante."
+    }
+  ]
+}
