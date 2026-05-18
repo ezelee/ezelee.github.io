@@ -1,95 +1,450 @@
 {
   "module_title": "Module 09: Monitoring & Management",
-  "estimated_duration_min": 40,
+  "estimated_duration_min": 38,
   "turns": [
-    {"speaker": "ana", "text": "Imaginate que a las dos de la mañana tu sistema de producción empieza a fallar. Las páginas responden lento, los usuarios se van, y vos estás mirando la pantalla sin saber por dónde empezar. ¿Tenés métricas del rendimiento? ¿Los logs centralizados? ¿Una alarma que te hubiera avisado antes del quiebre? Eso es monitoring. Hoy cubrimos cómo AWS te da visibilidad de todo lo que corre en tu cuenta."},
-    {"speaker": "carlos", "text": "¿y qué servicios cubre el módulo?"},
-    {"speaker": "ana", "text": "cuatro servicios principales. CloudWatch es el centro — métricas, logs, alarmas, dashboards. CloudTrail para auditar todas las API calls en tu cuenta. AWS Config para compliance de configuración. Systems Manager para operaciones: patching, automatización, acceso seguro a instancias. Y además Trusted Advisor y AWS Health. El módulo tiene bastante overlap con Security — los encaramos desde el ángulo del monitoring."},
-    {"speaker": "carlos", "text": "empecemos por CloudWatch. ¿qué es exactamente?"},
-    {"speaker": "ana", "text": "CloudWatch es el servicio de monitoring y observabilidad de AWS. Hace tres cosas principales. Primero: recolecta métricas — números que cambian en el tiempo, como CPU de una instancia o requests por segundo de un load balancer. Segundo: centraliza logs — texto que generan tus aplicaciones y servicios. Tercero: alarmas — notificaciones o acciones automáticas cuando una métrica cruza un umbral."},
-    {"speaker": "carlos", "text": "¿y qué métricas recolecta automáticamente de los servicios de AWS?"},
-    {"speaker": "ana", "text": "los servicios de AWS envían métricas a CloudWatch automáticamente. E.C. 2: CPU, red, disco, status checks. RDS: conexiones activas, CPU, espacio. Lambda: invocaciones, duración, errores, throttles. S3: número de objetos, tamaño del bucket. ELB: request count, latencia, healthy hosts. El intervalo default es cinco minutos. Si querés más granularidad, activás Detailed Monitoring — un minuto — con costo adicional."},
-    {"speaker": "carlos", "text": "esperate, ¿E.C. 2 da CPU pero no da memoria? ¿cómo sabés si tu instancia se está quedando sin RAM?"},
-    {"speaker": "ana", "text": "exacto, la memoria no está incluida en las métricas default de E.C. 2. Solo tenés CPU, network, y disk a nivel de hypervisor. Para memoria, uso de disco del filesystem, y procesos, necesitás instalar el CloudWatch Agent en la instancia. El agente lee esas métricas desde dentro del sistema operativo y las manda a CloudWatch como custom metrics."},
-    {"speaker": "carlos", "text": "o sea hay cosas del SO que CloudWatch no puede ver sin el agente."},
-    {"speaker": "ana", "text": "exacto. Sin el agente, CloudWatch ve la instancia desde afuera. Con el agente, ve desde adentro. El agente también puede mandar logs de archivos de tu filesystem — /var/log, logs de nginx, lo que sea. La configuración del agente la podés centralizar en SSM Parameter Store: actualizás el parámetro una vez y todos los agentes levantan la nueva config automáticamente."},
-    {"speaker": "carlos", "text": "¿y las custom metrics? ¿puedo mandar mis propias métricas de negocio?"},
-    {"speaker": "ana", "text": "sí. Con la API PutMetricData enviás cualquier métrica tuya a CloudWatch. La resolución estándar es de un minuto. Si necesitás granularidad de hasta un segundo — High Resolution — podés hacerlo con costo adicional. Ejemplo: número de pedidos procesados por minuto, errores de validación, usuarios activos. Aparecen en CloudWatch como cualquier métrica y podés configurarles alarmas."},
-    {"speaker": "carlos", "text": "yo una vez mandé custom metrics con put_metric_data para los scrapers — ponía dimensiones como 'proveedor' y 'tipo de error' en un namespace propio. ¿Eso es lo que describís?"},
-    {"speaker": "ana", "text": "exactamente. Las dimensiones son key-value pairs para filtrar y agrupar la métrica. Con 'proveedor: proveedor-a, error_type: timeout' podés ver los timeouts por proveedor en el mismo namespace. El namespace es el contenedor que agrupa tus métricas y las separa de las métricas de AWS. Bien armado, eso te dice exactamente qué proveedor está dando problemas sin tener que buscar en logs."},
-    {"speaker": "carlos", "text": "¿y las alarmas cómo funcionan?"},
-    {"speaker": "ana", "text": "una alarma monitorea una métrica y puede estar en tres estados: OK — dentro del umbral — ALARM — superó el umbral — e INSUFFICIENT_DATA — no hay suficientes datos todavía. Cuando pasa a ALARM, podés configurar acciones: notificar por SNS, disparar un Auto Scaling, o hacer acciones directas sobre E.C. 2 — stop, terminate, reboot, o recover para problemas de hardware subyacente."},
-    {"speaker": "carlos", "text": "¿y las Composite Alarms?"},
-    {"speaker": "ana", "text": "Composite Alarms combinan múltiples alarmas con lógica AND u OR. Ejemplo: una alarma que se dispara solo si CPU está alto Y el número de errores está alto. Solos, ninguno indica un problema seguro — CPU alta puede ser tráfico normal, errores altos puede ser un spike temporal. Juntos indican un problema real. Reduce el alarm fatigue — el ruido de alertas falsas."},
-    {"speaker": "carlos", "text": "¿y CloudWatch Logs? ¿cómo organiza los logs?"},
-    {"speaker": "ana", "text": "CloudWatch Logs organiza en tres niveles. Log Group: el contenedor principal — por ejemplo /aws/lambda/my-function o /ecs/mi-servicio. Log Stream: una secuencia dentro del grupo — puede ser el task ID de ECS o el ID de instancia. Log Event: un evento individual con timestamp y mensaje. La retención la configurás vos — de uno a diez años, o nunca expiran. Por default nunca expiran."},
-    {"speaker": "carlos", "text": "yo en los scrapers de Fargate usaba el log driver awslogs — logs en JSON con campos timestamp, level, y execution_id iban directo a CloudWatch Logs. ¿Así es como ECS manda los logs?"},
-    {"speaker": "ana", "text": "exactamente. ECS tiene integración nativa con CloudWatch Logs vía el log driver awslogs. Configurás en la task definition el log group, la región, y el stream prefix. Cada task crea su propio log stream dentro del log group — así filtrás por task ID para debuggear una ejecución específica. El formato JSON estructurado es la mejor práctica porque después podés filtrar por campo en Logs Insights."},
-    {"speaker": "carlos", "text": "¿y CloudWatch Logs Insights?"},
-    {"speaker": "ana", "text": "Logs Insights es la herramienta de query para analizar logs. Tiene su propio lenguaje — parecido a SQL pero diseñado para logs. Podés buscar errores, contar eventos, calcular percentiles de latencia, agrupar por campo. Por ejemplo: 'filter level = ERROR | stats count(*) by bin(5m)' — cuántos errores por cada cinco minutos. Muy útil cuando tenés muchos logs y necesitás encontrar un patrón rápido."},
-    {"speaker": "carlos", "text": "¿y Metric Filters?"},
-    {"speaker": "ana", "text": "Metric Filters transforman logs en métricas. Definís un patrón — por ejemplo, la palabra ERROR en el mensaje — y CloudWatch cuenta cuántas veces aparece. Esa cuenta se convierte en una métrica con alarma. Ejemplo: si aparece ERROR más de diez veces por minuto, disparás una alarma. Es la forma de crear alertas basadas en el contenido de logs sin parsearlos vos mismo."},
-    {"speaker": "carlos", "text": "¿y Log Subscriptions?"},
-    {"speaker": "ana", "text": "Log Subscriptions envían logs a otros servicios en tiempo real. Los destinos son Kinesis Data Streams para procesamiento en tiempo real, Kinesis Data Firehose para cargar a S3 o Redshift, y Lambda para procesamiento custom. También funcionan cross-account: podés centralizar logs de múltiples cuentas en una cuenta de logging dedicada. Muy común en organizaciones grandes para auditoría centralizada."},
-    {"speaker": "carlos", "text": "¿y los dashboards de CloudWatch?"},
-    {"speaker": "ana", "text": "CloudWatch Dashboards son vistas customizables de métricas y logs. Podés agregar gráficos de métricas, números, texto, y alarmas. Lo más potente: son globales — podés mezclar métricas de distintas regiones en un mismo dashboard. AWS tiene automatic dashboards por servicio — E.C. 2, Lambda, RDS — que se llenan solos. Los primeros tres dashboards con hasta 50 métricas son gratis, después son tres dólares por dashboard por mes."},
-    {"speaker": "carlos", "text": "dale, pasemos a CloudTrail. ¿en qué se diferencia de CloudWatch?"},
-    {"speaker": "ana", "text": "son complementarios pero distintos. CloudWatch monitorea rendimiento y salud — métricas de CPU, logs de aplicación, alarmas de latencia. CloudTrail registra quién hizo qué en tu cuenta — qué API call se hizo, desde qué IP, con qué usuario, a qué hora. CloudWatch dice 'la CPU subió al noventa por ciento'. CloudTrail dice 'el usuario carlos terminó la instancia a las catorce treinta desde esta IP'."},
-    {"speaker": "carlos", "text": "¿y CloudTrail viene activo por default?"},
-    {"speaker": "ana", "text": "sí, CloudTrail Event History está habilitado por default con retención de 90 días. Ahí ves las Management Events sin configurar nada. Pero si querés retención más larga, logs de Data Events, o mandar los logs a S3, necesitás crear un Trail — una configuración que le dice a CloudTrail dónde guardar y qué registrar."},
-    {"speaker": "carlos", "text": "¿y qué tipos de eventos hay en CloudTrail?"},
-    {"speaker": "ana", "text": "tres tipos. Management Events: operaciones sobre recursos — crear una E.C. 2, modificar un security group, adjuntar una IAM policy. Habilitados por default. Data Events: operaciones dentro de los recursos — leer o escribir un objeto de S3, invocar una Lambda. Son de alto volumen, deshabilitados por default. Insights Events: detección de actividad inusual con machine learning — es un feature pago."},
-    {"speaker": "carlos", "text": "¿qué detectan los Insights Events?"},
-    {"speaker": "ana", "text": "detectan anomalías en Management Events. Un spike inusual de llamadas a CreateRole — alguien está creando roles de IAM a un ritmo mucho mayor de lo normal. Un burst de StopInstances — muchas instancias terminadas en poco tiempo. CloudTrail Insights analiza el baseline histórico y avisa cuando algo se aleja significativamente. Es útil para detectar compromisos de cuenta antes de que el daño sea mayor."},
-    {"speaker": "carlos", "text": "¿y CloudTrail Lake?"},
-    {"speaker": "ana", "text": "CloudTrail Lake es un data lake managed para queries de CloudTrail. En vez de guardar logs en S3 y analizarlos con Athena, CloudTrail Lake guarda los eventos internamente y los consultás con SQL directamente. Retención de hasta siete años. Podés agregar logs de múltiples cuentas y regiones. Para el examen: auditoría de API calls a largo plazo con queries SQL es CloudTrail Lake."},
-    {"speaker": "carlos", "text": "¿y hay que habilitarlo en múltiples regiones?"},
-    {"speaker": "ana", "text": "por default un Trail se aplica a una sola región. Pero podés configurarlo como Multi-Region Trail — un solo trail que captura eventos de todas las regiones. Para el examen: auditar todas las API calls en todas las regiones es Multi-Region Trail. Si además querés cubrir todas las cuentas de la organización, usás Organization Trail. Y podés habilitar Log File Integrity Validation — usa firma digital para verificar que los logs no fueron modificados."},
-    {"speaker": "carlos", "text": "¿para qué sirve esa validación de integridad?"},
-    {"speaker": "ana", "text": "para compliance y forensics. Si tenés una investigación de seguridad y necesitás demostrar que los logs de CloudTrail no fueron alterados, el Log File Integrity Validation te da una cadena de hashes que podés verificar. Cada archivo de log tiene un digest firmado con clave privada de AWS. Si alguien modifica el archivo, la verificación falla. Importante para industrias con auditorías estrictas."},
-    {"speaker": "carlos", "text": "¿y AWS Config? Ya lo cubrimos en Security — ¿algo más para este módulo?"},
-    {"speaker": "ana", "text": "exacto, ya vimos los conceptos base — registra cambios de configuración, Config Rules para compliance, remediación automática. Lo que agrego para el examen: el Config Aggregator. Podés agregar datos de Config de múltiples cuentas y regiones en una cuenta central. Vista unificada de compliance de toda la organización — qué recursos no cumplen en qué cuenta y en qué región."},
-    {"speaker": "carlos", "text": "¿y el Aggregator necesita AWS Organizations?"},
-    {"speaker": "ana", "text": "no necesariamente. Podés configurarlo manualmente con los ARNs de las cuentas fuente. Pero con AWS Organizations es más automático — agrega todas las cuentas sin especificarlas una por una. Para el examen: compliance centralizado multi-account es Config Aggregator. Y recordá que Config no previene cambios — solo registra, evalúa, y puede remediar después del hecho."},
-    {"speaker": "carlos", "text": "¿y Systems Manager? Session Manager ya lo cubrimos en Security — ¿qué más tiene?"},
-    {"speaker": "ana", "text": "Systems Manager tiene un ecosistema amplio. Session Manager es para acceso seguro. Acá profundizamos en los features operacionales. Patch Manager: automatización del patching de SO y aplicaciones en E.C. 2 y servidores on-premises. Definís Patch Baselines — cuáles parches aplicar — y Maintenance Windows — cuándo aplicarlos. Con reporte de compliance de cuáles instancias están al día."},
-    {"speaker": "carlos", "text": "¿y Run Command?"},
-    {"speaker": "ana", "text": "Run Command ejecuta comandos en instancias managed sin SSH. Instalás un paquete, reiniciás un servicio, corrés un script — desde la consola o la CLI. Podés targetear por tags: 'corré este comando en todas las instancias con tag Environment=Production'. Tiene rate control y error control: si el comando falla en más del X por ciento de instancias, para automáticamente. El historial queda en CloudTrail."},
-    {"speaker": "carlos", "text": "¿y State Manager?"},
-    {"speaker": "ana", "text": "State Manager mantiene el estado deseado de las instancias. Creás una Association — la vinculación entre una configuración y un conjunto de instancias. Por ejemplo: todas las instancias de producción deben tener el antivirus instalado y corriendo. State Manager verifica periódicamente que el estado se mantiene y lo corrige si se desvía. Es diferente de Patch Manager — Patch actualiza, State Manager mantiene el estado ongoing."},
-    {"speaker": "carlos", "text": "¿y Automation?"},
-    {"speaker": "ana", "text": "Automation ejecuta tareas complejas de múltiples pasos — llamadas Runbooks o Automation Documents. Crear un AMI, parchear instancias en un proceso controlado, reiniciar un servicio y verificar que quedó bien. La integración con Config es clave: cuando Config detecta un recurso non-compliant, puede disparar un Automation Document para remediarlo. Ejemplo: Config encuentra un bucket S3 público — Automation lo hace privado."},
-    {"speaker": "carlos", "text": "¿y Inventory?"},
-    {"speaker": "ana", "text": "Inventory recolecta metadata de tus instancias managed: sistema operativo, aplicaciones instaladas, versiones, configuración de red. Podés consultar esa información desde la consola. Útil para saber qué versión de Java o Python está corriendo en cada instancia sin conectarte a cada una. También tenés Fleet Manager — una vista centralizada de todas las instancias con navegador de filesystem, performance counters, y editor de registry de Windows."},
-    {"speaker": "carlos", "text": "¿y Trusted Advisor? También lo cubrimos en Security."},
-    {"speaker": "ana", "text": "sí. Lo que agrego para monitoring: la integración con CloudWatch y automatización. Con el plan Business o Enterprise, podés crear CloudWatch alarms basadas en checks de Trusted Advisor. Y podés usar EventBridge para automatizar respuestas a cambios en los checks. Por ejemplo: si Trusted Advisor detecta un security group con el puerto 22 abierto al mundo, EventBridge dispara una Lambda que lo cierra automáticamente."},
-    {"speaker": "carlos", "text": "¿y AWS Health? No lo conozco."},
-    {"speaker": "ana", "text": "AWS Health te da información personalizada sobre el estado de los servicios de AWS que afectan a TUS recursos. Hay dos vistas. Service Health Dashboard — público — muestra el estado general de AWS en todas las regiones. Personal Health Dashboard — privado — muestra solo los eventos que afectan a recursos en tu cuenta específicamente."},
-    {"speaker": "carlos", "text": "¿qué tipo de eventos muestra el Personal Health Dashboard?"},
-    {"speaker": "ana", "text": "tres tipos. Scheduled Maintenance: AWS va a hacer mantenimiento a una instancia tuya y te avisan con anticipación. Service Degradation: un servicio está degradado y te dice cuáles de tus recursos están afectados. Account-specific issues: problemas que afectan solo a tu cuenta. La ventaja sobre el Service Health Dashboard público es la personalización — ves solo lo que te importa."},
-    {"speaker": "carlos", "text": "¿y cómo automatizás respuestas a esos eventos?"},
-    {"speaker": "ana", "text": "con EventBridge. Cuando AWS Health genera un evento — por ejemplo, una instancia programada para mantenimiento — EventBridge lo recibe y dispara acciones automáticas. Crear un snapshot antes del mantenimiento, notificar por SNS, mover la instancia a otra A.Z.. Para el examen: reaccionar a mantenimiento programado de AWS automáticamente es AWS Health más EventBridge."},
-    {"speaker": "carlos", "text": "dale, los gotchas del examen. ¿por dónde arrancamos?"},
-    {"speaker": "ana", "text": "el primero más importante: E.C. 2 memory metrics. NO están incluidas por default. Para memoria, uso de disco del filesystem, y procesos, necesitás el CloudWatch Agent. Si la pregunta dice 'necesito monitorear el uso de memoria de mis instancias E.C. 2', la respuesta siempre es instalar el CloudWatch Agent — no habilitar Detailed Monitoring, que solo mejora la frecuencia de las métricas que ya existen."},
-    {"speaker": "carlos", "text": "¿qué más?"},
-    {"speaker": "ana", "text": "CloudWatch versus CloudTrail. La confusión es frecuente en el examen. CloudWatch es rendimiento y salud — métricas, logs, alarmas. CloudTrail es governance y compliance — quién llamó a qué API. Si la pregunta dice 'quién borró el bucket S3' o 'quién modificó la IAM policy', es CloudTrail. Si dice 'la CPU de las instancias subió' o 'hay errores en los logs', es CloudWatch."},
-    {"speaker": "carlos", "text": "¿y para las alarmas?"},
-    {"speaker": "ana", "text": "fijate en los tres estados de la alarma: OK, ALARM, e INSUFFICIENT_DATA. El examen pregunta cuál es el estado cuando no hay suficientes datos — es INSUFFICIENT_DATA, no ALARM. Las alarmas pueden disparar Auto Scaling, acciones de E.C. 2, y notificaciones SNS. Las Composite Alarms reducen ruido combinando múltiples condiciones con AND u OR."},
-    {"speaker": "carlos", "text": "¿y para CloudTrail?"},
-    {"speaker": "ana", "text": "CloudTrail por default tiene 90 días de Event History para Management Events. Para retención más larga creás un Trail a S3. Los Data Events — accesos a objetos de S3, invocaciones de Lambda — están deshabilitados por default y hay que habilitarlos explícitamente. Para el examen: si dicen 'auditar accesos a objetos de S3 específicos', necesitás habilitar Data Events de CloudTrail."},
-    {"speaker": "carlos", "text": "¿y la distinción Config versus CloudTrail?"},
-    {"speaker": "ana", "text": "Config versus CloudTrail cae seguido. Config responde '¿cómo está configurado el recurso?' y '¿cómo fue cambiando con el tiempo?' CloudTrail responde '¿quién hizo la llamada API que generó ese cambio?' Config es el estado. CloudTrail es la acción. En una arquitectura de seguridad completa los usás juntos — Config para saber qué cambió, CloudTrail para saber quién lo cambió."},
-    {"speaker": "carlos", "text": "¿y algo más sobre Metric Filters?"},
-    {"speaker": "ana", "text": "Metric Filters son la forma de crear alarmas basadas en el contenido de los logs. Si querés que te avisen cuando hay muchos errores en un log — la palabra ERROR en el mensaje — usás un Metric Filter que cuente las ocurrencias y un alarm sobre esa métrica. Para el examen: alarma basada en patrón de texto en logs es Metric Filter más CloudWatch Alarm."},
-    {"speaker": "carlos", "text": "¿y Log Subscriptions versus Logs Insights?"},
-    {"speaker": "ana", "text": "distintos propósitos. Logs Insights es análisis interactivo — queries ad-hoc para investigar qué pasó. Log Subscriptions es procesamiento en tiempo real — mientras llegan los logs, los mandás a Kinesis o Lambda. Insights es reactivo y analítico. Subscriptions es proactivo y operacional. Para el examen: análisis con queries ad-hoc es Insights. Procesamiento en tiempo real de logs es Subscriptions."},
-    {"speaker": "carlos", "text": "dale, el repaso. CloudWatch recolecta métricas, logs, y dispara alarmas. Las métricas de E.C. 2 son CPU, red, y disco — pero NO memoria ni filesystem. Para esas necesitás el CloudWatch Agent. Custom Metrics con put_metric_data y dimensiones para filtrar. Composite Alarms para reducir ruido."},
-    {"speaker": "ana", "text": "exacto. ¿y los logs?"},
-    {"speaker": "carlos", "text": "CloudWatch Logs organiza en Log Groups, Log Streams, y Log Events. Logs Insights para queries ad-hoc sobre los logs. Metric Filters para crear métricas desde patrones en los logs. Log Subscriptions para enviar logs en tiempo real a Kinesis o Lambda. Dashboards para visualizar métricas de múltiples regiones en una vista."},
-    {"speaker": "ana", "text": "perfecto. ¿CloudTrail?"},
-    {"speaker": "carlos", "text": "CloudTrail registra todas las API calls — quién, qué, cuándo, desde dónde. Management Events habilitados por default con 90 días de history. Data Events deshabilitados por default y de alto volumen. Para retención más larga, un Trail a S3. Multi-Region Trail para todas las regiones. CloudTrail Lake para queries SQL hasta siete años. Log File Integrity para verificar que los logs no fueron alterados."},
-    {"speaker": "ana", "text": "bien. ¿Config y Systems Manager?"},
-    {"speaker": "carlos", "text": "Config registra cambios de configuración y evalúa compliance con Config Rules — remediación automática con SSM Automation. Config Aggregator para multi-account. Systems Manager tiene Session Manager para acceso seguro sin SSH, Patch Manager para patching, Run Command para ejecutar comandos, State Manager para mantener estado deseado, Automation para tareas multi-paso, e Inventory para metadata de instancias."},
-    {"speaker": "ana", "text": "y AWS Health para eventos personalizados sobre tus recursos — mantenimiento programado, degradación de servicios — con EventBridge para automatizar respuestas. El monitoring en AWS es una capa complementaria: CloudWatch para observabilidad, CloudTrail para governance, Config para compliance, Systems Manager para operaciones. Si entendés las diferencias entre todos, el módulo de Monitoring en el examen lo tenés cubierto. Éxito."}
+    {
+      "speaker": "ana",
+      "text": "Bienvenidos. Arranquemos con un escenario que pasa en producción todo el tiempo. Son las tres de la mañana, tu app empieza a devolver errores, los usuarios se quejan, y vos no tenés idea si el problema es la base de datos, el servidor, la red, o el código. ¿Cómo lo diagnosticás? ¿Cuánto tardás en encontrar el origen? Eso es exactamente lo que resuelve el monitoreo en AWS, y eso es lo que vemos hoy."
+    },
+    {
+      "speaker": "carlos",
+      "text": "Ese escenario me es demasiado familiar. ¿Y qué servicios cubre el módulo exactamente?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Cuatro pilares. CloudWatch para métricas, logs y alarms. CloudTrail para auditar quién hizo qué en tu cuenta. AWS Config para rastrear el estado de configuración de tus recursos. Y Systems Manager para operaciones como parchado y acceso seguro. Además vemos Trusted Advisor, AWS Health, y X-Ray para tracing distribuido."
+    },
+    {
+      "speaker": "carlos",
+      "text": "¿Y qué peso tiene en el examen?"
+    },
+    {
+      "speaker": "ana",
+      "text": "No es un dominio enorme por sí solo, aparece distribuido en múltiples preguntas de otros temas. Lo importante es que estos servicios son las respuestas a los cómo: cómo detectás un problema, cómo auditás actividad, cómo asegurás compliance, cómo accedés a una instancia de forma segura. Arrancamos por CloudWatch."
+    },
+    {
+      "speaker": "carlos",
+      "text": "Dale. ¿Qué es CloudWatch en esencia?"
+    },
+    {
+      "speaker": "ana",
+      "text": "CloudWatch es el servicio de monitoring y observabilidad de AWS. Tiene tres capas principales: métricas para datos numéricos de performance, logs para texto de eventos y errores, y alarms para disparar acciones cuando algo cruza un umbral. Los servicios de AWS envían métricas automáticamente sin que vos hagas nada."
+    },
+    {
+      "speaker": "carlos",
+      "text": "¿Cuáles métricas manda E.C. 2 automáticamente?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Para E.C. 2: CPU utilization, network in y out, disk read y write operations, y status checks. Eso es lo que llegás gratis. Ojo con esto porque sale en el examen: memoria, disk usage a nivel del sistema operativo, y uso de swap no están incluidos por defecto. Para esas métricas necesitás instalar el CloudWatch Agent en la instancia."
+    },
+    {
+      "speaker": "carlos",
+      "text": "¿Por qué no incluye memory automáticamente?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Porque CloudWatch opera desde afuera de la instancia, a nivel de hypervisor. No tiene visibilidad del sistema operativo. El Agent corre dentro del OS y puede reportar lo que el OS sabe: memoria usada, espacio en disco, procesos corriendo. Ese es el límite conceptual: métricas del hipervisor automáticas, métricas del OS requieren el Agent."
+    },
+    {
+      "speaker": "carlos",
+      "text": "¿Y el monitoring detallado qué es?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Por defecto las métricas de E.C. 2 llegan cada cinco minutos. Detailed monitoring las manda cada minuto y tiene un costo extra. Importante para el examen: si vas a usar Auto Scaling y querés que reaccione rápido a picos de carga, necesitás detailed monitoring habilitado para que las métricas lleguen con más frecuencia."
+    },
+    {
+      "speaker": "carlos",
+      "text": "¿Y custom metrics? Yo las usé en un scraper que corrí en Fargate."
+    },
+    {
+      "speaker": "ana",
+      "text": "Contame, ¿qué mandabas?"
+    },
+    {
+      "speaker": "carlos",
+      "text": "Usaba put_metric_data para contar errores por tipo y por proveedor. Ponía dimensiones como proveedor y error_type en un namespace propio. Así podía ver en un dashboard cuántos errores había tenido cada proveedor en el día. Fue bastante básico pero funcionó."
+    },
+    {
+      "speaker": "ana",
+      "text": "Ese es exactamente el patrón. Las custom metrics tienen resolución estándar de un minuto o high resolution de hasta un segundo si necesitás granularidad máxima. Las dimensiones te permiten filtrar y agregar por cualquier atributo que definas. Y podés crear alarms sobre custom metrics exactamente igual que sobre las automáticas."
+    },
+    {
+      "speaker": "carlos",
+      "text": "¿Y los alarms cómo funcionan exactamente?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Un alarm tiene tres estados. OK cuando el valor está dentro del umbral. ALARM cuando lo cruzó. INSUFFICIENT_DATA cuando no llegaron suficientes puntos de datos para evaluar, que pasa al inicio o cuando la instancia está detenida. Cuando entra en ALARM podés disparar acciones: escalar con Auto Scaling, hacer stop o terminate en E.C. 2, o mandar una notificación vía SNS."
+    },
+    {
+      "speaker": "carlos",
+      "text": "¿Y los composite alarms?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Combinan múltiples alarms con lógica AND u OR para reducir el ruido. El caso típico: no quiero alertarme solo porque el CPU está al noventa por ciento, porque puede ser un proceso batch legítimo. Quiero alertarme cuando CPU está alto AND el número de requests activos está bajo, que sí indica que la instancia está trabada. Un composite alarm captura ese patrón."
+    },
+    {
+      "speaker": "carlos",
+      "text": "Tiene mucho sentido. ¿Y CloudWatch Logs?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Los logs se organizan en tres niveles. Log Groups es el contenedor de más alto nivel, por ejemplo barra aws barra lambda barra nombre-de-función. Log Streams son las secuencias dentro del grupo, típicamente una por instancia o por ejecución de Lambda. Log Events son los registros individuales con timestamp. La retención la configurás por Log Group, de uno a diez años o nunca expiran."
+    },
+    {
+      "speaker": "carlos",
+      "text": "Yo los usé con Fargate. El log driver awslogs mandaba los logs del contenedor a CloudWatch automáticamente. Pero siempre me confundí si eso es lo mismo que instalar el CloudWatch Agent o son cosas distintas."
+    },
+    {
+      "speaker": "ana",
+      "text": "Son dos mecanismos distintos. El awslogs log driver es específico de contenedores: le decís a Docker que mande el stdout y stderr del contenedor directo a CloudWatch Logs, sin nada instalado adentro. El CloudWatch Agent es un proceso que instalás en el OS, sea en E.C. 2 o en servidores on-premises, y te da más control: múltiples archivos de log, métricas del OS como memoria y disco."
+    },
+    {
+      "speaker": "carlos",
+      "text": "Ah, entonces el awslogs driver es solo para el stdout del contenedor. Si necesitaba los archivos de log adentro del contenedor, tendría que haber hecho otra cosa."
+    },
+    {
+      "speaker": "ana",
+      "text": "Exacto. Para contenedores en ECS o Fargate el patrón más común es loggear a stdout y dejar que awslogs lo capture. Si necesitás logs de archivos, usás un sidecar con el Agent. Para E.C. 2 directo, siempre el Agent. Y la configuración del Agent podés centralizarla en SSM Parameter Store para que todos los servidores la lean desde un solo lugar."
+    },
+    {
+      "speaker": "carlos",
+      "text": "¿Y Logs Insights para qué sirve?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Es un motor de queries para analizar logs de forma interactiva. Tiene su propio lenguaje, no SQL pero similar. Podés buscar todos los logs con nivel ERROR de la última hora, contar eventos por tipo, calcular el percentil 99 de latencia de tus requests. Muy útil para debugging sin exportar a otro sistema. Para el examen: análisis ad-hoc de logs CloudWatch Logs Insights."
+    },
+    {
+      "speaker": "carlos",
+      "text": "¿Y los metric filters?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Permiten crear una métrica a partir del contenido de los logs. Definís un patrón de búsqueda, por ejemplo la palabra ERROR, y CloudWatch crea una métrica que cuenta cuántas veces aparece ese patrón por unidad de tiempo. Sobre esa métrica podés crear un alarm. Es el puente entre logs y alarms cuando no tenés una métrica directa del servicio."
+    },
+    {
+      "speaker": "carlos",
+      "text": "¿Y las log subscriptions?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Permiten procesar logs en tiempo real mandándolos a otro servicio. Tenés tres destinos: Kinesis Data Streams para procesamiento real-time, Kinesis Data Firehose para persistir en S3 o Redshift, o Lambda para procesamiento custom. También soportan cross-account, podés centralizar logs de múltiples cuentas en una cuenta de observabilidad dedicada."
+    },
+    {
+      "speaker": "carlos",
+      "text": "¿Y CloudWatch puede verse de forma global, cross-region?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Sí, los dashboards soportan métricas de múltiples regiones y múltiples cuentas en un solo panel. Los primeros tres dashboards son gratuitos. A partir del cuarto son tres dólares por dashboard por mes. Para el examen también existe Container Insights para ECS y Kubernetes, que da métricas de CPU y memoria a nivel de contenedor sin custom metrics manuales."
+    },
+    {
+      "speaker": "carlos",
+      "text": "Bueno. ¿Y ahora CloudTrail? Eso nunca lo configuré directamente, te pregunto desde cero."
+    },
+    {
+      "speaker": "ana",
+      "text": "CloudTrail registra todas las llamadas a la API de AWS en tu cuenta. Cada vez que alguien crea una instancia, modifica un security group, cambia una policy, o asume un role, CloudTrail lo captura con quién lo hizo, desde qué IP, a qué hora, y con qué parámetros. Es la respuesta a: ¿quién hizo qué y cuándo en mi cuenta?"
+    },
+    {
+      "speaker": "carlos",
+      "text": "¿Y está siempre habilitado?"
+    },
+    {
+      "speaker": "ana",
+      "text": "El Event History viene habilitado por defecto con noventa días de historial y no requiere configuración. Pero si querés retención más larga, enviarlo a S3 para análisis, o cubrir todas las regiones con un solo trail, configurás un Trail. La buena práctica es crear un multi-region trail que mande a un bucket S3 con log file integrity validation habilitado."
+    },
+    {
+      "speaker": "carlos",
+      "text": "¿Qué tipos de eventos registra?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Tres tipos. Management Events son las operaciones de control: crear, modificar, borrar recursos. Vienen habilitados por defecto y tienen dos subtipos, read events y write events. Data Events son operaciones dentro de recursos, como acceso a objetos de S3 o invocaciones de Lambda. Son de alto volumen y son opt-in porque el costo escala rápido. CloudTrail Insights detecta actividad anómala con machine learning."
+    },
+    {
+      "speaker": "carlos",
+      "text": "¿Y CloudTrail Insights puntualmente?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Es una feature paga que analiza los management events y detecta patrones inusuales. Por ejemplo, un burst repentino de llamadas a IAM, o una cantidad inusual de instancias E.C. 2 creadas en poco tiempo. Puede indicar una cuenta comprometida o un error en un script de automation que se fue de control. El examen lo menciona como detección de actividad anómala."
+    },
+    {
+      "speaker": "carlos",
+      "text": "¿Y CloudTrail Lake?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Es una feature más nueva que te permite hacer queries SQL directamente sobre los eventos de CloudTrail. Retención de hasta siete años. Podés agregar logs de múltiples cuentas y regiones. Muy útil para forensics y compliance: buscar qué cambios se hicieron en los últimos seis meses sobre un recurso específico, sin exportar a otro sistema ni armar una pipeline de datos."
+    },
+    {
+      "speaker": "carlos",
+      "text": "¿Y AWS Config? Esto no lo toqué nunca, explicámelo de cero."
+    },
+    {
+      "speaker": "ana",
+      "text": "AWS Config responde una pregunta diferente a CloudTrail. CloudTrail te dice quién hizo el cambio. Config te dice cómo está configurado el recurso ahora mismo y cómo estaba antes del cambio. Registra el estado de configuración de tus recursos en el tiempo. Es un historial de configuración, no de acciones."
+    },
+    {
+      "speaker": "carlos",
+      "text": "¿Y para qué se usa eso concretamente?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Para compliance. Definís reglas que dicen cómo deben estar configurados tus recursos. Por ejemplo: todos los EBS deben estar encriptados, ningún S3 bucket puede ser público, todos los security groups deben tener el puerto veintidós cerrado al mundo. Config chequea esas reglas continuamente y te muestra qué recursos no cumplen. AWS tiene más de ciento noventa reglas predefinidas."
+    },
+    {
+      "speaker": "carlos",
+      "text": "¿Y si algo no cumple, qué hace?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Podés configurar remediación automática usando SSM Automation Documents. Config detecta el incumplimiento y dispara el runbook que lo corrige. El ejemplo del módulo es borrar automáticamente un volumen no encriptado, que es agresivo pero muestra el concepto. Ojo con la remediación automática: si el runbook no está bien definido puede causar más problemas que el incumplimiento original."
+    },
+    {
+      "speaker": "carlos",
+      "text": "¿Se puede usar en múltiples cuentas?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Sí, con Config Aggregator centralizás los datos de compliance de todas las cuentas y regiones en una vista única. Ideal para organizaciones con muchas cuentas. El examen lo pregunta en el contexto de AWS Organizations: cómo verificar compliance de toda la organización desde una sola cuenta. Config Aggregator más Organization Trail de CloudTrail es la combinación estándar."
+    },
+    {
+      "speaker": "carlos",
+      "text": "¿Cómo memorizo la diferencia entre Config y CloudTrail? Me va a costar distinguirlos."
+    },
+    {
+      "speaker": "ana",
+      "text": "Dos preguntas distintas. Config: ¿cómo está configurado este recurso? ¿Cumple con mis reglas de compliance? CloudTrail: ¿quién hizo este cambio? ¿Desde qué IP? ¿A qué hora? Los dos se complementan. Config detecta que un security group tiene el puerto veintidós abierto. CloudTrail dice quién lo abrió y cuándo. Juntos te dan el qué y el quién."
+    },
+    {
+      "speaker": "carlos",
+      "text": "Perfecto, eso queda claro. ¿Y Systems Manager? Acá tengo algo de experiencia con Parameter Store."
+    },
+    {
+      "speaker": "ana",
+      "text": "SSM es el hub operacional de AWS para gestionar instancias, tanto en AWS como on-premises. Tiene muchas sub-features. Contame qué usaste de Parameter Store."
+    },
+    {
+      "speaker": "carlos",
+      "text": "Yo leía parámetros en runtime, cosas como el nombre del bucket de S3 y los subnet IDs. Los ponía en Parameter Store para no hardcodearlos en el código ni en la task definition. Usaba String para las cosas sin secreto y SecureString para lo que necesitaba encriptación. Tengo entendido que Secrets Manager es la alternativa con rotación automática pero nunca la configuré."
+    },
+    {
+      "speaker": "ana",
+      "text": "Exacto, esa distinción importa para el examen. Parameter Store es para configuración y secrets simples, gratuito en el tier estándar hasta diez mil parámetros. Secrets Manager es cuando necesitás rotación automática de credenciales, por ejemplo la contraseña de una base de datos que cambia cada treinta días. La keyword en el examen es rotación automática. Si la ves, la respuesta es Secrets Manager."
+    },
+    {
+      "speaker": "carlos",
+      "text": "¿Y qué otras features de SSM hay que conocer?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Session Manager es la más importante para el examen. Te da acceso a instancias E.C. 2 sin necesitar puertos abiertos, sin bastion hosts, y sin gestionar SSH keys. El acceso se controla completamente por IAM. Todo queda en un audit trail. Es el reemplazo moderno del bastion host y la respuesta cuando preguntan cómo acceder a instancias en subnets privadas de forma segura."
+    },
+    {
+      "speaker": "carlos",
+      "text": "¿Sin abrir el puerto veintidós? ¿Cómo llega la conexión?"
+    },
+    {
+      "speaker": "ana",
+      "text": "El SSM Agent en la instancia establece una conexión hacia afuera a los endpoints de SSM. Es tráfico outbound, no inbound. No necesitás ningún puerto abierto en el security group para acceso entrante. La sesión va cifrada a través de esa conexión outbound. El examen pregunta el patrón más seguro para acceso a E.C. 2 y Session Manager siempre gana sobre bastion host."
+    },
+    {
+      "speaker": "carlos",
+      "text": "¿Y Patch Manager?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Automatiza el parchado de sistemas operativos y aplicaciones a escala. Definís patch baselines con las reglas de qué parches instalar. Agrupás instancias en patch groups por ambiente o función. Configurás maintenance windows para cuándo ejecutar el parchado. Y obtenés reportes de compliance de qué instancias están parchadas y cuáles no. Es el reemplazo de correr apt update manualmente en cien servidores."
+    },
+    {
+      "speaker": "carlos",
+      "text": "¿Y Run Command?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Ejecuta comandos o scripts en instancias sin SSH. Mandás un documento SSM o un shell script y se ejecuta en las instancias que apuntás, que podés filtrar por tags. Tiene rate control para no correr en todas simultáneamente y error control para parar si supera cierto porcentaje de fallas. Todo queda registrado en CloudTrail. Útil para tareas operacionales ad-hoc o migraciones masivas."
+    },
+    {
+      "speaker": "carlos",
+      "text": "¿Y Trusted Advisor? Eso no lo toqué nunca, te pregunto desde cero."
+    },
+    {
+      "speaker": "ana",
+      "text": "Trusted Advisor es un consultor automático de AWS. Analiza tu cuenta y da recomendaciones en cinco categorías: Cost Optimization para reducir costos, Performance para mejorar rendimiento, Security para cerrar vulnerabilidades, Fault Tolerance para aumentar disponibilidad, y Service Limits para saber si estás cerca de los límites de tus servicios."
+    },
+    {
+      "speaker": "carlos",
+      "text": "¿Es gratis?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Parcialmente. Con Basic o Developer support tenés siete checks gratuitos: permisos de S3 buckets, security groups con puertos peligrosos abiertos al mundo, uso de IAM, MFA en root account, snapshots públicos de EBS y RDS, y service limits. Con Business o Enterprise support tenés más de ciento quince checks, integración con CloudWatch, y acceso programático vía Support API."
+    },
+    {
+      "speaker": "carlos",
+      "text": "¿Y para el examen cuándo aparece?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Cuando preguntan cómo identificar recursos infrautilizados para reducir costos, cómo detectar security gaps de forma proactiva, o cómo verificar que no llegaste a service limits. La keyword es best practice recommendations de forma proactiva y centralizada. Si el escenario pide una revisión automática de la cuenta, Trusted Advisor. Si pide monitoreo de una métrica específica, CloudWatch."
+    },
+    {
+      "speaker": "carlos",
+      "text": "¿Y AWS Health?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Tiene dos vistas. El Service Health Dashboard es público y muestra el estado de los servicios de AWS en todas las regiones. El Personal Health Dashboard es personalizado para tu cuenta: te avisa de eventos que afectan tus recursos específicamente. Mantenimiento programado en una de tus instancias, degradación de servicio en tu región, problemas de red que impactan tu cuenta."
+    },
+    {
+      "speaker": "carlos",
+      "text": "¿Cómo se automatiza en respuesta a esos eventos?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Con EventBridge. Cuando AWS Health emite un evento, por ejemplo que una de tus instancias E.C. 2 está programada para mantenimiento de infraestructura, configurás una regla en EventBridge que dispare una Lambda para crear un snapshot antes de que empiece. Todo automatizado, sin intervención manual. El examen presenta ese patrón como respuesta a cómo reaccionar proactivamente a eventos de AWS."
+    },
+    {
+      "speaker": "carlos",
+      "text": "¿Y X-Ray? Yo esto no lo toqué, así que te pregunto desde cero."
+    },
+    {
+      "speaker": "ana",
+      "text": "X-Ray es el servicio de distributed tracing de AWS. El problema que resuelve: tenés una app con API Gateway, Lambda, DynamoDB, y un servicio externo. Entra un request, pasa por todo eso, y el usuario recibe un error o una respuesta lenta. ¿En qué paso está el problema? CloudWatch te dice que Lambda tuvo errores, pero no te muestra el camino completo de esa request. X-Ray sí."
+    },
+    {
+      "speaker": "carlos",
+      "text": "¿Cómo lo logra técnicamente?"
+    },
+    {
+      "speaker": "ana",
+      "text": "El X-Ray SDK instrumenta tu código. Cada servicio genera un Segment que es el registro de lo que hizo con esa request. Los Segments de distintos servicios se correlacionan por un trace ID que viaja en el header HTTP de cada llamada entre servicios. X-Ray reúne todos esos Segments y construye el trace completo, el camino end-to-end de esa request a través de toda la arquitectura."
+    },
+    {
+      "speaker": "carlos",
+      "text": "¿Y el daemon qué hace?"
+    },
+    {
+      "speaker": "ana",
+      "text": "En E.C. 2 y ECS instalás el X-Ray daemon como proceso del sistema o como sidecar container. El SDK manda los Segments al daemon en localhost y el daemon los sube a la API de X-Ray en batch. Reduce la overhead de red en tu aplicación. Para Lambda no necesitás el daemon, habilitás Active Tracing en la configuración de la función y AWS lo maneja automáticamente."
+    },
+    {
+      "speaker": "carlos",
+      "text": "¿Y el service map?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Es la visualización principal de X-Ray. Muestra un grafo donde cada nodo es un servicio y cada arista es una llamada entre servicios, con latencia promedio y tasa de errores en cada conexión. Los colores indican salud: verde es ok, amarillo son errores cuatro-xx, rojo son faults cinco-xx, naranja throttling. Podés hacer drill-down en cualquier nodo para ver los traces individuales."
+    },
+    {
+      "speaker": "carlos",
+      "text": "¿Y el sampling? Mencionaste que no traza todo."
+    },
+    {
+      "speaker": "ana",
+      "text": "Por defecto traza la primera request por segundo y el cinco por ciento del resto. Para apps con mucho tráfico, trazar todo sería costoso y ruidoso. Podés customizar con sampling rules: tracear el cien por ciento de las requests de checkout donde querés máxima visibilidad, pero solo el uno por ciento de las requests de health check que son ruido. Filtrás por URL, método HTTP, o nombre del servicio."
+    },
+    {
+      "speaker": "carlos",
+      "text": "¿Y las Annotations versus Metadata?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Ambas son key-value pairs que adjuntás a un trace para contexto. La diferencia: Annotations son indexadas y filtrables. Podés buscar todos los traces donde customer_id es un valor específico. Metadata no es indexada, solo sirve para ver el contexto cuando mirás un trace puntual. Para el examen: si querés buscar y filtrar traces, Annotations. Si solo querés guardar contexto extra, Metadata."
+    },
+    {
+      "speaker": "carlos",
+      "text": "¿Y en el examen cuándo sale X-Ray?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Las keywords son distributed tracing, service map, encontrar el bottleneck en una app de microservices, visualizar el camino de un request. El distractor clásico es confundirlo con CloudWatch. CloudWatch son métricas y logs. CloudTrail es el audit log de APIs. X-Ray son traces de requests viajando a través de servicios. Tres herramientas distintas para tres preguntas distintas."
+    },
+    {
+      "speaker": "carlos",
+      "text": "¿Hacemos exam tips?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Dale. Tip uno: E.C. 2 memory y disk usage no son métricas automáticas, necesitás el CloudWatch Agent. Eso sale constantemente. Tip dos: CloudTrail viene habilitado por defecto con noventa días de historial, pero para retención larga y multi-región configurás un Trail a S3. Tip tres: Config responde qué tan configurado está el recurso, CloudTrail responde quién hizo el cambio."
+    },
+    {
+      "speaker": "carlos",
+      "text": "¿Más tips?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Tip cuatro: Session Manager de SSM reemplaza bastion hosts. Sin puertos abiertos, sin SSH keys, todo por IAM. Si el examen pregunta el patrón más seguro para acceder a instancias en subnets privadas, Session Manager. Tip cinco: Parameter Store para configuración y secrets simples, Secrets Manager cuando la pregunta dice rotación automática de credenciales."
+    },
+    {
+      "speaker": "carlos",
+      "text": "¿Tips de X-Ray?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Tip seis: distributed tracing y service map siempre son X-Ray. El daemon va en E.C. 2 y ECS como sidecar, no en Lambda. Lambda usa Active Tracing. Sampling rules para controlar el volumen y costo. Annotations para filtrar traces, Metadata para contexto. Y el distractor más común: X-Ray no reemplaza a CloudWatch ni a CloudTrail, los tres son complementarios."
+    },
+    {
+      "speaker": "carlos",
+      "text": "¿Y tips de CloudWatch Logs?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Tip siete: tres features distintas que se confunden. Logs Insights para analizar logs de forma interactiva con queries ad-hoc. Metric Filters para crear métricas desde patrones en logs y crear alarms. Log Subscriptions para procesar logs en tiempo real hacia Kinesis o Lambda. Cada una responde un caso de uso distinto y el examen pone escenarios que apuntan a una específica."
+    },
+    {
+      "speaker": "carlos",
+      "text": "¿Y Trusted Advisor?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Tip ocho: siete checks gratuitos con Basic y Developer support. Todos los checks con Business o Enterprise. Si el examen pregunta acceso programático a las recomendaciones de Trusted Advisor, necesitás Business o Enterprise support. Y la keyword de examen para Trusted Advisor es best practice recommendations proactivas sobre la cuenta, no monitoreo de métricas en tiempo real."
+    },
+    {
+      "speaker": "carlos",
+      "text": "Perfecto. ¿Hacemos el recap?"
+    },
+    {
+      "speaker": "ana",
+      "text": "Dale, empezá vos."
+    },
+    {
+      "speaker": "carlos",
+      "text": "CloudWatch es el centro de observabilidad: métricas automáticas de servicios, custom metrics con put_metric_data, alarms con tres estados, logs con estructura de Group y Stream, y Agent para métricas del OS que CloudWatch no puede ver desde afuera. Memory y disk usage siempre necesitan el Agent. Detailed monitoring para datos cada minuto si necesitás Auto Scaling reactivo."
+    },
+    {
+      "speaker": "ana",
+      "text": "Bien. ¿Y CloudTrail y Config?"
+    },
+    {
+      "speaker": "carlos",
+      "text": "CloudTrail audita APIs: quién hizo qué, cuándo, desde dónde. Viene con noventa días de historial y configurás un Trail para más. Config rastrear el estado de configuración de los recursos y chequea compliance contra reglas. Los dos juntos dan el quién y el cómo está. CloudTrail Insights para anomalías, Config Aggregator para múltiples cuentas."
+    },
+    {
+      "speaker": "ana",
+      "text": "¿Y SSM y los demás?"
+    },
+    {
+      "speaker": "carlos",
+      "text": "Systems Manager es el hub operacional. Session Manager sin puertos ni SSH keys. Patch Manager para parchado a escala. Run Command sin SSH. Parameter Store para config y secrets. Trusted Advisor para best practice recommendations en cinco categorías, con siete checks gratis y más de ciento quince con Business o Enterprise support. AWS Health para eventos que afectan mis recursos específicos."
+    },
+    {
+      "speaker": "ana",
+      "text": "Y el servicio nuevo del módulo."
+    },
+    {
+      "speaker": "carlos",
+      "text": "X-Ray para distributed tracing. El SDK instrumenta el código, genera Segments con un trace ID común, el daemon los sube a X-Ray, y el service map visualiza el camino completo de cada request. Sampling rules para controlar el volumen. Annotations para filtrar traces. No reemplaza a CloudWatch ni a CloudTrail, son herramientas complementarias para preguntas distintas."
+    },
+    {
+      "speaker": "ana",
+      "text": "Excelente repaso. Cubrimos CloudWatch en todas sus dimensiones, CloudTrail para auditoría, Config para compliance, Systems Manager con Session Manager y Patch Manager, Trusted Advisor, AWS Health y EventBridge, y X-Ray para tracing distribuido. Este módulo da las herramientas para responder qué está pasando, quién lo hizo, y cómo está configurado todo. La semana que viene: Migration. Nos vemos."
+    }
   ]
 }

@@ -1,446 +1,466 @@
 {
   "module_title": "Module 02: Identity and Access Management (IAM)",
-  "estimated_duration_min": 42,
+  "estimated_duration_min": 40,
   "turns": [
     {
       "speaker": "ana",
-      "text": "Imaginate este escenario del examen: tenés una aplicación corriendo en E.C. 2 que necesita leer objetos de un bucket de S3. ¿Cómo le das acceso? Mucha gente responde 'le paso las access keys al servidor'. Esa es exactamente la respuesta incorrecta que el examen espera que rechaces. Hoy vemos por qué, y vemos la forma correcta de manejar identidades y permisos en AWS con I A M."
+      "text": "Bienvenidos. Hoy arrancamos con un módulo que va a aparecer en prácticamente cada sección del examen, no solo en la de seguridad. Imaginate este escenario: tu aplicación en E.C. 2 necesita leer archivos de S3. ¿Qué hacés? ¿Ponés las credenciales hardcodeadas en el código? ¿Creás un usuario y le das las keys? Ninguna de las dos opciones va a hacer pasar el examen, ni tampoco sobrevivir en producción."
     },
     {
       "speaker": "carlos",
-      "text": "A ver, intuitivamente yo haría algo así — guardaría las credenciales en una variable de entorno o en un archivo de configuración en el servidor. ¿Por qué está mal?"
+      "text": "Ja, hardcodeadas claramente no. Pero la respuesta es un role, ¿no? Me suena de cuando armé un chatbot interno con Bedrock. Aunque en ese momento no tenía claro del todo qué estaba configurando."
     },
     {
       "speaker": "ana",
-      "text": "Porque si alguien compromete ese servidor, tiene tus credenciales de AWS para siempre. Las access keys son permanentes hasta que las rotás manualmente. La respuesta correcta del examen es siempre: usá un IAM role adjunto a la instancia. Las credenciales temporales las maneja AWS automáticamente y rotan solas. Eso es lo que cubre este módulo."
-    },
-    {
-      "speaker": "ana",
-      "text": "Identity and Access Management, o I A M, es uno de los servicios más importantes del examen — el examen le da entre quince y veinte por ciento de peso, y aparece de manera transversal en casi todos los dominios. Es el servicio que controla DOS cosas: quién puede acceder a tus recursos de AWS — eso es autenticación — y qué pueden hacer una vez que tienen acceso — eso es autorización."
+      "text": "Exacto, un role. Y justamente eso es lo que vamos a entender hoy: no solo qué hacer, sino por qué. Estamos en el módulo de Identity and Access Management, o sea, IAM. Representa entre el quince y el veinte por ciento del examen y sus conceptos se infiltran en casi todas las preguntas, incluso cuando hablan de E.C. 2 o de S3 o de serverless."
     },
     {
       "speaker": "carlos",
-      "text": "Dale. ¿Por qué tiene tanto peso en el examen si parece un servicio de configuración?"
+      "text": "Quince a veinte por ciento, eso es bastante. ¿Qué cubre exactamente? ¿Solo users y contraseñas?"
     },
     {
       "speaker": "ana",
-      "text": "Porque toda arquitectura en AWS implica permisos. Cuando diseñás una solución, siempre tenés que pensar quién tiene acceso a qué. Ningún servicio funciona de forma aislada sin permisos. Y además, muchas preguntas de arquitectura usan I A M como parte de la respuesta correcta aunque el tema principal sea otro, como E.C. 2, Lambda o S3."
+      "text": "Mucho más. Cubrimos usuarios, grupos, roles y políticas. Después Multi-Factor Authentication. Luego federation, que es cómo usuarios externos acceden a AWS sin crear cuentas individuales. Y terminamos con Cognito y Directory Service. Todo gira alrededor de dos preguntas: ¿quién puede acceder? y ¿qué puede hacer?"
     },
     {
       "speaker": "carlos",
-      "text": "Capté. ¿Y qué componentes tiene I A M?"
+      "text": "Bueno, empecemos por el principio. ¿Qué es exactamente IAM?"
     },
     {
       "speaker": "ana",
-      "text": "Cuatro componentes principales. Users: representan personas o aplicaciones con credenciales permanentes. Groups: colecciones de users para simplificar la gestión de permisos. Roles: permisos que pueden asumir servicios, aplicaciones u otros usuarios, con credenciales temporales. Y Policies: los documentos JSON que definen exactamente qué está permitido o denegado. Todo en I A M gira alrededor de estos cuatro."
+      "text": "IAM es el servicio de AWS que controla autenticación, el quién, y autorización, el qué puede hacer. Tiene cuatro componentes principales: users para personas o aplicaciones, groups para colecciones de users, roles para permisos temporales que asumen servicios o entidades externas, y policies que son documentos JSON que definen qué está permitido o denegado."
     },
     {
       "speaker": "carlos",
-      "text": "¿Y I A M es un servicio regional como E.C. 2, o aplica a toda la cuenta?"
+      "text": "¿Es un servicio de pago?"
     },
     {
       "speaker": "ana",
-      "text": "I A M es un servicio global — no es regional. Un user o role que creás en I A M está disponible en todas las Regions de tu cuenta automáticamente. Fíjate que esto es diferente a la mayoría de los servicios de AWS que sí son regionales. Ojo con esto en el examen: si pregunta en qué Region está I A M, la respuesta es que es global."
+      "text": "No, IAM es completamente gratuito. Y acá viene el primer dato importante para el examen: IAM es un servicio global. No es regional. Cuando creás un user o un role, está disponible en todas las regiones de AWS instantáneamente. Eso lo preguntan con frecuencia y te van a tentar con opciones que dicen replicarlo por región. Esa opción siempre es trampa."
     },
     {
       "speaker": "carlos",
-      "text": "Ah, eso no lo sabía — que no hay que replicar los users por Region. Dale, hablemos de IAM Users."
+      "text": "Global, anotado. ¿Empezamos con los users entonces?"
     },
     {
       "speaker": "ana",
-      "text": "Un IAM User representa una persona o aplicación que interactúa con AWS. Lo más importante: tiene credenciales permanentes. Hay dos tipos de acceso. Acceso por consola: usa username y password, más MFA opcional. Acceso programático: usa Access Key ID más Secret Access Key, para la CLI, los SDKs y las APIs. Un user puede tener ambos tipos a la vez."
+      "text": "Dale. Un IAM user representa una persona o una aplicación que interactúa con AWS. Tiene credenciales permanentes, a diferencia de los roles que son temporales. Hay dos tipos de acceso: acceso a la consola web que requiere usuario y contraseña, y acceso programático que usa una Access Key ID más una Secret Access Key para CLI, SDK, o llamadas directas a la API."
     },
     {
       "speaker": "carlos",
-      "text": "¿Y cuántos access keys puede tener un user?"
+      "text": "¿Hay un límite de cuántos users podés tener por cuenta?"
     },
     {
       "speaker": "ana",
-      "text": "Máximo dos access keys activas por user. Esto existe para permitir rotación sin downtime — activás la segunda, actualizás tu app para usarla, y después desactivás la primera. Hay reglas importantes para el examen: nunca embeber access keys en el código fuente, nunca subirlas a repositorios de código como GitHub, y preferir roles I A M siempre que sea posible en vez de access keys."
+      "text": "Sí, cinco mil users por cuenta de AWS. Y cada user puede tener hasta dos access keys activas simultáneamente. Eso permite rotación sin downtime: creás la nueva key, actualizás la aplicación, y después desactivás la vieja. Ojo con esto: nunca embebés una access key en el código fuente. Si llega a un repositorio público, en minutos alguien lo detecta y te genera costos enormes."
     },
     {
       "speaker": "carlos",
-      "text": "Uy, eso de no subir las keys a GitHub lo aprendí de la peor manera en algún punto. ¿Qué hay de la password policy para los users?"
+      "text": "¿Cómo es el proceso de rotación exactamente?"
     },
     {
       "speaker": "ana",
-      "text": "La password policy aplica a todos los IAM users de la cuenta. Podés configurar: longitud mínima, tipos de caracteres requeridos, expiración de contraseña, historial para evitar reutilización, y si querés que sea el admin quien resetee la contraseña o si el user puede hacerlo solo. El examen puede preguntarte qué setting usar para forzar el cambio de password periódico."
+      "text": "Simple. Creás la segunda key mientras la primera sigue activa. Actualizás todos los sistemas que usan la primera para que usen la segunda. Verificás que todo funcione. Después desactivás la primera, esperás un tiempo para confirmar que nada la usa, y recién ahí la eliminás. Los dos slots activos existen exactamente para este proceso de rotación limpia sin interrupciones."
     },
     {
       "speaker": "carlos",
-      "text": "Tiene sentido. ¿Y los IAM Groups?"
+      "text": "¿Y el password policy? ¿Se configura a nivel de cuenta o por user?"
     },
     {
       "speaker": "ana",
-      "text": "Un IAM Group es una colección de users que comparten los mismos permisos. La idea es que asignés policies a grupos en vez de a usuarios individuales — es mucho más escalable. Un user puede estar en múltiples grupos y hereda los permisos de todos. Ojo con esto: los grupos no se pueden anidar. No existe un grupo dentro de otro grupo. El examen lo testea."
+      "text": "A nivel de cuenta, aplica a todos los IAM users que tienen acceso a consola. Podés definir longitud mínima, tipos de caracteres requeridos como mayúsculas, números, y símbolos, expiración de contraseñas, prevenir reutilización de las últimas N contraseñas, y obligar reset por administrador después de expiración. Es la primera capa de defensa para acceso humano."
     },
     {
       "speaker": "carlos",
-      "text": "¿Por qué no se pueden anidar? Parece una limitación rara."
+      "text": "Entendido. ¿Y los groups?"
     },
     {
       "speaker": "ana",
-      "text": "Es una decisión de diseño para simplificar la evaluación de permisos y evitar jerarquías complejas que sean difíciles de auditar. El modelo de I A M es plano para grupos. Si necesitás permisos jerárquicos, lo hacés con múltiples grupos o con policies más específicas. Para el examen: si ves una pregunta sobre nesting de grupos, la respuesta es que no está soportado."
+      "text": "Un group es una colección de IAM users con permisos compartidos. En vez de asignar políticas a cada user individualmente, las asignás al grupo y todos los miembros heredan esos permisos. Simplifica mucho la administración a escala. Un user puede pertenecer a múltiples grupos al mismo tiempo y acumula los permisos de todos."
     },
     {
       "speaker": "carlos",
-      "text": "Capté. Dale, hablemos de los IAM Roles, que ahí tengo más experiencia pero también más confusión."
+      "text": "¿Los grupos se pueden anidar? ¿Un grupo dentro de otro?"
     },
     {
       "speaker": "ana",
-      "text": "Mirá, los roles son el componente más importante de I A M para el examen. Un IAM Role es un conjunto de permisos que puede ser asumido por una entidad de confianza — ya sea un servicio de AWS, un user, o incluso una cuenta externa. La diferencia clave con los users es que los roles no tienen credenciales permanentes. Emiten credenciales temporales cada vez que son asumidos."
+      "text": "No, y esto cae en el examen. Los groups no se pueden anidar, la estructura es plana. Otro dato: no existe un grupo por defecto. Cuando creás un user nuevo, no pertenece a ningún grupo. Patrones típicos: grupo Administrators con acceso total, grupo Developers con E.C. 2 y S3, grupo Auditors con solo lectura. La idea es gestionar permisos por rol funcional, no por persona."
     },
     {
       "speaker": "carlos",
-      "text": "A ver, yo configuré Task Role y Execution Role para mis tasks de Fargate y siempre los confundía. ¿Me explicás cuál es cuál?"
+      "text": "Dale. ¿Y los roles? Acá tengo algo de experiencia pero me generó bastante confusión."
     },
     {
       "speaker": "ana",
-      "text": "Muy buena pregunta y es una confusión clásica. Un IAM Role tiene dos partes. La Trust Policy define quién puede asumir el role — el Principal. La Permissions Policy define qué puede hacer ese role una vez asumido. Para Fargate: la Execution Role la usa el agente de ECS para arrancar el contenedor — pull de ECR, escribir logs en CloudWatch. Eso es infraestructura."
+      "text": "Contame, ¿qué te confundió?"
     },
     {
       "speaker": "carlos",
-      "text": "Ah, entonces yo en algún momento le puse el permiso de s3:PutObject al Execution Role y no funcionaba. Debería haber ido al Task Role, ¿no?"
+      "text": "Yo una vez configuré roles para un scraper que corrí en Fargate. Había un Task Role y un Execution Role. En ese momento pensé que el Task Role era el que usaba ECS para arrancar el contenedor y bajar la imagen de ECR. Así que le puse los permisos de S3 ahí. ¿Eso estuvo bien?"
     },
     {
       "speaker": "ana",
-      "text": "Exactamente. El Task Role es el que usa tu código Python dentro del contenedor para interactuar con otros servicios de AWS — S3, SSM, DynamoDB. El Execution Role es para el agente de ECS, no para tu aplicación. Una forma de recordarlo: Execution es de ECS, Task es de tu código. Dos roles distintos con propósitos distintos."
+      "text": "Entiendo por qué confundiste, los nombres son parecidos. Pero está al revés. El Execution Role lo usa el agente de ECS para arrancar el contenedor: pull de ECR, escribir logs en CloudWatch. Ese es el que necesita permisos de infraestructura. El Task Role lo usa el código dentro del contenedor, la aplicación en sí: ahí van los permisos de S3, SSM, o lo que tu app necesite para funcionar."
     },
     {
       "speaker": "carlos",
-      "text": "Capté, lo tengo claro ahora. Execution Role para ECS, Task Role para mi código. ¿Y los otros casos de uso de roles?"
+      "text": "Ah, tiene sentido. Task Role es para la app, Execution Role es para ECS mismo. ¿Y en el examen se pregunta esa distinción?"
     },
     {
       "speaker": "ana",
-      "text": "Cuatro casos de uso principales. E.C. 2 Instance Role: la instancia asume el role y tu aplicación accede a S3, DynamoDB, lo que necesite, sin access keys en el código. Cross-Account: un user en la Cuenta A asume un role en la Cuenta B para acceder a recursos de B. Service-to-Service: Lambda asume un role para acceder a RDS. Y Federated Users: identidades externas asumen roles para entrar a AWS."
+      "text": "El concepto general sí. El patrón es siempre el mismo: cuando un servicio de AWS necesita acceder a otro, necesita un role. Nunca access keys hardcodeadas. La distinción entre el control plane, que lanza el servicio, y el data plane, que es tu código corriendo, es la base. E.C. 2, Lambda, ECS, todos siguen ese patrón."
     },
     {
       "speaker": "carlos",
-      "text": "¿Y cuando E.C. 2 asume un role, cómo accede la aplicación a las credenciales temporales? ¿Las tengo que pedir yo?"
+      "text": "¿Y un role cómo se define técnicamente? ¿Qué componentes tiene?"
     },
     {
       "speaker": "ana",
-      "text": "No, es automático. Cuando adjuntás un role a una instancia E.C. 2, AWS expone las credenciales temporales en un endpoint local de metadata de la instancia. El SDK de AWS, Boto3 o cualquier otro, las detecta automáticamente sin que vos hagas nada. Las credenciales se rotan cada hora sin intervención. Eso es lo que las hace superiores a las access keys estáticas."
+      "text": "Dos políticas fundamentales. La Trust Policy define quién puede asumir el role, el principal. Puede ser un servicio de AWS como ec2.amazonaws.com, un usuario en otra cuenta, o una identidad federada. La Permissions Policy define qué puede hacer una vez que asumió el role. Las dos juntas son el role completo: una dice quién entra, la otra dice qué puede hacer adentro."
     },
     {
       "speaker": "carlos",
-      "text": "Ah, o sea el SDK busca ahí primero. ¿Y en Lambda funciona igual?"
+      "text": "¿Y cómo funciona en práctica para E.C. 2? ¿Cómo llega el role a la instancia?"
     },
     {
       "speaker": "ana",
-      "text": "Exactamente igual. Lambda tiene su Execution Role, el SDK detecta las credenciales automáticamente desde el environment de la función. El patrón es el mismo para ECS, Lambda, E.C. 2 — el servicio asume el role, el SDK encuentra las credenciales sin que vos hagas nada explícito. Fíjate que en Fargate el concepto de Instance Profile no aplica, pero el Task Role funciona igual."
+      "text": "Cuando asociás un role a una instancia E.C. 2, AWS crea automáticamente un Instance Profile que es un contenedor para el role. La aplicación dentro de la instancia puede consultar el Instance Metadata Service para obtener credenciales temporales. Esas credenciales se rotan automáticamente cada hora sin que la app haga nada. Sin access keys en ningún archivo de configuración, sin rotación manual."
     },
     {
       "speaker": "carlos",
-      "text": "Dale. ¿Y qué hay sobre las IAM Policies en detalle? La estructura del JSON."
+      "text": "Buenísimo ese patrón. ¿Y el cross-account access cómo funciona?"
     },
     {
       "speaker": "ana",
-      "text": "Una IAM Policy es un documento JSON con una estructura fija. Los campos principales son Version, que siempre es 2012-10-17 — importante: no cambies esa fecha, es la versión del lenguaje de policies. Statement es el array de permisos. Dentro de cada statement tenés: Effect que puede ser Allow o Deny, Action que lista las acciones del servicio, y Resource que es el ARN del recurso afectado."
+      "text": "Supongamos que tenés un user en Account A y necesita acceder a recursos en Account B. En Account B creás un role con una Trust Policy que autoriza a Account A. El user en A hace un AssumeRole, eso lo procesa STS, el Security Token Service, y obtiene credenciales temporales para operar en B. El acceso expira automáticamente, sin credenciales permanentes que gestionar."
     },
     {
       "speaker": "carlos",
-      "text": "¿Y el campo Condition?"
+      "text": "Perfecto. Dale, ¿y ahora las policies?"
     },
     {
       "speaker": "ana",
-      "text": "Condition es opcional y muy poderoso. Te permite agregar condiciones para cuándo aplica el permiso. Por ejemplo, podés requerir que la request venga de cierta IP, que el user haya autenticado con MFA, o restricciones de tiempo. Un ejemplo de examen: para requerir MFA antes de hacer operaciones sensibles, usás la condición aws:MultiFactorAuthPresent con valor true."
+      "text": "Una policy es un documento JSON que define permisos. Hay tres tipos. AWS Managed Policies las crea y mantiene AWS, cosas como AdministratorAccess o AmazonS3ReadOnlyAccess. Customer Managed Policies las creás vos y podés reutilizarlas en múltiples roles o users. Inline Policies están embedidas directamente en un user, group, o role específico y no son reutilizables."
     },
     {
       "speaker": "carlos",
-      "text": "¿Y hay diferentes tipos de policies? ¿Managed versus inline?"
+      "text": "¿Y cuál conviene usar?"
     },
     {
       "speaker": "ana",
-      "text": "Tres tipos. AWS Managed Policies: las crea y mantiene AWS, como AdministratorAccess o ReadOnlyAccess. Customer Managed Policies: las creás vos, son reutilizables entre múltiples users, groups y roles, y las podés versionar. Inline Policies: están embebidas directamente en un user, group o role específico, no son reutilizables. Para el examen: Customer Managed es la opción más flexible, Inline la evitás en producción."
+      "text": "Para el examen, preferís Customer Managed sobre Inline porque son reutilizables y más fáciles de gestionar. Las Inline tienen un caso de uso: cuando querés una relación uno a uno, esa policy existe solo para ese role y desaparece si borrás el role. Pero en general, Customer Managed es la práctica recomendada para mantener orden y reutilizar permisos comunes."
     },
     {
       "speaker": "carlos",
-      "text": "¿Por qué evitar Inline?"
+      "text": "¿Y la estructura del JSON cómo es?"
     },
     {
       "speaker": "ana",
-      "text": "Porque cuando borrás el user o role, la Inline Policy desaparece con él. Son más difíciles de auditar y no las podés reusar en otros recursos. Las Customer Managed podés adjuntarlas a múltiples entidades, verlas en un solo lugar, y controlar sus versiones. Para escalar bien la gestión de permisos, siempre preferís Customer Managed sobre Inline."
+      "text": "Tiene Version, siempre la fecha 2012-10-17, no la cambiés. Y uno o más Statements. Cada Statement tiene Effect que es Allow o Deny, Action que lista las operaciones permitidas o denegadas como s3:GetObject o ec2:StartInstances, Resource con los ARNs afectados, y opcionalmente Condition para agregar filtros como restricción por IP o requerir MFA."
     },
     {
       "speaker": "carlos",
-      "text": "Capté. ¿Y cómo funciona la lógica de evaluación cuando hay múltiples policies?"
+      "text": "¿Y qué pasa si tengo una policy que dice allow S3 y otra que dice deny S3 sobre el mismo recurso?"
     },
     {
       "speaker": "ana",
-      "text": "Acá viene lo más importante del examen sobre policies. La lógica tiene tres pasos. Primero: por default todo está denegado — si no hay ninguna policy, la respuesta es deny. Segundo: si hay algún explicit deny en cualquier policy adjunta, la respuesta es deny, sin importar cuántos allows haya. Tercero: si hay al menos un explicit allow y ningún deny explícito, se permite la acción."
+      "text": "El deny gana, siempre, sin excepciones. Explicit deny overrides all allows. La lógica completa es: partís de deny implícito, todo está denegado por default. Primero se chequea si hay un explicit deny en cualquier policy que aplique. Si lo hay, acceso denegado y se termina. Si no hay deny explícito, se busca un explicit allow. Si no hay ninguno de los dos, deny implícito."
     },
     {
       "speaker": "carlos",
-      "text": "Esperá, ¿cualquier deny en cualquier policy gana? Aunque esté en un grupo distinto al que tiene el allow?"
+      "text": "Claro. ¿Y los permissions boundaries que mencioné una vez? ¿Qué son?"
     },
     {
       "speaker": "ana",
-      "text": "Exacto, y ese es el gotcha más frecuente del examen. I A M evalúa todas las policies adjuntas a tu identidad — ya sean de grupos, roles, o directas — y si en cualquiera de ellas hay un explicit deny sobre esa acción, la acción queda denegada. No hay forma de superar un explicit deny con un allow. Por eso el deny se usa para excepciones críticas de seguridad."
+      "text": "Es un concepto más avanzado pero sale en el examen. Un permissions boundary es una policy que define el máximo de permisos que un user o role puede tener. Incluso si le asignás una policy que permite más, el boundary actúa como techo. Útil cuando delegás la creación de roles: le das a un equipo la capacidad de crear roles pero limitás hasta dónde pueden llegar esos permisos."
     },
     {
       "speaker": "carlos",
-      "text": "¿Y las policy variables para qué sirven?"
+      "text": "Interesante. ¿Y las policy variables para qué sirven?"
     },
     {
       "speaker": "ana",
-      "text": "Las policy variables te permiten crear policies dinámicas. Por ejemplo, podés escribir una sola policy que diga que cada user solo puede acceder a su propio folder en S3 usando la variable aws:username en el ARN del resource. En vez de crear una policy por user, creás una sola policy con la variable y aplica a todos. Reduce muchísimo la cantidad de policies que necesitás gestionar."
+      "text": "Para hacer políticas dinámicas sin duplicarlas para cada usuario. El ejemplo clásico: querés que cada empleado acceda solo a su carpeta en S3. En vez de crear una policy por persona, usás la variable en el Resource: arn:aws:s3:::mi-bucket/home/${aws:username} barra asterisco. Cuando Alice hace el request, AWS expande la variable y chequea solo la carpeta de Alice. Muy útil para escalar."
     },
     {
       "speaker": "carlos",
-      "text": "Ah, eso está bueno. Dale, sigamos con MFA que creo que es bastante directo."
+      "text": "Qué elegante ese patrón. ¿Y ahora MFA?"
     },
     {
       "speaker": "ana",
-      "text": "Multi-Factor Authentication agrega una capa de seguridad más allá de la contraseña. La idea: algo que sabés, la contraseña, más algo que tenés, el dispositivo MFA. Hay tres tipos. Virtual MFA: apps como Google Authenticator o Microsoft Authenticator en el teléfono, el más común. Hardware MFA: tokens físicos como YubiKey. Y U2F Security Key, también física, que soporta múltiples cuentas."
+      "text": "Multi-Factor Authentication, o MFA, agrega una segunda capa: algo que sabés, la contraseña, más algo que tenés. Las opciones son virtual MFA como Google Authenticator o Authy en el teléfono, hardware token físico como el Gemalto o YubiKey, y llaves U2F que también son físicas pero usan el protocolo U2F. La más común en la práctica es la virtual MFA."
     },
     {
       "speaker": "carlos",
-      "text": "¿El MFA es obligatorio o opcional para los users?"
+      "text": "¿Cuándo es obligatorio habilitarlo?"
     },
     {
       "speaker": "ana",
-      "text": "Para el root user es obligatorio por best practice — el examen siempre lo marca como prioritario. Para los IAM users es opcional por default, pero podés hacerlo obligatorio de facto usando una policy condition con aws:MultiFactorAuthPresent. Esa condition hace que si un user no autenticó con MFA, sus requests son denegadas aunque tenga los permisos IAM correctos."
+      "text": "Para el examen: la root account siempre, sin excepción. Es lo primero que hacés cuando creás una cuenta nueva de AWS, antes de cualquier otra cosa. También para cualquier IAM user con acceso administrativo. Y podés forzar MFA por policy con una condición: aws:MultiFactorAuthPresent igual a true. Si el token no tiene ese claim, el request falla aunque el user tenga el permiso."
     },
     {
       "speaker": "carlos",
-      "text": "¿Y si necesito usar MFA desde la CLI para hacer operaciones sensibles?"
+      "text": "Bueno. ¿Las mejores prácticas de IAM principales?"
     },
     {
       "speaker": "ana",
-      "text": "Usás el API de STS llamado GetSessionToken. Le pasás el ARN del MFA device y el código del token, y STS te devuelve credenciales temporales válidas por hasta doce horas que incluyen el factor MFA. Con esas credenciales temporales en la CLI, las policies con condición MFA ya te van a permitir las operaciones."
+      "text": "Las principales para el examen. Uno: nunca usés la root account para tareas diarias, creá un IAM user admin y usalo. Dos: principle of least privilege, empezás con mínimo y agregás según necesidad real. Tres: asignás permisos a groups, no directamente a users individuales. Cuatro: roles para aplicaciones, nunca access keys en código. Cinco: rotar access keys cada noventa días."
     },
     {
       "speaker": "carlos",
-      "text": "Capté, tiene sentido. Dale, las IAM best practices — ¿cuáles son las más importantes para el examen?"
+      "text": "¿Y cómo monitoreás la actividad de IAM?"
     },
     {
       "speaker": "ana",
-      "text": "Las best practices de I A M son un tema fijo en el examen. Primero: nunca usar el root user para tareas cotidianas, habilitar MFA en root inmediatamente al crear la cuenta, y borrar las access keys del root si existen. Segundo: grant least privilege — empezás con los permisos mínimos necesarios y vas agregando. Nunca empezás con acceso total y vas quitando."
+      "text": "CloudTrail registra todas las llamadas a la API de AWS, incluyendo las de IAM. Si alguien crea un user, modifica un role, o cambia una policy, CloudTrail lo captura con timestamp, IP de origen, y qué parámetros usó. Combinado con alarmas de CloudWatch, podés detectar actividad sospechosa. Para el examen, CloudTrail es la respuesta cuando preguntan cómo auditar actividad en IAM."
     },
     {
       "speaker": "carlos",
-      "text": "Lo de no embeber access keys en el código también es importante, ¿no? Yo para eso leía todo desde SSM Parameter Store — los nombres de buckets, los IDs de subnets. Nunca hardcodeé credenciales."
+      "text": "Dale. ¿Y ahora identity federation? ¿Qué es exactamente?"
     },
     {
       "speaker": "ana",
-      "text": "Exacto, y eso es una excelente práctica. Pero fíjate la diferencia: SSM Parameter Store es ideal para configuración como los nombres de buckets o IDs. Para acceso a otros servicios de AWS, como S3 o DynamoDB, la respuesta correcta es siempre el IAM role — no guardás credenciales en ningún lado, ni en SSM ni en el código. La identidad la provee el rol directamente."
+      "text": "Federation permite que usuarios de sistemas externos accedan a AWS usando sus propias credenciales, sin crear IAM users para cada uno. En vez de administrar mil empleados en IAM, los autenticás en tu directorio corporativo y les das acceso temporal a AWS. Los beneficios: single sign-on, gestión centralizada, y credenciales temporales que se renuevan automáticamente."
     },
     {
       "speaker": "carlos",
-      "text": "Ah, o sea SSM para config data, roles para credenciales de servicios AWS. ¿Y cuándo usás Secrets Manager en vez de SSM?"
+      "text": "¿Cuáles son los métodos principales?"
     },
     {
       "speaker": "ana",
-      "text": "Secrets Manager está diseñado específicamente para secrets con rotación automática — passwords de bases de datos, API keys de terceros, credenciales de servicios externos. SSM Parameter Store SecureString es más barato y suficiente para secrets que no necesitan rotación automática. Para el examen: si la pregunta menciona rotación automática de credenciales, la respuesta es Secrets Manager."
+      "text": "Tres grandes. SAML 2.0 para directorios corporativos como Active Directory con ADFS. Web Identity Federation para login social con Google, Facebook, o Apple. Y IAM Identity Center, que es la opción más moderna y recomendada por AWS para workforce users que necesitan acceso a múltiples cuentas de AWS. Los tres usan STS internamente para emitir credenciales temporales."
     },
     {
       "speaker": "carlos",
-      "text": "Dale, diferencia clara. ¿Y sobre el Credential Report?"
+      "text": "¿El flujo de SAML 2.0 cómo es?"
     },
     {
       "speaker": "ana",
-      "text": "El IAM Credential Report es un archivo descargable que lista todos los users de tu cuenta con el estado de sus credenciales: cuándo fue el último login, si tienen MFA habilitado, cuándo rotaron sus access keys, si tienen credenciales sin usar. Es una herramienta de auditoría importante. El examen puede preguntarte qué herramienta usás para auditar el estado de credenciales de todos los users."
+      "text": "El user hace login en su sistema corporativo, por ejemplo Active Directory con ADFS. El identity provider valida las credenciales y genera un SAML assertion, que es un token firmado que certifica quién es el usuario. Ese assertion va a AWS STS con la operación AssumeRoleWithSAML. STS lo valida y devuelve AccessKeyId, SecretAccessKey, y SessionToken con tiempo de expiración."
     },
     {
       "speaker": "carlos",
-      "text": "Nunca lo usé, pero tiene sentido para auditoría. Dale, ¿pasamos a Identity Federation?"
+      "text": "¿Y Web Identity Federation cómo funciona?"
     },
     {
       "speaker": "ana",
-      "text": "Identity Federation permite que usuarios externos a AWS — de un directorio corporativo, o con cuentas de Google o Facebook — accedan a recursos de AWS sin que vos tengas que crearles un IAM user. El beneficio es enorme en empresas grandes: si tenés mil empleados, no querés crear mil IAM users. Los usuarios se autentican con su identity provider habitual y AWS les emite credenciales temporales."
+      "text": "Similar pero con proveedores de identidad públicos. El usuario hace login con Google y obtiene un token de Google. Ese token se manda a AWS STS con AssumeRoleWithWebIdentity. STS lo valida contra Google, verifica que el token sea legítimo, y devuelve credenciales temporales de AWS. El usuario puede acceder a S3 o DynamoDB directamente desde su app mobile con esas credenciales."
     },
     {
       "speaker": "carlos",
-      "text": "Esto lo usé en el chatbot que armé con Bedrock. Creo que usé Cognito Identity Pool que hacía algo con AssumeRoleWithWebIdentity, aunque no lo podría escribir de memoria."
+      "text": "¿Y IAM Identity Center qué lo hace diferente a hacer SAML directamente?"
     },
     {
       "speaker": "ana",
-      "text": "Exactamente ese es el flujo. Cognito User Pool maneja el login del usuario — email y password. Cognito Identity Pool intercambia el JWT del User Pool por credenciales AWS temporales vía STS AssumeRoleWithWebIdentity. Esas credenciales temporales tienen el IAM role que vos configuraste, con los permisos que les diste — en tu caso bedrock:InvokeAgent sobre el agente específico."
+      "text": "IAM Identity Center es más completo. Tenés un portal único, una URL de acceso, desde donde el empleado ve todas sus cuentas AWS disponibles y hace clic para entrar. Soporta múltiples identity sources: el directorio propio de Identity Center, AWS Managed Microsoft AD, o un IdP externo vía SAML como Okta o Azure AD. Usás permission sets que se mapean a roles en cada cuenta automáticamente."
     },
     {
       "speaker": "carlos",
-      "text": "A ver, entonces el User Pool es el directorio de usuarios y el Identity Pool es el que habla con STS para dar credenciales AWS, ¿no? Esos los confundía."
+      "text": "¿Cómo distingo para el examen cuándo usar Identity Center versus otras opciones?"
     },
     {
       "speaker": "ana",
-      "text": "Exacto, y esa confusión aparece en el examen. Cognito User Pool: login, registro, tokens JWT — es para autenticar a tus usuarios. Cognito Identity Pool: toma un JWT y lo intercambia por credenciales AWS temporales — es para autorizar acceso a servicios de AWS. Son dos cosas distintas que trabajan juntas. User Pool = tu directorio de usuarios. Identity Pool = la puerta a AWS."
+      "text": "Fijate en las keywords. Centralized SSO para empleados en múltiples cuentas AWS es IAM Identity Center. Corporate Active Directory federation puede ser SAML 2.0 directo o Identity Center, pero si dice múltiples cuentas o SSO, preferís Identity Center. Y el gotcha más común: Identity Center es para workforce users, tus empleados. Cognito es para los usuarios finales de tu aplicación."
     },
     {
       "speaker": "carlos",
-      "text": "Buenísimo, bien claro. ¿Y SAML 2.0 Federation para empresas con Active Directory?"
+      "text": "Ah, esa distinción. ¿Cognito también tiene federation entonces?"
     },
     {
       "speaker": "ana",
-      "text": "SAML 2.0 es el estándar para federar identidades corporativas. El flujo: el usuario se loguea con su Active Directory o cualquier identity provider que soporte SAML 2.0. El IDP genera una SAML assertion, un documento XML firmado que dice 'este usuario es quien dice ser y tiene estos atributos'. Ese assertion va a STS, que verifica la firma y devuelve credenciales temporales de AWS."
+      "text": "Cognito tiene su propio mecanismo de federation, sí. Pero lo pensamos separado porque el use case es completamente distinto. IAM Identity Center: tus empleados acceden a la consola de AWS o a Salesforce con sus credenciales corporativas. Cognito: los clientes de tu app de mobile o web hacen login para usar tu aplicación. Son audiencias diferentes y el examen te pone una disfrazada como la otra."
     },
     {
       "speaker": "carlos",
-      "text": "¿Y el usuario ni sabe que está en AWS? ¿Es transparente?"
+      "text": "¿Y STS en sí? ¿Qué hay que saber puntualmente?"
     },
     {
       "speaker": "ana",
-      "text": "Exacto, puede ser totalmente transparente con Single Sign-On. El usuario se loguea una vez con sus credenciales corporativas y puede acceder al Console de AWS o hacer calls a la API sin un usuario IAM propio. En grandes empresas es el patrón estándar. Para el examen: si ves 'Active Directory', 'corporate credentials', 'Microsoft ADFS', la respuesta es SAML 2.0 federation."
+      "text": "Security Token Service es el motor detrás de todos los accesos temporales. Sus APIs principales: AssumeRole para asumir un role en la misma o distinta cuenta, AssumeRoleWithSAML para federation corporativa, AssumeRoleWithWebIdentity para logins sociales, y GetSessionToken para MFA con programmatic access. Las credenciales que devuelve expiran, default una hora, máximo doce horas según el tipo."
     },
     {
       "speaker": "carlos",
-      "text": "¿Y AWS STS, el Security Token Service, cómo encaja en todo esto?"
+      "text": "¿GetSessionToken para qué exactamente?"
     },
     {
       "speaker": "ana",
-      "text": "STS es el servicio que emite todas las credenciales temporales en AWS. Es el motor detrás de todos los flujos de federation y de roles. Las APIs más importantes para el examen: AssumeRole para asumir un role de I A M, AssumeRoleWithSAML para federación corporativa, AssumeRoleWithWebIdentity para Cognito o web identity, y GetSessionToken para autenticación MFA desde la CLI."
+      "text": "Es para cuando querés requerir MFA no solo para la consola sino para llamadas programáticas a la API. El user llama a GetSessionToken e incluye el código de MFA. STS devuelve credenciales temporales con el atributo MultiFactorAuthPresent en true. Ahí podés poner conditions en tus policies que chequean ese atributo. Así forzás MFA para operaciones sensibles como borrar objetos de S3."
     },
     {
       "speaker": "carlos",
-      "text": "¿Y cuánto duran esas credenciales temporales?"
+      "text": "Perfecto. ¿Y ahora Cognito? Acá sí tengo experiencia aunque me generó confusión."
     },
     {
       "speaker": "ana",
-      "text": "Depende del tipo. Para AssumeRole, la duración default es una hora, máximo doce horas. Para GetSessionToken con MFA, hasta doce horas. Para GetFederationToken, hasta treinta y seis horas. Cuando expiran, el sistema que las usa tiene que pedir nuevas automáticamente — los SDKs lo hacen solos. Eso es parte de la seguridad del modelo: una credencial comprometida tiene ventana limitada."
+      "text": "Contame."
     },
     {
       "speaker": "carlos",
-      "text": "Tiene sentido. ¿Y el acceso cross-account cómo funciona? Cuando una cuenta necesita acceder a recursos de otra."
+      "text": "Esto lo toqué cuando armé un chatbot interno con Bedrock. Usé Cognito para el login. Pero en ese momento yo pensaba que el Identity Pool era el directorio de usuarios, el que maneja el sign-up y sign-in con email y contraseña. Y el User Pool era el que daba credenciales de AWS. Los tenía completamente al revés."
     },
     {
       "speaker": "ana",
-      "text": "El patrón es: en la Cuenta B que tiene los recursos, creás un IAM role con los permisos necesarios. En la Trust Policy de ese role, especificás que la Cuenta A puede asumirlo. Un user en la Cuenta A hace una llamada a STS AssumeRole especificando el ARN del role de la Cuenta B. STS le devuelve credenciales temporales con los permisos de ese role. Así trabaja con los recursos de B."
+      "text": "Es una confusión muy común, los nombres no ayudan para nada. Mnemotécnica: User Pool es el directorio de usuarios. Ahí vivís como usuario con email, password, y atributos. Ahí hacés sign-up y sign-in. Lo que devuelve son JWT tokens, no credenciales de AWS. Identity Pool es la capa que intercambia esos JWT tokens por credenciales temporales de AWS vía STS. Son dos servicios distintos."
     },
     {
       "speaker": "carlos",
-      "text": "¿Y para dar acceso temporal a un auditor externo es igual?"
+      "text": "Ah, o sea User Pool para autenticación de la app, Identity Pool para dar acceso a AWS. ¿Y los JWT tokens del User Pool? Yo tenía dudas sobre cuál usar para qué."
     },
     {
       "speaker": "ana",
-      "text": "Exactamente ese es el escenario clásico del examen. Creás un role en tu cuenta con los permisos de auditoría de solo lectura. En la Trust Policy, especificás el ARN de la cuenta del auditor o de su user I A M específico. Le das el ARN del role, ellos hacen AssumeRole, tienen acceso temporal. Cuando terminan, podés revocar la Trust Policy y las credenciales activas expiran solas."
+      "text": "Cognito devuelve tres tokens. El ID token contiene los atributos del usuario: nombre, email, grupos a los que pertenece. El access token autoriza llamadas a las APIs de Cognito y a tus propias APIs protegidas. El refresh token dura más, siete días por defecto, y sirve para renovar los otros dos sin que el usuario vuelva a hacer login. Son roles distintos."
     },
     {
       "speaker": "carlos",
-      "text": "¿Y IAM Identity Center, o AWS SSO, qué es? Esto no lo toqué nunca — explicámelo de cero."
+      "text": "Hmm. Yo en el chatbot usaba el ID token para autorizar las llamadas al backend. ¿Eso estuvo mal?"
     },
     {
       "speaker": "ana",
-      "text": "IAM Identity Center es la capa de gestión de acceso centralizada para ambientes multi-cuenta. Está integrado con AWS Organizations. Te permite configurar acceso a múltiples cuentas de AWS desde una interfaz única, conectarlo con tu identity provider corporativo vía SAML, y asignar permission sets a usuarios o grupos. La diferencia con SAML directo es que Identity Center maneja el routing entre cuentas."
+      "text": "Funcionó, pero la práctica recomendada es el access token para autorizar APIs. El ID token está diseñado para identificar al usuario y obtener sus atributos, no para autorización de APIs. En API Gateway con Cognito Authorizer podés configurarlo para aceptar cualquiera de los dos, pero el access token es el correcto semánticamente. Para el examen: API calls se autorizan con access token."
     },
     {
       "speaker": "carlos",
-      "text": "¿Y cuándo usaría Identity Center versus SAML 2.0 directo?"
+      "text": "Entendido. ¿Y las features del User Pool que hay que conocer para el examen?"
     },
     {
       "speaker": "ana",
-      "text": "Identity Center es la respuesta moderna para organizaciones con múltiples cuentas AWS. Si tenés veinte cuentas en tu Organization y querés que los developers puedan cambiar entre ellas con un solo login, usás Identity Center. Si solo tenés una o dos cuentas y ya tenés SAML configurado, el directo puede ser suficiente. Para el examen: multi-cuenta más governance centralizada es Identity Center."
+      "text": "Hosted UI, una UI de login lista con branding customizable, no escribís código de autenticación. Social IdP federation, login con Google o Facebook directamente en el User Pool. MFA con SMS o TOTP. Lambda triggers, podés ejecutar funciones antes o después del signup o login. Y la integración con API Gateway como Cognito Authorizer para validar JWT automáticamente en cada request."
     },
     {
       "speaker": "carlos",
-      "text": "Dale. Antes de los exam tips, ¿hay algo sobre IAM Access Analyzer que deba saber?"
+      "text": "¿Y el ALB con User Pool que mencionaste antes?"
     },
     {
       "speaker": "ana",
-      "text": "IAM Access Analyzer es una herramienta que analiza tus policies y te avisa si algún recurso está accesible desde fuera de tu zona de confianza — que puede ser tu cuenta o tu organización. Por ejemplo, te avisa si tenés un bucket S3 con una resource policy que permite acceso desde cualquier cuenta. Es proactivo: no espera a que haya un breach, detecta exposición potencial en configuración."
+      "text": "Application Load Balancer tiene autenticación OIDC nativa. Conectás un User Pool de Cognito y el ALB intercepta los requests no autenticados, redirige al Hosted UI de Cognito, valida el token en el return, y pasa el request al target group. Cero cambios en tu aplicación backend. Es el patrón ideal cuando tenés una app web detrás de un ALB y querés agregar auth sin tocar el código."
     },
     {
       "speaker": "carlos",
-      "text": "Ah, eso está bueno. ¿Es diferente a GuardDuty?"
+      "text": "Genial. ¿Y el Identity Pool en más detalle?"
     },
     {
       "speaker": "ana",
-      "text": "Sí, son complementarios. Access Analyzer trabaja sobre políticas y configuraciones — analiza qué está configurado y si expone recursos. GuardDuty trabaja sobre comportamiento en tiempo real — analiza logs y detecta actividad anómala. Access Analyzer es preventivo: detecta una mala configuración antes de que la exploten. GuardDuty es reactivo: detecta cuando alguien ya está haciendo algo sospechoso."
+      "text": "Identity Pool acepta múltiples identity sources: User Pools de Cognito, Google, Facebook, proveedores SAML, incluso usuarios no autenticados. Para cada usuario llama a STS con AssumeRoleWithWebIdentity y devuelve AccessKeyId, SecretAccessKey, y SessionToken temporales. El usuario en su browser puede llamar a S3 o DynamoDB directamente sin pasar por un backend tuyo."
     },
     {
       "speaker": "carlos",
-      "text": "Capté, la distinción tiene sentido. Dale, los exam tips."
+      "text": "¿Se pueden asignar roles distintos según el tipo de usuario?"
     },
     {
       "speaker": "ana",
-      "text": "Acá viene lo importante del examen. Primero: Users versus Roles. El examen usa keywords. Si dice 'long-term credentials', 'persona', 'developer', piensa IAM User. Si dice 'temporary credentials', 'service needs access', 'cross-account', 'E.C. 2 needs S3', la respuesta es IAM Role. Memoriza esa distinción porque aparece en casi todas las preguntas de arquitectura que tocan permisos."
+      "text": "Sí, eso se llama role mapping. Por defecto tenés un authenticated role para usuarios logueados y un unauthenticated role para invitados con permisos más limitados. Pero podés configurar mapeos más finos: si el usuario pertenece al grupo Admins en el User Pool, asumís el role de admin con más permisos. Si pertenece a Users, asumís el role básico. Todo basado en atributos del token."
     },
     {
       "speaker": "carlos",
-      "text": "El escenario de E.C. 2 más S3 aparece constantemente, ¿no?"
+      "text": "¿Y cuándo uso User Pool solo versus los dos juntos?"
     },
     {
       "speaker": "ana",
-      "text": "Sí, es el escenario más frecuente del examen en I A M. Y la respuesta es siempre 'attach an IAM role to the E.C. 2 instance'. Nunca 'store access keys in the application', nunca 'create an IAM user and share the keys'. Esas opciones son siempre incorrectas porque son menos seguras. El role con credenciales temporales auto-rotadas es siempre la opción más segura."
+      "text": "User Pool solo cuando solo necesitás autenticación para tu app y tus APIs protegidas con JWT. No necesitás que el usuario llame a AWS directamente. Los dos juntos cuando además querés que el usuario llame a servicios AWS desde el cliente: el User Pool autentica y da JWT, el Identity Pool convierte ese JWT en credenciales AWS temporales. Es el patrón completo para apps mobile con acceso a S3."
     },
     {
       "speaker": "carlos",
-      "text": "¿Y la regla del explicit deny?"
+      "text": "Dale. ¿Y Directory Service?"
     },
     {
       "speaker": "ana",
-      "text": "Ojo con este gotcha: explicit deny gana siempre, sin excepciones. Si el examen te da un escenario donde la Policy A permite S3 y la Policy B deniega S3, la respuesta es denied. No importa si los allows vienen de cinco policies distintas — un solo deny los anula a todos. El explicit deny es la herramienta más poderosa de I A M para forzar restricciones absolutas."
+      "text": "AWS Directory Service tiene tres flavors principales. AWS Managed Microsoft AD es un Active Directory completo corriendo en AWS, soporta trust relationships con tu AD on-premises. AD Connector es un proxy que conecta recursos AWS al AD on-prem sin replicar el directorio. Y Simple AD es un directorio LDAP compatible liviano para menos de quinientos usuarios, sin compatibilidad completa con AD."
     },
     {
       "speaker": "carlos",
-      "text": "¿Y cómo se relaciona eso con las SCPs que vimos en el módulo anterior?"
+      "text": "¿Cómo lo distingo en el examen?"
     },
     {
       "speaker": "ana",
-      "text": "Excelente pregunta. Las SCPs de Organizations actúan como una capa por encima de I A M. Primero se evalúa si la SCP permite la acción. Si la SCP no lo permite, se niega aunque la policy I A M lo permita. Si la SCP lo permite, recién ahí se evalúan las policies I A M con su lógica de explicit deny y explicit allow. Son dos capas de evaluación encadenadas."
+      "text": "Fijate en las keywords. Trust relationship entre AWS y AD on-premises o Active Directory completo en AWS, es AWS Managed Microsoft AD, el único que soporta trusts. Usar AD on-prem existente sin replicar el directorio, es AD Connector. Barato, compatible con LDAP, menos de quinientos usuarios, Simple AD. Y Windows domain-join de instancias E.C. 2 funciona con cualquiera de los tres."
     },
     {
       "speaker": "carlos",
-      "text": "Dale. ¿Y qué más del examen sobre federation?"
+      "text": "¿Cómo se integra con IAM para acceso a la consola?"
     },
     {
       "speaker": "ana",
-      "text": "Para federation, memorizá los keywords. 'Corporate Active Directory', 'SAML 2.0', 'Microsoft ADFS', 'employees with corporate credentials' — todo eso apunta a SAML federation. 'Login with Google', 'Facebook', 'web identity', 'mobile app users' — apunta a Web Identity Federation. 'Cognito' con acceso a AWS — es el Identity Pool con AssumeRoleWithWebIdentity. Y siempre STS de fondo emitiendo las credenciales temporales."
+      "text": "Dos patrones. El moderno: AWS Managed Microsoft AD o AD Connector conectado a IAM Identity Center. Los grupos de AD se mapean a permission sets y los empleados acceden con sus credenciales corporativas desde el portal. El patrón viejo: Microsoft ADFS como identity provider SAML, configurado directamente con la trust policy del IAM role. Para implementaciones nuevas siempre Identity Center."
     },
     {
       "speaker": "carlos",
-      "text": "¿Y sobre least privilege? ¿Qué escenarios del examen usan eso?"
+      "text": "Perfecto. ¿Arrancamos con los exam tips?"
     },
     {
       "speaker": "ana",
-      "text": "Cuando el examen pregunta 'most secure approach' o 'following security best practices', buscá la opción que tiene el scope más restringido. Si ves una opción con Action asterisco sobre Resource asterisco, es casi siempre incorrecta. La correcta va a tener actions específicos — como s3:GetObject en vez de s3 asterisco — y ARN de resource específico con el nombre del bucket en vez de asterisco."
+      "text": "Sí. Tip uno: IAM es global, nada de regional. Si ves una opción que dice replicar IAM a otra región, es trampa. Tip dos: explicit deny siempre gana, no importa cuántas allows tengas, un solo deny cierra todo. Tip tres: para E.C. 2 y Lambda siempre IAM role, nunca access keys hardcodeadas. Estos tres aparecen en el examen constantemente en distintos disfraces."
     },
     {
       "speaker": "carlos",
-      "text": "¿Y sobre el root user en el examen?"
+      "text": "¿Qué más?"
     },
     {
       "speaker": "ana",
-      "text": "El root user aparece en preguntas de 'cuándo lo usás'. La respuesta correcta casi siempre es que no lo usás. Las excepciones son muy específicas: cerrar la cuenta de AWS, cambiar el plan de support, configurar billing email, o recuperar acceso si todos los admins I A M están bloqueados. Si el examen pregunta 'qué necesita el root user para hacer X', y X no está en esa lista corta, la respuesta es que no se necesita root."
+      "text": "Tip cuatro: groups no se anidan, estructura plana. Tip cinco: root account más MFA siempre, y nunca usarla para operaciones diarias. Tip seis: cuando ves corporate Active Directory en una pregunta, pensás SAML 2.0 o IAM Identity Center. Si además dice múltiples cuentas o SSO para empleados, la respuesta es IAM Identity Center casi seguro."
     },
     {
       "speaker": "carlos",
-      "text": "Capté. ¿Hacemos el recap?"
+      "text": "¿Y tips específicos de Cognito?"
     },
     {
       "speaker": "ana",
-      "text": "Dale. Contame los cuatro componentes de I A M y qué hace cada uno."
+      "text": "Tip siete: la distinción User Pool versus Identity Pool sale mucho. User Pool es autenticación de la app y devuelve JWT. Identity Pool son credenciales AWS temporales vía STS para que tu app llame a S3 o DynamoDB directamente. Tip ocho: el distractor más frecuente es confundir IAM Identity Center con Cognito. Identity Center es para tus empleados. Cognito es para los clientes de tu aplicación."
     },
     {
       "speaker": "carlos",
-      "text": "Users para personas o apps con credenciales permanentes, pueden tener acceso por consola con password o acceso programático con access keys. Groups para coleccionar users y asignarles policies en conjunto, sin anidamiento posible. Roles para servicios y acceso cross-account con credenciales temporales, tienen Trust Policy y Permissions Policy. Y Policies son los JSON que definen qué está permitido o denegado."
+      "text": "¿Los escenarios de examen más típicos que ves?"
     },
     {
       "speaker": "ana",
-      "text": "Perfecto. ¿Y la regla más importante de evaluación de policies?"
+      "text": "Tres clásicos. E.C. 2 necesita acceder a S3, cuál es la forma más segura, siempre IAM role attached to the instance. Auditor externo necesita acceso temporario, crear un IAM role con trust policy que permita la cuenta externa, el auditor asume el role con STS. Política A permite S3, política B deniega S3, qué pasa, acceso denegado porque explicit deny gana."
     },
     {
       "speaker": "carlos",
-      "text": "Default es deny — si no hay policy, se niega. Un explicit deny en cualquier policy adjunta anula todos los allows, sin excepción. Para poder hacer algo necesito al menos un explicit allow y que no haya ningún explicit deny en ninguna de las policies que me aplican."
+      "text": "¿Y el escenario de policy conditions para forzar MFA?"
     },
     {
       "speaker": "ana",
-      "text": "Exacto. ¿Y cómo le das acceso a una aplicación en E.C. 2?"
+      "text": "Si la pregunta dice forzar MFA para una operación específica como borrar objetos o modificar roles, la respuesta es agregar una Condition en la policy con aws:MultiFactorAuthPresent igual a true. Sin esa condición la operación se ejecuta con o sin MFA. Con la condición, si el token no tiene el claim de MFA el request falla aunque el user tenga el permiso asignado."
     },
     {
       "speaker": "carlos",
-      "text": "Adjunto un IAM role a la instancia. La aplicación accede a las credenciales temporales automáticamente a través del endpoint de metadata de la instancia, sin que yo haga nada explícito. Las credenciales se rotan solas cada hora. Nunca embebo access keys en el código ni las guardo en variables de entorno estáticas."
+      "text": "Perfecto. ¿Hacemos el recap?"
     },
     {
       "speaker": "ana",
-      "text": "¿Y federation?"
+      "text": "Dale, empezá vos."
     },
     {
       "speaker": "carlos",
-      "text": "Federation permite que usuarios externos accedan a AWS sin IAM users propios. SAML 2.0 para Active Directory corporativo. Web Identity Federation para Google, Facebook, Cognito. El flujo siempre termina en STS que emite credenciales temporales con los permisos del IAM role configurado. Para acceso cross-account también es un role con una Trust Policy que especifica quién puede asumirlo."
+      "text": "A ver. IAM tiene cuatro componentes: users con credenciales permanentes, groups que son colecciones sin anidamiento, roles con credenciales temporales para servicios y entidades, y policies en JSON que definen permisos. IAM es global y gratuito. La regla clave de evaluación: explicit deny siempre gana. Todo arranca denegado y necesitás un explicit allow para que algo funcione."
     },
     {
       "speaker": "ana",
-      "text": "Impecable. I A M es el tejido conectivo de toda arquitectura en AWS. Cada servicio que agregues, cada integración que diseñes, va a requerir que pienses en qué identidad tiene acceso a qué recurso y con qué permisos mínimos. Dominando esto, el resto del examen se vuelve mucho más manejable. Nos vemos en el módulo tres: Compute Services, donde arrancamos a poner en práctica todo esto con E.C. 2, Lambda y contenedores."
+      "text": "Perfecto. Seguí."
+    },
+    {
+      "speaker": "carlos",
+      "text": "Para apps en E.C. 2 o Lambda siempre un IAM role, nunca access keys en código. Los roles tienen Trust Policy que define quién puede asumirlos y Permissions Policy que define qué pueden hacer. MFA obligatorio en root account y para admins. Least privilege: mínimos permisos necesarios. Rotar access keys cada noventa días. CloudTrail para auditar actividad."
+    },
+    {
+      "speaker": "ana",
+      "text": "Exacto. ¿Y federation?"
+    },
+    {
+      "speaker": "carlos",
+      "text": "Federation para usuarios externos sin crear IAM users. SAML 2.0 para corporate Active Directory con ADFS. Web Identity para logins sociales con Google o Facebook. IAM Identity Center para workforce users en múltiples cuentas, la opción moderna y recomendada. STS en el fondo de todo emitiendo credenciales temporales que expiran. Y Cognito separado para los usuarios finales de la app."
+    },
+    {
+      "speaker": "ana",
+      "text": "Y el detalle que más confunde en el examen."
+    },
+    {
+      "speaker": "carlos",
+      "text": "IAM Identity Center es para empleados accediendo a cuentas AWS y apps SaaS corporativas. Cognito es para los clientes de tu aplicación de mobile o web. No mezclarlos. Y dentro de Cognito: User Pool autentica y da JWT, Identity Pool toma ese JWT y lo convierte en credenciales AWS temporales vía STS. Dos capas distintas que pueden funcionar juntas o separadas."
+    },
+    {
+      "speaker": "ana",
+      "text": "Excelente repaso. Cubrimos mucho hoy: la base de IAM, usuarios, grupos, roles y políticas con toda su lógica de evaluación, MFA y mejores prácticas, federation con SAML e IAM Identity Center, STS, Cognito con sus dos pools, y Directory Service. Es el módulo más denso de todos porque es la base de prácticamente todo lo que viene. La semana que viene arrancamos con Compute, E.C. 2 y más. Nos vemos."
     }
   ]
 }

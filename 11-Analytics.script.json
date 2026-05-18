@@ -1,482 +1,125 @@
 {
   "module_title": "Module 11: Analytics Services",
-  "estimated_duration_min": 40,
+  "estimated_duration_min": 38,
   "turns": [
-    {
-      "speaker": "ana",
-      "text": "Imaginate que tu empresa acumula terabytes de logs en S3 cada semana — logs de aplicaciones, métricas de usuario, eventos de compra. Un ejecutivo necesita saber cuántos usuarios únicos entraron ayer y cuánto facturaron por región. ¿Cómo lo resolvés sin armar un cluster, sin pagar por infraestructura ociosa, sin esperar horas? Eso es exactamente el problema que resuelven los servicios de analytics de AWS que vemos hoy."
-    },
-    {
-      "speaker": "carlos",
-      "text": "a ver — yo sé que AWS tiene varios servicios de analytics pero honestamente nunca los usé. Athena, Kinesis, Glue, EMR — los veo en la lista del examen y parecen muchos nombres. ¿Por qué hay tantos servicios distintos? ¿No resuelven todos lo mismo?"
-    },
-    {
-      "speaker": "ana",
-      "text": "La razón es que analytics tiene etapas distintas: ingestar datos, almacenarlos, transformarlos, consultarlos, y visualizarlos. Cada servicio ataca una etapa diferente. Athena es para queries SQL ad-hoc. Kinesis es para streaming en tiempo real. Glue es para ETL serverless. EMR es para big data con Spark o Hadoop. QuickSight es para dashboards. Cada uno tiene su dominio."
-    },
-    {
-      "speaker": "carlos",
-      "text": "yo esto no lo toqué nunca, te pregunto desde cero — ¿por dónde empezamos? Si tengo datos en S3, lo primero sería consultarlos, ¿no?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Exacto, arrancamos por Athena. Amazon Athena es un servicio serverless de queries interactivos — le tirás SQL estándar a datos que están en S3. No necesitás mover los datos, no provisionar nada, no hay cluster que mantener. Pagás por la cantidad de datos que escaneás: cinco dólares por terabyte."
-    },
-    {
-      "speaker": "carlos",
-      "text": "esperá — serverless significa que yo no manejo servidores. Pero algo tiene que ejecutar esas queries, ¿no? ¿Qué hay por debajo?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Por debajo Athena usa Presto, un motor de queries distribuido open source. Pero ese detalle lo abstrae AWS completamente. Vos creás una tabla que apunta a un path en S3, escribís un SELECT, y Athena distribuye el trabajo internamente. No tocás nada del motor — por eso es serverless desde tu perspectiva."
-    },
-    {
-      "speaker": "carlos",
-      "text": "a ver, capté — creo una tabla apuntando a archivos en S3 y hago SELECT sobre esa tabla. ¿Los archivos pueden ser cualquier formato? ¿JSON, CSV?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Soporta varios: CSV, JSON, Avro, TSV. Pero acá viene lo importante para el examen — los formatos que querés usar son Parquet y ORC. Son formatos columnar: en vez de guardar datos fila por fila, guardan columna por columna. Eso permite escanear mucho menos data para una query que pide solo ciertas columnas."
-    },
-    {
-      "speaker": "carlos",
-      "text": "uy, eso no lo sabía. ¿Por qué importa escanear menos data? ¿Es solo velocidad o tiene que ver con el costo también?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Ambas cosas. Con Parquet, si tu query necesita dos columnas de una tabla con cincuenta, Athena solo lee esas dos — el resto no lo toca. Con CSV tiene que leer la fila entera para extraer lo que necesita. La diferencia es treinta a noventa por ciento menos data escaneada, que se traduce directamente en menos costo. Para el examen: Parquet u ORC siempre que puedas."
-    },
-    {
-      "speaker": "carlos",
-      "text": "ah, tiene sentido — el formato columnar le permite a Athena saltar directo a las columnas que necesita. ¿Y Parquet ya viene comprimido o hay que comprimirlo aparte?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Parquet y ORC vienen con compresión integrada — Snappy por defecto, pero también soportan GZIP y LZO. Menos bytes que leer del disco significa queries más rápidas y menos costo. Podés combinar: formato columnar más compresión más particionamiento — esa es la trilogía de optimización de Athena que sale en el examen."
-    },
-    {
-      "speaker": "carlos",
-      "text": "dale, ¿y el particionamiento qué es exactamente? Escuché el término pero no lo termino de entender en este contexto."
-    },
-    {
-      "speaker": "ana",
-      "text": "Particionamiento es organizar los archivos en S3 con una jerarquía de carpetas que sigue campos de filtrado comunes — por ejemplo year=2024, month=01, day=01. Cuando una query tiene WHERE year=2024 AND month=01, Athena solo va a esas carpetas y nunca toca los archivos del resto. Es como decirle a Athena qué cajones del archivo no abrir."
-    },
-    {
-      "speaker": "carlos",
-      "text": "o sea, es estructura de carpetas en S3 que Athena entiende como filtros. Eso es más simple de lo que pensaba. ¿Y cómo sabe Athena qué particiones existen?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Acá entra AWS Glue Data Catalog, el repositorio centralizado de metadata. Athena lo consulta para saber dónde están los datos y qué particiones existen. Por eso cuando agregás particiones nuevas a S3 tenés que registrarlas también en el Catalog. Si no lo hacés, Athena no las ve aunque estén ahí. Esto lo preguntan: datos nuevos en S3 pero Athena no los encuentra — probablemente falta registrar la partición."
-    },
-    {
-      "speaker": "carlos",
-      "text": "a ver — Glue Catalog como directorio de donde viven los datos. ¿Y cómo se puebla ese Catalog? ¿Lo tengo que llenar a mano?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Podés hacerlo a mano con DDL — CREATE EXTERNAL TABLE apuntando a un path de S3. Pero lo más común es usar Glue Crawlers: procesos automáticos que escanean tu data, detectan el schema, y crean o actualizan las tablas en el Catalog solos. Los programás para que corran periódicamente y el Catalog se mantiene actualizado sin intervención manual."
-    },
-    {
-      "speaker": "carlos",
-      "text": "muy cómodo. ¿Y hay algo sobre el tamaño de los archivos? Porque en logs normalmente hay miles de archivos pequeños..."
-    },
-    {
-      "speaker": "ana",
-      "text": "Sí, y eso es un anti-patrón. Muchos archivos chicos genera overhead por apertura de cada archivo. El target ideal para Athena es archivos de ciento veintiocho megabytes a un gigabyte. Por debajo de eso el overhead supera el beneficio. Por eso muchas pipelines incluyen un paso de compactación: juntar muchos archivos pequeños en archivos más grandes antes de quedar en S3."
-    },
-    {
-      "speaker": "carlos",
-      "text": "uy, eso no lo hubiera pensado. ¿Y Athena tiene algún mecanismo de control de costos? Si alguien hace un SELECT star sobre un terabyte sin querer..."
-    },
-    {
-      "speaker": "ana",
-      "text": "Para eso existen los Workgroups. Un Workgroup aísla queries por equipo o proyecto, y podés setear límites de data escaneada por query o por período. Si alguien lanza una query que supera el límite se cancela antes de terminar. También podés forzar que los resultados se guarden en un bucket específico y encriptados. Los resultados se retienen cuarenta y cinco días por defecto."
-    },
-    {
-      "speaker": "carlos",
-      "text": "capté — Workgroups como namespaces con límites de gasto. ¿Cuáles son los casos de uso más típicos de Athena en el examen?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Los más comunes: consultar logs de VPC Flow Logs, logs de CloudTrail, y logs de ALB que ya están en S3. También datos de negocio en un data lake, y análisis del AWS Cost and Usage Report. El patrón es siempre el mismo: datos en S3, querés hacer queries SQL sin mover nada y sin provisionar infraestructura. Ahí siempre es Athena."
-    },
-    {
-      "speaker": "carlos",
-      "text": "ok, Athena quedó claro. Ahora Kinesis — ¿qué es? ¿También trabaja con datos en S3?"
-    },
-    {
-      "speaker": "ana",
-      "text": "No, Kinesis es para algo completamente diferente: streaming de datos en tiempo real. Athena consulta datos ya almacenados. Kinesis captura eventos que están fluyendo ahora mismo — métricas de aplicación, logs en tiempo real, datos de dispositivos IoT, clicks de usuario. Son datos que llegan continuamente y necesitás procesarlos mientras llegan, no horas después."
-    },
-    {
-      "speaker": "carlos",
-      "text": "a ver — Athena es para datos en reposo, Kinesis es para datos en movimiento. ¿Y Kinesis es un solo servicio o son varios?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Son cuatro servicios bajo la misma familia. Kinesis Data Streams para captura y procesamiento custom. Kinesis Data Firehose para entregar streaming data a destinos como S3 o Redshift sin escribir código. Kinesis Data Analytics para hacer analytics SQL o Apache Flink sobre los streams en tiempo real. Y Kinesis Video Streams para video. Los tres primeros son los que más entran en el examen."
-    },
-    {
-      "speaker": "carlos",
-      "text": "capté — cuatro sabores. Arrancá por Data Streams que parece el más fundamental. ¿Cómo funciona internamente?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Kinesis Data Streams funciona con shards — esa es la unidad básica de capacidad. Cada shard te da un megabyte por segundo de escritura, mil records por segundo, y dos megabytes por segundo de lectura. Si necesitás más throughput, agregás shards. El stream es como un río con canales paralelos — cada canal es un shard."
-    },
-    {
-      "speaker": "carlos",
-      "text": "capté — shards son canales del stream y la capacidad escala con la cantidad de shards. ¿Y un record qué contiene? ¿Puede ser cualquier cosa?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Un record tiene tres partes: el data blob — hasta un megabyte de datos en cualquier formato — una partition key que determina a qué shard va, y un sequence number que Kinesis asigna como identificador único. La partition key es clave: si usás alta cardinalidad como un user ID o un UUID, los datos se distribuyen uniformemente entre los shards."
-    },
-    {
-      "speaker": "carlos",
-      "text": "esperá — si uso siempre la misma partition key, todos los records van al mismo shard, ¿no? ¿Eso satura ese shard?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Exacto, se llama hot shard — un problema de distribución de carga. Usás alta cardinalidad para distribuir. Pero también tiene el lado positivo: si necesitás ordering garantizado para los eventos de un mismo usuario, usás el user ID como partition key y todos sus eventos van al mismo shard en secuencia. Ordering garantizado dentro de un shard, pero no entre shards distintos."
-    },
-    {
-      "speaker": "carlos",
-      "text": "ah, tiene sentido — alta cardinalidad para distribuir carga, baja cardinalidad para garantizar ordering. ¿Y cuánto tiempo se retienen los datos en el stream?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Ojo con esto — es diferente a una cola de mensajes. En Kinesis los datos no desaparecen cuando se leen. Se retienen por un período configurable: default veinticuatro horas, extensible hasta trescientos sesenta y cinco días a costo adicional. Eso permite que múltiples consumers lean el mismo stream de forma independiente con su propio offset. Es durable por diseño, más parecido a un log que a una cola."
-    },
-    {
-      "speaker": "carlos",
-      "text": "uy, eso es distinto — varios consumers pueden leer el mismo stream sin quitarse los datos entre sí. ¿Y Kinesis Data Streams tiene modos de capacidad como otros servicios de AWS?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Sí, dos modos. Provisionado: vos definís la cantidad de shards y pagás por shard-hora — predecible para tráfico estable. On-demand: escala automáticamente y pagás por gigabytes de datos que entran y salen — mejor para cargas impredecibles o intermitentes donde no querés calcular shards de antemano. Podés cambiar de modo sin downtime."
-    },
-    {
-      "speaker": "carlos",
-      "text": "dale, entendí Data Streams. ¿Y cuándo conviene usar Kinesis Data Firehose en vez de Data Streams? ¿Cuál es la diferencia clave?"
-    },
-    {
-      "speaker": "ana",
-      "text": "La diferencia clave: Firehose es completamente managed y no necesitás escribir código consumer. Solo configurás un delivery stream apuntando a un destino — S3, Redshift, OpenSearch, Splunk, o endpoints HTTP — y Firehose bufferiza, comprime, y entrega solo. Data Streams es para cuando necesitás procesamiento custom — vos escribís la lógica del consumer con Lambda, E.C. 2, o KCL."
-    },
-    {
-      "speaker": "carlos",
-      "text": "a ver — Firehose es delivery simple sin código, Data Streams es para cuando necesitás control total con código propio. ¿Y Firehose puede transformar los datos antes de entregarlos?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Sí, podés conectar una función Lambda a Firehose para transformar cada record antes del delivery — convertir JSON a Parquet, filtrar campos sensibles, enriquecer datos. También hace buffering configurable: entrega cuando acumula cierto tamaño o cuando pasa cierto tiempo. El rango es de un megabyte a ciento veintiocho megabytes, o de sesenta a novecientos segundos."
-    },
-    {
-      "speaker": "carlos",
-      "text": "esperá — ¿la espera mínima es sesenta segundos? ¿Entonces Firehose no es real-time puro?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Exactamente, y ese es un gotcha del examen. Firehose se llama near real-time — la latencia mínima es sesenta segundos porque el buffer mínimo es un minuto. Si necesitás procesar eventos en milisegundos o segundos, necesitás Data Streams con un consumer custom. Si podés tolerar un minuto de lag y querés cero código, Firehose es perfecto."
-    },
-    {
-      "speaker": "carlos",
-      "text": "capté — Firehose tiene mínimo sesenta segundos de lag, no es real-time puro. ¿Y Kinesis Data Analytics qué hace en este ecosistema?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Kinesis Data Analytics te permite hacer analytics en tiempo real sobre un stream activo — ya sea de Data Streams o de Firehose. Usás SQL estándar o Apache Flink. Con SQL hacés agregaciones con ventanas de tiempo. Con Flink tenés procesamiento stateful más complejo con Java o Scala. Serverless, escala automáticamente."
-    },
-    {
-      "speaker": "carlos",
-      "text": "¿ventanas de tiempo? No entiendo ese concepto. ¿Por qué no puedo hacer un SELECT normal como en cualquier SQL?"
-    },
-    {
-      "speaker": "ana",
-      "text": "En una base de datos los datos están fijos — el SELECT corre sobre un snapshot completo. En un stream los datos fluyen infinitamente, nunca terminan. Para hacer una agregación tenés que definir un intervalo: quiero contar eventos de los últimos sesenta segundos. Ese intervalo es la ventana. Sin ventana, la agregación no puede cerrarse porque el stream no tiene fin."
-    },
-    {
-      "speaker": "carlos",
-      "text": "ah, tiene sentido — el stream es infinito y la ventana lo acota a un período finito para poder agregar. ¿Cuáles son los tipos de ventanas?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Tres tipos. Tumbling window: tamaño fijo que no se superpone — cada minuto es una ventana separada que abre y cierra. Sliding window: tamaño fijo que se actualiza cada cierto intervalo — una ventana de un minuto que se recalcula cada treinta segundos. Y session window: tamaño variable basado en actividad — abre cuando hay eventos, cierra cuando hay un gap de inactividad."
-    },
-    {
-      "speaker": "carlos",
-      "text": "capté — session window es como detectar una sesión de usuario. ¿Y Kinesis Video Streams lo cubrimos también?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Kinesis Video Streams captura, procesa y almacena streams de video desde dispositivos como cámaras de seguridad o sensores industriales. Podés conectarlo a modelos de machine learning para visión computacional. Para el examen solo necesitás saber el nombre y el caso de uso: video streaming y computer vision. No entra en detalle en el examen."
-    },
-    {
-      "speaker": "carlos",
-      "text": "ok, Kinesis cubierto. ¿Qué es EMR? Lo escuché al lado de Spark y Hadoop pero nunca entendí qué rol cumple."
-    },
-    {
-      "speaker": "ana",
-      "text": "Amazon EMR — Elastic MapReduce — es un cluster managed para correr frameworks de big data: Apache Spark, Hadoop, HBase, Presto, Flink. Pensalo como la manera de correr Spark sin armar el cluster vos mismo. AWS provisiona las instancias, instala el software, configura el networking. Vos mandás el job y procesás tu data."
-    },
-    {
-      "speaker": "carlos",
-      "text": "no, esto nunca lo configuré — explicámelo de cero. ¿Cuál es la arquitectura interna de un cluster de EMR?"
-    },
-    {
-      "speaker": "ana",
-      "text": "El cluster tiene tres tipos de nodos. El Master Node coordina el cluster: distribuye tareas, monitorea el estado, es el cerebro. Los Core Nodes ejecutan tareas y almacenan datos en HDFS, el sistema de archivos distribuido de Hadoop. Los Task Nodes solo ejecutan tareas sin almacenar datos — son opcionales y fáciles de agregar o quitar. Master coordina, Core computa y almacena, Task solo computa."
-    },
-    {
-      "speaker": "carlos",
-      "text": "a ver — Master, Core, Task. ¿Y el Master Node es un single point of failure? Si falla uno solo, ¿cae todo el cluster?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Por default sí — el Master Node es un single point of failure. Para alta disponibilidad podés configurar multi-master con tres nodos master. Pero para el examen, lo que más preguntan es el escenario estándar: si falla el Master Node en un cluster sin multi-master, el cluster se cae. Es un punto crítico de diseño que hay que conocer."
-    },
-    {
-      "speaker": "carlos",
-      "text": "capté. ¿Y los Task Nodes se pueden quitar dinámicamente? Si no tienen datos debería ser seguro sacarlos..."
-    },
-    {
-      "speaker": "ana",
-      "text": "Exacto, y por eso son perfectos para Spot Instances. Los Task Nodes no tienen datos en HDFS — si AWS los interrumpe, el trabajo se redistribuye a los Core Nodes. El patrón recomendado para reducir costos en EMR: Master y Core Nodes en On-Demand, Task Nodes en Spot. Podés ahorrar hasta noventa por ciento en las Task Nodes. Para el examen: Spot siempre va con Task Nodes."
-    },
-    {
-      "speaker": "carlos",
-      "text": "uy, eso es importante — Spot solo para Task, On-Demand para Core y Master que tienen datos. ¿Y esos datos del cluster van todos a HDFS?"
-    },
-    {
-      "speaker": "ana",
-      "text": "No, y acá viene lo importante. EMRFS — EMR File System — te permite usar S3 como si fuera HDFS. La diferencia crítica: con HDFS puro, si el cluster termina, los datos se pierden. Con EMRFS y S3, los datos persisten. El patrón recomendado es clusters transient: iniciás el cluster para un job, termina solo, los datos quedan seguros en S3."
-    },
-    {
-      "speaker": "carlos",
-      "text": "ah, tiene sentido — transient clusters para ahorrar costo, datos en S3 con EMRFS para que no se pierdan. ¿Y cuándo uso EMR versus Glue para ETL?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Hay overlap pero casos de uso distintos. Glue es serverless — no hay cluster que administrar, mejor para ETL simple a mediano. EMR te da control total del cluster, versiones específicas de Spark, configuración fine-grained — mejor para big data a escala masiva o cuando el equipo ya opera clusters Hadoop. Si el examen dice 'serverless ETL', es Glue. Si dice 'Spark a gran escala con control del cluster', es EMR."
-    },
-    {
-      "speaker": "carlos",
-      "text": "dale, eso aclara la diferencia. Hablemos de Glue más en detalle — mencionaste el Data Catalog, los Crawlers, los ETL Jobs. ¿Cómo encajan todas esas piezas?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Glue tiene varios componentes. El Data Catalog es el repositorio central de metadata: definiciones de tablas, schemas, particiones. Lo usan Athena, EMR, y Redshift Spectrum. Los Crawlers son procesos que escanean tus fuentes de datos y actualizan el Catalog automáticamente. Los ETL Jobs son scripts Spark o Python que transforman la data. Glue Studio es la interfaz visual para crear jobs sin código."
-    },
-    {
-      "speaker": "carlos",
-      "text": "a ver — el Data Catalog es compartido entre varios servicios. ¿Eso significa que si defino una tabla para Athena, EMR también la puede usar sin redefinirla?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Exactamente. Un único catálogo de metadata que todos los servicios de analytics consultan. No redefinís el schema en múltiples lugares. Lo definís una vez — Athena lo ve, EMR lo ve, Redshift Spectrum lo ve. Y si el schema cambia, por ejemplo agregás una columna, volvés a correr el Crawler y el Catalog se actualiza solo. Para el examen: el Glue Data Catalog es el source of truth de metadata de analytics en AWS."
-    },
-    {
-      "speaker": "carlos",
-      "text": "muy útil — un único lugar de verdad para todos los schemas. ¿Y los ETL Jobs cómo saben qué datos ya procesaron? Para no reprocesar todo cada vez..."
-    },
-    {
-      "speaker": "ana",
-      "text": "Ojo con esto — para eso existen los Job Bookmarks. Es un mecanismo que trackea el estado del procesamiento entre runs. El job registra hasta dónde llegó — por ejemplo, qué archivos de S3 procesó. La próxima ejecución arranca desde ahí. Para el examen: si te preguntan cómo prevenir procesamiento duplicado en Glue ETL, la respuesta es Job Bookmarks. Es el gotcha más frecuente de Glue."
-    },
-    {
-      "speaker": "carlos",
-      "text": "capté — Job Bookmarks como checkpoints para ETL incremental. ¿Y qué tipos de ETL Jobs tiene Glue?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Principalmente dos. Spark Jobs: Scala o PySpark, procesamiento distribuido para datasets grandes — son los más comunes en el examen. Python Shell Jobs: Python puro sin Spark, para transformaciones simples en datasets pequeños. En el examen lo que más aparece es el Spark Job para transformar datos en S3 y cargarlos en Redshift o de vuelta en S3 en formato Parquet."
-    },
-    {
-      "speaker": "carlos",
-      "text": "a ver, ¿y Glue puede automatizar workflows completos? ¿Encadenar un Crawler con un job y otro job después?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Sí, con Glue Triggers y Glue Workflows. Los triggers pueden ser scheduled con cron, on-demand, o conditional — que un job arranque cuando otro termina exitosamente o con error. Podés armar un workflow completo: el Crawler detecta schema nuevo, dispara un ETL Job que transforma, y otro que carga al destino. Glue Workflows te da visibilidad visual de todo el pipeline."
-    },
-    {
-      "speaker": "carlos",
-      "text": "dale, Glue es bastante completo. ¿Y DataBrew? Lo mencionaste brevemente antes."
-    },
-    {
-      "speaker": "ana",
-      "text": "Glue DataBrew es una herramienta visual de preparación de datos — más de doscientas cincuenta transformaciones pre-built que aplicás arrastrando y soltando. Removés duplicados, normalizás formatos de fecha, llenás valores faltantes, filtrás outliers — sin escribir código. Es más accesible para analistas que no quieren escribir PySpark. Para el examen, saber que existe y qué hace es suficiente."
-    },
-    {
-      "speaker": "carlos",
-      "text": "ok, Glue cubierto. Ahora QuickSight — eso es básicamente el servicio de BI de AWS, ¿no?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Exacto. Amazon QuickSight es el servicio serverless de Business Intelligence. Creás dashboards interactivos y visualizaciones conectándote a tus fuentes de datos — RDS, Aurora, Redshift, Athena, S3, y fuentes externas como Salesforce o cualquier base de datos via JDBC. No hay infraestructura que manejar. El pricing es pay-per-session para readers — pagás cuando alguien accede al dashboard."
-    },
-    {
-      "speaker": "carlos",
-      "text": "yo esto no lo toqué, así que te pregunto desde cero — ¿qué es SPICE? Vi ese nombre en la documentación y no entendí qué era."
-    },
-    {
-      "speaker": "ana",
-      "text": "SPICE es el motor de in-memory de QuickSight — Super-fast Parallel In-memory Calculation Engine. Importás tu data a SPICE y las queries se ejecutan en memoria, lo que da respuesta sub-segundo. La alternativa es consultar directamente la fuente de datos en cada query, que puede ser más lento. SPICE replica datos entre Availability Zones para alta disponibilidad."
-    },
-    {
-      "speaker": "carlos",
-      "text": "ah, tiene sentido — SPICE es como un cache en memoria de la data para que los dashboards vuelen. ¿Y SPICE siempre tiene los datos más recientes?"
-    },
-    {
-      "speaker": "ana",
-      "text": "No, y ese es un gotcha. SPICE es una copia en memoria que tenés que sincronizar con la fuente — hay lag entre el dato real y lo que ves en el dashboard. Podés configurar refreshes manuales o programados. Si necesitás datos absolutamente fresh en tiempo real, consultás directo sin SPICE — más lento, pero siempre actualizado. Para el examen: SPICE tiene lag, consulta directa es real-time."
-    },
-    {
-      "speaker": "carlos",
-      "text": "capté — SPICE tiene lag porque es una copia que hay que sincronizar. ¿Y quién puede ver los dashboards? ¿Hay tipos de usuarios en QuickSight?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Tres roles. Readers: ven e interactúan con dashboards pero no los crean. Authors: crean análisis y dashboards, conectan fuentes de datos, y los comparten. Admins: manejan usuarios y suscripciones. El modelo de costo para el examen: Readers pagan treinta centavos por sesión con un tope de cinco dólares por mes. Para usuarios que acceden pocas veces al mes, es muy económico."
-    },
-    {
-      "speaker": "carlos",
-      "text": "a ver — pay-per-session para Readers es conveniente para usuarios que entran poco. ¿Y QuickSight tiene machine learning integrado?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Sí, tiene tres features de ML. Anomaly Detection: detecta valores fuera de lo esperado sin configurar modelos — QuickSight aprende el patrón normal y alerta cuando algo se desvía. Forecasting: proyecta tendencias futuras con intervalos de confianza basados en histórico. Y Auto-Narratives: genera descripciones en lenguaje natural de los insights del dashboard. Todo integrado, sin armar modelos propios."
-    },
-    {
-      "speaker": "carlos",
-      "text": "uy, anomaly detection y forecasting built-in sin modelos propios. ¿Y QuickSight Q qué es?"
-    },
-    {
-      "speaker": "ana",
-      "text": "QuickSight Q es la feature de natural language queries — le hacés preguntas en inglés natural y QuickSight genera la visualización correspondiente. Para el examen lo que hay que recordar de QuickSight es: serverless BI, motor SPICE in-memory para performance, pay-per-session para readers, y ML Insights integrados — anomaly detection y forecasting."
-    },
-    {
-      "speaker": "carlos",
-      "text": "dale. ¿Hablemos de data lakes? Escuché ese término muchas veces pero nunca entendí bien qué es exactamente."
-    },
-    {
-      "speaker": "ana",
-      "text": "Un data lake es un repositorio centralizado donde guardás toda la data de tu organización — estructurada, semi-estructurada, y no estructurada — en su formato nativo, a cualquier escala. La diferencia con un data warehouse como Redshift: el warehouse tiene schema fijo y datos transformados. El data lake acepta todo tal cual llega y lo estructura cuando lo necesitás."
-    },
-    {
-      "speaker": "carlos",
-      "text": "a ver — data lake es crudo y flexible, data warehouse es transformado y estructurado. ¿Y en AWS cómo se arma un data lake?"
-    },
-    {
-      "speaker": "ana",
-      "text": "El patrón estándar usa S3 como base de almacenamiento, organizado en zonas. Raw zone: datos en formato original sin tocar. Processed zone: datos limpios y transformados, normalmente en Parquet. Curated zone: datos listos para negocio, agregados. Glue Crawlers descubren el schema de cada zona. Athena o EMR procesan. QuickSight visualiza. Es el stack serverless completo de data lake en AWS."
-    },
-    {
-      "speaker": "carlos",
-      "text": "¿y Lake Formation? ¿Qué agrega encima de lo que ya hacen S3, Glue, y Athena juntos?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Lake Formation centraliza seguridad y governance del data lake. En vez de manejar IAM policies y bucket policies por separado para cada servicio, Lake Formation te da control de acceso fine-grained — hasta nivel de columna. Podés decir: este usuario puede ver la tabla de ventas pero no la columna de salarios. También tiene audit logs de quién accedió a qué data, y blueprints para patrones comunes de ingesta."
-    },
-    {
-      "speaker": "carlos",
-      "text": "ah, Lake Formation como capa de governance unificada sobre todo el lake. ¿Y MSK? Mencionaste que hay una alternativa a Kinesis para streaming."
-    },
-    {
-      "speaker": "ana",
-      "text": "Amazon MSK es Managed Streaming for Apache Kafka — un cluster de Kafka fully managed. La diferencia con Kinesis: Kinesis es AWS-native con sus propias APIs. MSK expone las APIs estándar de Kafka. Si ya tenés aplicaciones escritas para Kafka on-premise y querés migrarlas a AWS sin reescribir nada, MSK es la opción natural. Si empezás desde cero en AWS, Kinesis es más simple."
-    },
-    {
-      "speaker": "carlos",
-      "text": "capté — MSK para Kafka existente, Kinesis para empezar desde cero en AWS. ¿Y OpenSearch Service?"
-    },
-    {
-      "speaker": "ana",
-      "text": "OpenSearch Service, antes llamado Elasticsearch Service, es un motor de búsqueda y analytics full-text. Casos de uso típicos: análisis de logs, búsqueda full-text en documentos, monitoring de aplicaciones en tiempo real, y SIEM — Security Information and Event Management. Firehose puede entregar directo a OpenSearch, que es el patrón común para logs operacionales: Firehose recibe, transforma con Lambda si hace falta, y entrega a OpenSearch para análisis."
-    },
-    {
-      "speaker": "carlos",
-      "text": "ok, creo que cubrimos todos los servicios. ¿Me hacés un resumen de exam tips? Hay muchos servicios y quiero tener claro qué pregunta el examen."
-    },
-    {
-      "speaker": "ana",
-      "text": "Perfecto, arrancamos con Athena. Tres puntos clave: uno, serverless SQL sobre S3 sin infraestructura. Dos, pagás por terabyte escaneado — la optimización es Parquet u ORC más particionamiento para reducir lo que se escanea. Tres, integra con Glue Data Catalog para metadata. Si el escenario dice queries ad-hoc sobre datos en S3, la respuesta siempre es Athena."
-    },
-    {
-      "speaker": "carlos",
-      "text": "ok — Athena: serverless, pay-per-scan, Parquet más particiones, Glue Catalog. ¿Cuáles son los tips de Kinesis?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Kinesis Data Streams: shards con un megabyte por segundo de escritura y dos de lectura. Retención default veinticuatro horas, extensible a trescientos sesenta y cinco días. Múltiples consumers pueden leer el mismo stream independientemente. Kinesis Firehose: near real-time con mínimo sesenta segundos de latencia, zero código, destinos S3, Redshift, OpenSearch, Splunk. Data Analytics: SQL o Flink en tiempo real sobre streams."
-    },
-    {
-      "speaker": "carlos",
-      "text": "ok — Data Streams para procesamiento custom con retención, Firehose para delivery sin código con sesenta segundos mínimo. ¿Y para EMR?"
-    },
-    {
-      "speaker": "ana",
-      "text": "EMR: los tres tipos de nodos y sus roles — Master coordina, Core computa y almacena en HDFS, Task solo computa sin storage. Spot Instances van con Task Nodes, no con Core ni Master. Usá EMRFS con S3 para persistir datos entre runs — HDFS puro pierde datos cuando termina el cluster. Preferí clusters transient para workloads batch para ahorrar costo."
-    },
-    {
-      "speaker": "carlos",
-      "text": "ok — Master coordina, Core computa y guarda, Task solo computa. Spot para Task, EMRFS para persistencia, clusters transient. ¿Glue?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Glue: serverless ETL sin infraestructura. Data Catalog compartido por Athena, EMR, y Redshift Spectrum — source of truth de metadata. Crawlers para schema discovery automático. Job Bookmarks para tracking incremental y evitar reprocesar data. Y la distinción Glue versus EMR: Glue para ETL simple serverless, EMR cuando necesitás control total del cluster o volumen muy grande."
-    },
-    {
-      "speaker": "carlos",
-      "text": "y QuickSight — serverless BI, SPICE in-memory, pay-per-session para Readers, ML Insights. ¿Hay algún gotcha específico que no cubrimos?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Sí, dos gotchas importantes. Primero: Kinesis Data Streams versus SQS. SQS es una cola donde cada mensaje es consumido por un solo consumer y desaparece. Kinesis es un stream donde los datos persisten y múltiples consumers pueden leer de forma independiente. Si el escenario pide múltiples consumidores sobre el mismo stream de datos, es Kinesis. Si pide procesamiento por un solo consumer, puede ser SQS."
-    },
-    {
-      "speaker": "carlos",
-      "text": "ah, eso es importante — SQS borra el mensaje al consumirlo, Kinesis lo retiene para múltiples consumers. ¿El segundo gotcha?"
-    },
-    {
-      "speaker": "ana",
-      "text": "El segundo: Glue Data Catalog como reemplazo de Apache Hive Metastore. Si el escenario menciona un cluster Hadoop on-premise con Hive Metastore que quieren migrar a AWS, el Glue Data Catalog es compatible — las aplicaciones que consultan Hive Metastore pueden redirigirse a Glue sin cambios de código. Es una señal clave en escenarios de migración de big data."
-    },
-    {
-      "speaker": "carlos",
-      "text": "uy, eso no lo sabía — Glue como reemplazo de Hive Metastore en migraciones. ¿Y cómo se ve un escenario típico de data lake serverless en el examen?"
-    },
-    {
-      "speaker": "ana",
-      "text": "El patrón más repetido: logs de aplicaciones que llegan continuamente, necesitás almacenarlos y analizarlos. Solución: Kinesis Firehose para ingesta near real-time en S3, Glue Crawler para detectar el schema, Athena para queries ad-hoc, QuickSight para visualizar. Ese pipeline cubre el data lake completo serverless sin infraestructura. En el examen lo llaman serverless analytics pipeline y sale mucho."
-    },
-    {
-      "speaker": "carlos",
-      "text": "perfecto — ese pipeline lo tengo claro: Firehose ingesta, Glue cataloga, Athena consulta, QuickSight visualiza. Bueno Ana, intentá que te haga el recap del módulo. Analytics cubre: Athena para SQL serverless sobre S3, Kinesis para streaming en tiempo real con Data Streams y Firehose como sabores principales, EMR para big data con Spark, Glue para ETL serverless con Data Catalog compartido, y QuickSight para BI y dashboards."
-    },
-    {
-      "speaker": "ana",
-      "text": "Muy bien. Agregá los puntos de optimización: en Athena, Parquet u ORC más particionamiento para bajar costo. En EMR, Spot Instances para Task Nodes y EMRFS para persistencia. Job Bookmarks en Glue para no reprocesar. SPICE en QuickSight para performance. Y los servicios complementarios: Lake Formation para governance del data lake, OpenSearch para búsqueda y logs, MSK para Kafka managed."
-    },
-    {
-      "speaker": "carlos",
-      "text": "y los patrones clave: si el escenario dice streaming real-time voy a Kinesis, SQL ad-hoc sobre S3 voy a Athena, big data con Spark voy a EMR, ETL serverless voy a Glue, dashboards voy a QuickSight. Y para data lake completo es el combo Firehose más Glue más Athena más QuickSight. ¿Me faltó algo?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Solo un detalle final: en el examen los escenarios de analytics tienen palabras clave claras. Real-time apunta a Kinesis Data Streams. Near real-time sin código apunta a Firehose. SQL sin infraestructura sobre S3 apunta a Athena. Hadoop o Spark con control del cluster apunta a EMR. ETL serverless apunta a Glue. Dashboards de negocio apunta a QuickSight. Aprendete esas señales y el módulo está dominado."
-    },
-    {
-      "speaker": "carlos",
-      "text": "capté — las palabras clave en el enunciado son la señal. Real-time a Kinesis, SQL sobre S3 a Athena, Spark managed a EMR, ETL serverless a Glue, dashboards a QuickSight. Tengo todo claro."
-    },
-    {
-      "speaker": "ana",
-      "text": "Exacto. Hoy cubriste el ecosistema completo de analytics en AWS: Athena serverless para SQL sobre S3, Kinesis para streaming, EMR para big data, Glue para ETL y metadata, QuickSight para visualización, y Lake Formation para governance. Son los bloques del data lake moderno en AWS. En el próximo módulo vemos Architecture Patterns, donde estos servicios se combinan en soluciones reales. Hasta la próxima."
-    }
+    {"speaker": "ana", "text": "Imaginate este escenario: tu empresa tiene terabytes de logs en S3 — VPC Flow Logs, registros de ventas, eventos de aplicación. Los datos están ahí, pero no podés consultarlos sin montar servidores y gestionar infraestructura. El examen te va a poner en esa situación y te va a preguntar qué servicio usás. Hoy vemos el módulo once: Analytics Services. Soy Ana."},
+    {"speaker": "carlos", "text": "Y yo soy Carlos. El analytics en AWS es territorio que no toqué — te pregunto desde cero."},
+    {"speaker": "ana", "text": "Justo por ahí arrancamos. En este módulo cubrimos cinco servicios principales: Athena para queries SQL, Kinesis para streaming en tiempo real, EMR para big data con frameworks como Spark, Glue para ETL serverless, y QuickSight para visualizaciones. Al final vas a entender cuándo usar cada uno y cómo se arman juntos en un data lake completo."},
+    {"speaker": "carlos", "text": "¿Y cuánto peso tiene este módulo en el examen? ¿Es de los que entran mucho?"},
+    {"speaker": "ana", "text": "Está en el rango de quince a veinte por ciento, mezclado con escenarios de arquitectura. El examen no te pregunta cómo configurar un cluster de EMR paso a paso — te da un problema de negocio y vos tenés que elegir el servicio correcto. Por eso el foco hoy es: qué hace cada servicio, cuándo usarlo, y cuáles son los gotchas."},
+    {"speaker": "carlos", "text": "Perfecto, ese enfoque me sirve. ¿Arrancamos con Athena?"},
+    {"speaker": "ana", "text": "Arrancamos con Amazon Athena, uno de los que más aparece en el examen. Amazon Athena es un servicio serverless de queries interactivos. Apuntás Athena a un bucket en S3, escribís SQL estándar, y te devuelve resultados. No hay servidores que provisionar, no hay bases de datos que mantener."},
+    {"speaker": "carlos", "text": "O sea que Athena no mueve los datos a ningún lado — los consulta directamente en S3."},
+    {"speaker": "ana", "text": "Exacto, eso es clave. Los datos quedan en S3. Athena los lee en el momento de la query. Y la forma en que te cobra es por dato escaneado: cinco dólares por terabyte. Entonces si querés optimizar costos, el objetivo es reducir cuánto escanea cada query."},
+    {"speaker": "carlos", "text": "¿Y cómo se reduce lo que escanea? ¿Tiene que ver con el formato del archivo?"},
+    {"speaker": "ana", "text": "Exactamente. Athena puede leer CSV, JSON, Parquet, ORC, Avro. Pero Parquet y ORC son formatos columnares — guardan los datos por columna en vez de por fila. Cuando hacés un SELECT sobre una o dos columnas de una tabla con cien columnas, Parquet solo lee esas columnas. Podés reducir el scaneo entre treinta y noventa por ciento."},
+    {"speaker": "carlos", "text": "Ah, tiene sentido. Si solo necesito fecha y monto, ¿para qué leer los otros noventa y ocho campos? ¿Y eso se combina con compresión también?"},
+    {"speaker": "ana", "text": "Sí, se combina. Gzip, Snappy, LZO. Compresión más formato columnar es la combinación ganadora para Athena. Otra optimización clave: particionamiento. Si organizás los datos en S3 por año, mes, día — y en la query filtrás por esos campos — Athena solo escanea esa carpeta. Ignora todo lo demás."},
+    {"speaker": "carlos", "text": "O sea que el costo de la query es función de qué tan bien organizaste el bucket. Cuanto más fino el particionamiento, menos pagás."},
+    {"speaker": "ana", "text": "Exacto. Y fijate que esto también aplica al tamaño de los archivos. Athena tiene overhead por archivo: si tenés miles de archivos de un megabyte cada uno, performa mal. Lo ideal son archivos de ciento veintiocho megabytes a un gigabyte. Esto se llama el problema de los small files y es un gotcha frecuente del examen."},
+    {"speaker": "carlos", "text": "Eso no lo sabía. ¿Y Athena sabe qué hay en el bucket? ¿Cómo conoce el schema?"},
+    {"speaker": "ana", "text": "Muy buena pregunta. Athena usa un catálogo de metadatos — el Glue Data Catalog. Vos definís tablas con DDL, el Data Definition Language, o usás un crawler de Glue que automáticamente descubre el schema. Una vez que la tabla está en el catálogo, Athena sabe qué columnas hay, qué formato es, dónde están los datos en S3."},
+    {"speaker": "carlos", "text": "A ver, o sea que Athena y Glue están muy relacionados. Glue le dice a Athena dónde mirar."},
+    {"speaker": "ana", "text": "Exacto. Eso lo vemos en detalle cuando lleguemos a Glue. Por ahora, quedate con esto de Athena: serverless, SQL estándar, query sobre S3, pago por dato escaneado. Los tres optimizadores son formato columnar — Parquet u ORC — particionamiento, y archivos de buen tamaño."},
+    {"speaker": "carlos", "text": "Capté. ¿Y para qué casos de uso aparece Athena en el examen?"},
+    {"speaker": "ana", "text": "Los más frecuentes: analizar VPC Flow Logs o CloudTrail logs que están en S3, ad-hoc querying sobre un data lake, análisis de costos sobre los reportes de AWS. Cada vez que el examen diga 'tengo logs en S3 y quiero hacer queries SQL sin servidores' — la respuesta es Athena."},
+    {"speaker": "carlos", "text": "¿Y los Workgroups de Athena? ¿Son importantes?"},
+    {"speaker": "ana", "text": "Son importantes a nivel de concepto. Los Workgroups aíslan queries por equipo o proyecto, te permiten poner límites de datos escaneados, y configurar encriptación de resultados. Si el examen pregunta cómo restringir cuánto data puede escanear un equipo de analistas — la respuesta es Workgroup de Athena."},
+    {"speaker": "carlos", "text": "Bien. ¿Ahora Kinesis?"},
+    {"speaker": "ana", "text": "Vamos. Kinesis es la familia de servicios para streaming en tiempo real. La diferencia fundamental con Athena es el tiempo: Athena analiza datos que ya están guardados. Kinesis captura y procesa datos mientras llegan, en tiempo real. Tiene cuatro servicios distintos bajo el paraguas de Kinesis."},
+    {"speaker": "carlos", "text": "¿Cuatro? ¿Son muy diferentes entre sí?"},
+    {"speaker": "ana", "text": "Sí, cada uno hace algo distinto. Kinesis Data Streams captura y almacena streaming data para procesamiento custom. Kinesis Data Firehose entrega datos a destinos como S3 o Redshift sin código. Kinesis Data Analytics analiza el stream en tiempo real con SQL o Flink. Y Kinesis Video Streams captura video. Para el examen, los tres primeros son los que más importan."},
+    {"speaker": "carlos", "text": "Arrancamos con Data Streams entonces."},
+    {"speaker": "ana", "text": "Kinesis Data Streams es un servicio de streaming en tiempo real. Los productores — aplicaciones, dispositivos IoT, logs — envían datos al stream. Los consumidores — Lambda, E.C. 2, otras aplicaciones — los procesan. La unidad de capacidad se llama shard. Cada shard te da un megabyte por segundo de escritura y dos megabytes por segundo de lectura."},
+    {"speaker": "carlos", "text": "O sea que si quiero más throughput, agrego más shards. ¿Es automático o lo manejo yo?"},
+    {"speaker": "ana", "text": "Depende del modo. En modo Provisioned, vos manejás el número de shards manualmente — costo predecible. En modo On-Demand, escala automático y pagás por gigabyte de entrada y salida. Provisioned es mejor cuando el tráfico es estable. On-Demand cuando el tráfico varía. Ojo con esto para el examen: trade-off clásico entre control y comodidad."},
+    {"speaker": "carlos", "text": "¿Y los datos cuánto tiempo se quedan en el stream?"},
+    {"speaker": "ana", "text": "Por default, veinticuatro horas. Podés extenderlo hasta trescientos sesenta y cinco días, con costo adicional. A diferencia de SQS donde el mensaje se borra al consumirlo, en Kinesis Data Streams los datos permanecen durante el período de retención. Múltiples consumidores pueden leer el mismo dato independientemente — ideal para fanout: un stream, múltiples procesadores."},
+    {"speaker": "carlos", "text": "Ah, eso es distinto. ¿Y la partition key qué hace exactamente?"},
+    {"speaker": "ana", "text": "La partition key determina a qué shard va un registro. Misma partition key, mismo shard — eso garantiza orden dentro de esa clave. Si procesás eventos por usuario, usás el user ID como partition key: todos los eventos del mismo usuario van al mismo shard, en orden. Para distribuir carga uniformemente, usás claves de alta cardinalidad."},
+    {"speaker": "carlos", "text": "Capté. ¿Y cuándo uso Data Streams versus Firehose? Esa distinción me parece clave."},
+    {"speaker": "ana", "text": "Esa es la pregunta más testada del examen en este tema. Kinesis Data Firehose es completamente managed — no escribís código de consumidor, no manejás shards. Vos conectás una fuente, elegís un destino — S3, Redshift, OpenSearch, Splunk — y Firehose se encarga de todo. La diferencia clave: no es real-time puro. Tiene latencia mínima de sesenta segundos."},
+    {"speaker": "carlos", "text": "¿Por qué sesenta segundos de latencia mínima?"},
+    {"speaker": "ana", "text": "Porque Firehose usa buffering — acumula datos hasta que se cumple un umbral: de tamaño, entre uno y ciento veintiocho megabytes, o de tiempo, entre sesenta y novecientos segundos. Lo que se cumpla primero dispara la entrega. Esto lo hace near real-time, no real-time estricto. Si necesitás latencia de segundos — Data Streams. Si necesitás delivery managed sin código — Firehose."},
+    {"speaker": "carlos", "text": "A ver, entonces Firehose es como un conveyor belt managed — pongo datos de un lado y salen en S3 o Redshift del otro, sin escribir código de consumidor."},
+    {"speaker": "ana", "text": "Exacto, esa analogía es perfecta. Y Firehose también puede transformar los datos en el camino — enchufás una función Lambda que modifica cada registro antes de que llegue al destino. También convierte formatos: de JSON a Parquet, por ejemplo. Muy útil para optimizar costos en Athena después."},
+    {"speaker": "carlos", "text": "Entonces el pipeline sería: Firehose recibe datos crudos, los transforma a Parquet con Lambda, los guarda en S3 particionado, y Athena los consulta barato."},
+    {"speaker": "ana", "text": "Exactamente — eso es un pipeline de analytics completo y muy común en el examen. Productor envía datos, Firehose transforma y entrega a S3 con formato Parquet y compresión, Glue cataloga el schema, Athena consulta. Cada pieza hace su parte."},
+    {"speaker": "carlos", "text": "Genial. ¿Y Kinesis Data Analytics? Ese es para cuando necesito analizar el stream mientras va pasando."},
+    {"speaker": "ana", "text": "Exacto. Kinesis Data Analytics te permite ejecutar queries SQL o aplicaciones de Apache Flink sobre el stream en vivo. Podés calcular promedios en ventanas de tiempo, detectar anomalías, agregar métricas mientras los datos fluyen. Un caso clásico: detectar fraude de tarjeta de crédito antes de que la transacción se apruebe."},
+    {"speaker": "carlos", "text": "¿Y qué son las windowing functions? Vi tumbling window, sliding window, session window."},
+    {"speaker": "ana", "text": "Las windowing functions definen cómo agrupás los eventos en el tiempo. Tumbling window: ventanas fijas no superpuestas — cada minuto procesás todos los eventos de ese minuto. Sliding window: ventanas fijas pero que se solapan — cada treinta segundos calculás el promedio del último minuto. Session window: se cierra cuando hay inactividad por un período definido."},
+    {"speaker": "carlos", "text": "El tumbling es el más simple. El sliding te da más granularidad con overlap. ¿Y para el examen, cuándo apunta el escenario a Data Analytics versus Lambda con Data Streams?"},
+    {"speaker": "ana", "text": "Si el escenario habla de SQL sobre streams, windowing, agregaciones en tiempo real — Data Analytics. Si habla de procesamiento custom con código arbitrario, lógica compleja, integración flexible — Lambda con Data Streams. Data Analytics es el camino serverless de SQL; Lambda es el camino flexible de código."},
+    {"speaker": "carlos", "text": "Claro. ¿Ahora EMR?"},
+    {"speaker": "ana", "text": "Amazon EMR, Elastic MapReduce, es el servicio managed para big data frameworks. Cuando hablamos de big data frameworks, hablamos de Apache Spark, Apache Hadoop, HBase, Presto, Flink — herramientas que procesan petabytes de datos en clusters distribuidos. EMR provisiona el cluster, vos elegís el framework y corrés el procesamiento."},
+    {"speaker": "carlos", "text": "Esto no lo configuré nunca, te pregunto desde cero. ¿En qué se diferencia EMR de Glue? Los dos hacen procesamiento de datos."},
+    {"speaker": "ana", "text": "Esa es la distinción más testada entre los dos. Glue es serverless — no gestionás el cluster, solo escribís el ETL job. EMR es un cluster que vos gestionás: elegís el tipo de instancias, el número de nodos, el framework. Glue para ETL relativamente simple. EMR para cargas complejas de big data donde necesitás control fino o frameworks específicos."},
+    {"speaker": "carlos", "text": "O sea que si el escenario dice 'correr Spark con configuración custom sobre petabytes' — EMR. Si dice 'ETL serverless sin gestionar infraestructura' — Glue."},
+    {"speaker": "ana", "text": "Exacto, esa distinción es la que el examen testa. Ahora, dentro de EMR hay tres tipos de nodos fundamentales. El Master Node coordina el cluster — gestiona distribución de tareas y monitorea. Los Core Nodes tienen compute y almacenamiento HDFS. Los Task Nodes son solo compute, sin almacenamiento — los podés agregar y quitar libremente."},
+    {"speaker": "carlos", "text": "¿Y por qué importa esa distinción entre Core y Task?"},
+    {"speaker": "ana", "text": "Porque los Task Nodes son perfectos para Spot Instances. Si AWS interrumpe un Task Node, perdés capacidad de compute pero no perdés datos — los datos están en Core Nodes o en S3. Si interrumpís un Core Node, podés perder datos del HDFS. La best practice del examen: Master y Core en On-Demand, Task en Spot para ahorrar hasta noventa por ciento de costo."},
+    {"speaker": "carlos", "text": "Tiene sentido. ¿Y qué es EMRFS?"},
+    {"speaker": "ana", "text": "EMRFS es el EMR File System — permite que EMR acceda a S3 como si fuera HDFS. En vez de guardar los datos en los Core Nodes, los guardás en S3. Cuando el cluster termina, los datos siguen ahí. Si usás HDFS nativo, los datos desaparecen cuando terminás el cluster. Para workloads transient, siempre EMRFS con S3."},
+    {"speaker": "carlos", "text": "¿Qué es un cluster transient?"},
+    {"speaker": "ana", "text": "Un cluster transient es de vida corta — lo levantás, procesás el job, lo bajás. Se usa para batch: tenés un proceso de tres horas, levantás el cluster, procesás, guardás resultados en S3, y lo bajás. Más barato que un cluster corriendo veinticuatro horas. El opuesto es un long-running cluster para workloads interactivos continuos."},
+    {"speaker": "carlos", "text": "Capté. ¿Hay algún gotcha específico de EMR que entre seguido?"},
+    {"speaker": "ana", "text": "Cuatro que repiten mucho. Uno: Spot Instances solo para Task nodes, nunca Master o Core. Dos: EMRFS con S3 para persistencia — HDFS nativo muere con el cluster. Tres: multi-master para alta disponibilidad — por default el Master Node es single point of failure. Cuatro: EMR integra con Lake Formation para control de acceso fino a nivel de columna."},
+    {"speaker": "carlos", "text": "¿Lake Formation? Ese no lo mencionaste antes."},
+    {"speaker": "ana", "text": "Lake Formation es un servicio para construir y gobernar data lakes. Centralizás el control de acceso: decís que usuario A puede ver solo ciertas columnas de ciertas tablas, y Lake Formation lo enforcea sobre Athena, EMR, Redshift Spectrum. Es la capa de seguridad del data lake. Si el examen dice 'fine-grained access control en data lake' o 'seguridad a nivel de columna' — Lake Formation."},
+    {"speaker": "carlos", "text": "Útil. ¿Ahora Glue?"},
+    {"speaker": "ana", "text": "AWS Glue es el servicio serverless de ETL — Extract, Transform, Load. Tiene cuatro componentes que el examen testa: el Data Catalog, los Crawlers, los ETL Jobs, y los Job Bookmarks. Cada uno tiene una función específica en el pipeline de datos."},
+    {"speaker": "carlos", "text": "¿Arrancamos con el Data Catalog? Mencionaste antes que Athena lo usa."},
+    {"speaker": "ana", "text": "Sí. El Glue Data Catalog es el repositorio centralizado de metadatos. Guardás ahí la definición de tus tablas: columnas, tipos de dato, ubicación en S3, formato. Athena, EMR, y Redshift Spectrum todos miran el Glue Data Catalog para saber cómo leer los datos. Es el diccionario compartido del data lake."},
+    {"speaker": "carlos", "text": "O sea que si cambio el schema en el Data Catalog, todos los servicios que lo usan ven el cambio."},
+    {"speaker": "ana", "text": "Exacto. Y la forma de poblar ese catálogo automáticamente es con los Crawlers. Un crawler de Glue apunta a una fuente — S3, RDS, DynamoDB — la recorre e infiere el schema. Crea o actualiza tablas en el Data Catalog. Podés schedulear el crawler para que corra periódicamente y detecte cambios en el schema o datos nuevos."},
+    {"speaker": "carlos", "text": "Entonces el workflow sería: datos llegan a S3, corro el crawler, el crawler crea la tabla en el Data Catalog, Athena puede consultar esa tabla. Si agregan columnas nuevas, corro el crawler de nuevo y actualiza."},
+    {"speaker": "ana", "text": "Exactamente. Y después están los ETL Jobs — los trabajos de transformación. Podés escribirlos en Python o Scala con PySpark, o usar Glue Studio que tiene una interfaz visual de drag-and-drop. El job lee de una fuente — el Data Catalog o S3 directamente — transforma los datos, y los escribe en un destino."},
+    {"speaker": "carlos", "text": "¿Y los Job Bookmarks? Eso no lo entendí bien."},
+    {"speaker": "ana", "text": "Los Job Bookmarks resuelven un problema concreto: ¿cómo sabés cuál data ya procesaste y cuál es nueva? Sin bookmarks, cada vez que corrés el job procesás todo desde cero. Con Job Bookmarks, Glue guarda el estado entre ejecuciones y solo procesa los datos nuevos. Clave para ETL incremental — nuevos datos llegan todos los días, no querés reprocesar los históricos."},
+    {"speaker": "carlos", "text": "Ah, es como un checkpoint de progreso. ¿Y Glue DataBrew?"},
+    {"speaker": "ana", "text": "DataBrew es una herramienta de preparación de datos visual, sin código. Tiene doscientas cincuenta transformaciones predefinidas — remover duplicados, normalizar fechas, imputar valores faltantes. Para analistas que no quieren escribir código. Si el examen dice 'preparación de datos sin código para usuarios no técnicos' — DataBrew."},
+    {"speaker": "carlos", "text": "Capté. ¿Ahora QuickSight?"},
+    {"speaker": "ana", "text": "QuickSight es el servicio de business intelligence serverless de AWS. Creás dashboards interactivos, visualizaciones, reportes. Se conecta a Athena, Redshift, RDS, S3, OpenSearch, y también a fuentes externas como Salesforce o bases de datos vía JDBC. La idea es que cualquier persona de negocio explore datos sin saber SQL."},
+    {"speaker": "carlos", "text": "¿Y SPICE? Vi que aparece mucho en la documentación."},
+    {"speaker": "ana", "text": "SPICE es el motor in-memory de QuickSight — Super-fast, Parallel, In-memory Calculation Engine. Cuando importás datos a SPICE, las queries son casi instantáneas porque los datos están en memoria. No tenés que esperar que Athena escanee S3 cada vez. La contra: SPICE tiene capacidad limitada por usuario y tiene costo adicional."},
+    {"speaker": "carlos", "text": "O sea que hay un trade-off: directo a la fuente es siempre actualizado pero más lento, SPICE es rápido pero hay que refrescarlo y tiene costo."},
+    {"speaker": "ana", "text": "Exacto. Y para el examen, QuickSight tiene un modelo de pricing interesante. Los autores crean dashboards — costo mensual fijo. Los readers los consumen — pagan por sesión, treinta centavos por sesión con un tope de cinco dólares al mes. Muy económico para organizaciones con muchos usuarios que solo consumen dashboards sin crearlos."},
+    {"speaker": "carlos", "text": "Eso no lo sabía. ¿Y el tema de Row-Level Security?"},
+    {"speaker": "ana", "text": "Row-Level Security, o RLS, permite que diferentes usuarios vean diferentes filas del mismo dataset. Por ejemplo: el analista de la región US-East solo ve datos de US-East, el de US-West solo ve los suyos. Definís reglas por usuario o grupo. Para el examen: 'mismo dashboard pero cada usuario ve solo su data' — RLS en QuickSight."},
+    {"speaker": "carlos", "text": "¿Y los ML Insights de QuickSight? ¿Eso qué implica?"},
+    {"speaker": "ana", "text": "QuickSight tiene Machine Learning integrado: detección de anomalías automática, forecasting basado en datos históricos, y auto-narrativas que generan resúmenes en lenguaje natural. Nada de esto requiere que vos entrenes un modelo — QuickSight lo hace internamente. Para el examen: 'BI serverless con anomaly detection sin configurar modelos de Machine Learning' — QuickSight ML Insights."},
+    {"speaker": "carlos", "text": "Dale. ¿Hablamos del data lake architecture como concepto?"},
+    {"speaker": "ana", "text": "Sí, es importante. Un data lake es un repositorio centralizado que guarda datos estructurados y no estructurados a cualquier escala. En AWS, el data lake típico tiene tres zonas en S3: Raw o Landing, donde llegan los datos originales sin modificar. Processed, con datos limpios y transformados. Y Curated, con datos listos para analytics de negocio."},
+    {"speaker": "carlos", "text": "¿Y cómo fluyen los datos entre zonas?"},
+    {"speaker": "ana", "text": "Glue o EMR hacen las transformaciones. El dato llega crudo a Raw — puede ser JSON, CSV, cualquier formato. Un job de Glue lo lee, lo limpia, lo convierte a Parquet particionado, y lo deja en Processed. Otro job agrega, une con otros datos, y genera tablas listas para negocio en Curated. Athena consulta cualquiera de las tres zonas."},
+    {"speaker": "carlos", "text": "Y Glue Data Catalog cataloga todas las zonas, QuickSight visualiza lo que Athena devuelve. O sea que el stack completo es S3, Glue, Athena, QuickSight."},
+    {"speaker": "ana", "text": "Exacto. Ese es el stack de data lake serverless en AWS: S3 como almacenamiento, Glue como ETL y catálogo, Athena como query engine, QuickSight como capa de visualización. Si el examen pregunta 'cómo armar analytics sobre un data lake sin servidores' — ese es el stack."},
+    {"speaker": "carlos", "text": "¿Y MSK — Managed Streaming for Apache Kafka? Apareció como alternativa a Kinesis."},
+    {"speaker": "ana", "text": "MSK es el Apache Kafka managed de AWS. Kafka es un sistema de streaming muy usado en la industria. La diferencia con Kinesis: MSK te da control nativo de Kafka — topics, partitions, consumer groups, todo el ecosistema Kafka. Kinesis es más simple y más integrado nativamente con AWS. MSK es para quienes ya tienen workloads en Kafka."},
+    {"speaker": "carlos", "text": "O sea que el criterio es si la empresa ya usa Kafka o no."},
+    {"speaker": "ana", "text": "Exacto. Para el examen: si el escenario dice 'la empresa ya usa Kafka' o 'quiere migrar workloads de Kafka' — MSK. Si empieza desde cero en AWS — Kinesis. Ese patrón de managed equivalent de tecnología existente se repite: Kafka a MSK, Redis a ElastiCache for Redis, Hadoop y Spark a EMR."},
+    {"speaker": "carlos", "text": "Eso ayuda. ¿Pasamos a los exam tips?"},
+    {"speaker": "ana", "text": "Vamos. Primero, Athena. Uno: pago por terabyte escaneado — optimizar siempre es reducir lo que escanea. Dos: Parquet u ORC más particionamiento es la respuesta a 'cómo reducir costos de Athena'. Tres: problema de small files — archivos muy chicos matan la performance. Cuatro: analizar VPC Flow Logs, CloudTrail, ALB logs en S3 — caso de uso típico de Athena."},
+    {"speaker": "carlos", "text": "¿Y los gotchas de Kinesis?"},
+    {"speaker": "ana", "text": "Data Streams versus Firehose es la distinción más testada. Data Streams cuando necesitás procesamiento custom en tiempo real con consumidores propios. Firehose cuando querés delivery a S3, Redshift u OpenSearch sin código — near real-time con sesenta segundos mínimos. Si el escenario dice 'sin código' o 'fully managed delivery' — Firehose."},
+    {"speaker": "carlos", "text": "¿Y el tema de shards?"},
+    {"speaker": "ana", "text": "Cada shard: un megabyte por segundo de escritura, dos de lectura. Si el throughput supera eso, agregás shards. On-Demand escala automático cuando el volumen es impredecible. Provisioned cuando es estable. Retention default veinticuatro horas, extendible a trescientos sesenta y cinco días. Múltiples consumidores pueden leer el mismo shard en paralelo."},
+    {"speaker": "carlos", "text": "¿Algún gotcha específico de EMR?"},
+    {"speaker": "ana", "text": "Tres que repiten. Uno: Spot Instances solo para Task nodes — nunca Master o Core porque podés perder el cluster o datos de HDFS. Dos: EMRFS con S3 para persistencia — HDFS nativo muere con el cluster. Tres: cluster transient para batch jobs — levantás, procesás, bajás. Y si el escenario menciona Hadoop, Spark, Presto, HBase — EMR."},
+    {"speaker": "carlos", "text": "¿Y Glue — cuáles son los puntos clave para el examen?"},
+    {"speaker": "ana", "text": "Cuatro puntos de Glue. Uno: serverless ETL, no gestionás infraestructura. Dos: Data Catalog es el repositorio de metadatos compartido con Athena, EMR, Redshift Spectrum. Tres: Crawlers para descubrimiento automático de schema. Cuatro: Job Bookmarks para evitar reprocesar datos ya procesados — eso entra directo como 'cómo procesar solo datos nuevos en Glue'."},
+    {"speaker": "carlos", "text": "¿Y QuickSight — cuáles son los gotchas?"},
+    {"speaker": "ana", "text": "SPICE es el in-memory engine para performance — capacidad limitada, hay que refrescarlo. Pay-per-session para readers — muy económico para muchos consumidores. Row-Level Security para que cada usuario vea solo su data. Y si el escenario dice 'embed dashboards en una aplicación SaaS' — QuickSight tiene Embedded Analytics con API para eso."},
+    {"speaker": "carlos", "text": "Perfecto. ¿Hacemos el recap?"},
+    {"speaker": "ana", "text": "Dale. Resumime lo que aprendiste hoy."},
+    {"speaker": "carlos", "text": "A ver. Athena: serverless SQL sobre S3, pago por terabyte escaneado. Optimizo con Parquet, particionamiento, y archivos de buen tamaño. Para queries ad-hoc sobre un data lake o para analizar logs en S3."},
+    {"speaker": "ana", "text": "Perfecto. ¿Kinesis?"},
+    {"speaker": "carlos", "text": "Kinesis tiene cuatro servicios. Data Streams para streaming en tiempo real con consumidores custom — shards, partition keys, retention de veinticuatro horas. Firehose para delivery managed sin código a S3 o Redshift — near real-time, sesenta segundos mínimo. Data Analytics para SQL o Flink sobre el stream en vivo con windowing functions."},
+    {"speaker": "ana", "text": "Muy bien. ¿EMR y Glue?"},
+    {"speaker": "carlos", "text": "EMR es big data frameworks managed — Spark, Hadoop. Tres tipos de nodos: Master coordina, Core tiene HDFS y compute, Task es solo compute perfecto para Spot. EMRFS persiste datos en S3 para no perderlos al terminar el cluster. Glue es ETL serverless: Data Catalog centraliza metadatos, Crawlers descubren schemas, ETL Jobs transforman, Job Bookmarks evitan reprocesar."},
+    {"speaker": "ana", "text": "Excelente. ¿QuickSight y el data lake?"},
+    {"speaker": "carlos", "text": "QuickSight es BI serverless con SPICE como motor in-memory. Pay-per-session para readers. Row-Level Security para control de datos por usuario. El stack de data lake completo en AWS es S3 como almacenamiento, Glue como ETL y catálogo, Athena como query engine, y QuickSight para visualizaciones."},
+    {"speaker": "ana", "text": "Muy bien, Carlos. Lo más importante del módulo es saber distinguir cuándo usar cada servicio: Athena para SQL sobre datos en S3, Kinesis para streaming en tiempo real, EMR para big data con Spark o Hadoop, Glue para ETL serverless, QuickSight para visualizaciones. El data lake completo los combina todos. Con eso estás listo para las preguntas de analytics en el examen. Nos vemos en el módulo doce: Architecture Patterns."}
   ]
 }
