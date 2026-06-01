@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Load Balancer + Auto Scaling — AWS SAA-C03</title>
+  <style>
+    /* ── Tema: tokens (mismos que index.html) ── */
+    :root {
+      --bg:               #f5f0eb;
+      --surface:          #fff8f2;
+      --text:             #2d2d2d;
+      --text-muted:       #6b5e52;
+      --accent-ana:       #4a7080;
+      --accent-carlos:    #7a6040;
+      --bullet-bg-ana:    #eaf1f4;
+      --bullet-bg-carlos: #f4ede4;
+      --border:           #ddd5cc;
+      --header-bg:        rgba(245, 240, 235, 0.92);
+      --badge-ana-text:   #2c5565;
+      --badge-carlos-text:#5c4020;
+      --btn-bg:           #e8e0d8;
+      --btn-hover:        #dad0c6;
+    }
+
+    [data-theme="dark"] {
+      --bg:               #1a1a1a;
+      --surface:          #242424;
+      --text:             #e0d9d0;
+      --text-muted:       #9e9589;
+      --accent-ana:       #6a9baa;
+      --accent-carlos:    #b09070;
+      --bullet-bg-ana:    #1a2d34;
+      --bullet-bg-carlos: #2d2218;
+      --border:           #3a3530;
+      --header-bg:        rgba(26, 26, 26, 0.92);
+      --badge-ana-text:   #8ecad8;
+      --badge-carlos-text:#d4aa7a;
+      --btn-bg:           #333028;
+      --btn-hover:        #3e3a2e;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: system-ui, -apple-system, Georgia, serif;
+      font-size: 17px;
+      line-height: 1.75;
+      transition: background-color 0.25s, color 0.25s;
+    }
+
+    /* ── Header ── */
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      background: var(--header-bg);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      border-bottom: 1px solid var(--border);
+      padding: 0.75rem 1rem;
+    }
+
+    .header-inner {
+      max-width: 680px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+    }
+
+    .back-link {
+      color: var(--accent-ana);
+      text-decoration: none;
+      font-size: 0.88rem;
+      font-weight: 600;
+      white-space: nowrap;
+      padding: 0.4rem 0.65rem;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: var(--btn-bg);
+      transition: background 0.2s;
+      min-height: 36px;
+      display: flex;
+      align-items: center;
+    }
+    .back-link:hover { background: var(--btn-hover); }
+
+    .header-title {
+      flex: 1;
+      font-size: 0.88rem;
+      font-weight: 700;
+      color: var(--text-muted);
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    #theme-btn {
+      flex-shrink: 0;
+      min-width: 44px;
+      min-height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--btn-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 1.25rem;
+      cursor: pointer;
+      transition: background 0.2s;
+      color: var(--text);
+      line-height: 1;
+    }
+    #theme-btn:hover { background: var(--btn-hover); }
+
+    /* ── Main content ── */
+    main {
+      max-width: 680px;
+      margin: 0 auto;
+      padding: 2rem 1rem 4rem;
+    }
+
+    /* ── Diagram ── */
+    .diagram {
+      background: #1a1a1a;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      padding: 1rem 0.5rem 0.5rem;
+      margin-bottom: 1.75rem;
+      overflow-x: auto;
+    }
+
+    h1 {
+      font-size: 1.35rem;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 1.5rem;
+      padding-bottom: 0.6rem;
+      border-bottom: 2px solid var(--accent-ana);
+    }
+
+    h2 {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: var(--accent-ana);
+      margin-top: 2rem;
+      margin-bottom: 0.75rem;
+    }
+
+    p { margin-bottom: 0.75rem; }
+
+    ul, ol {
+      padding-left: 1.5rem;
+      margin-bottom: 0.75rem;
+    }
+
+    li { margin-bottom: 0.3rem; }
+
+    hr {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 2rem 0;
+    }
+
+    /* ── Blockquote (regla del examen) ── */
+    blockquote {
+      border-left: 4px solid var(--accent-ana);
+      background: var(--bullet-bg-ana);
+      padding: 0.75rem 1rem;
+      border-radius: 0 8px 8px 0;
+      margin: 1rem 0;
+      font-size: 0.97rem;
+    }
+
+    blockquote p:last-child { margin-bottom: 0; }
+
+    /* ── Tabla ── */
+    .table-wrap {
+      overflow-x: auto;
+      margin: 1rem 0;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.92rem;
+    }
+
+    th {
+      background: var(--bullet-bg-ana);
+      color: var(--badge-ana-text);
+      font-weight: 700;
+      padding: 0.6rem 0.85rem;
+      text-align: left;
+      border-bottom: 2px solid var(--border);
+      white-space: nowrap;
+    }
+
+    td {
+      padding: 0.5rem 0.85rem;
+      border-bottom: 1px solid var(--border);
+      vertical-align: middle;
+    }
+
+    tr:last-child td { border-bottom: none; }
+
+    tbody tr:nth-child(even) td { background: var(--surface); }
+
+    .check   { color: #3a8a50; font-weight: 700; }
+    .cross   { color: #b54040; font-weight: 700; }
+    .partial { color: #8a7030; font-weight: 700; }
+
+    /* ── Trampas de examen ── */
+    .trap {
+      background: var(--bullet-bg-carlos);
+      border-left: 4px solid var(--accent-carlos);
+      border-radius: 0 8px 8px 0;
+      padding: 0.75rem 1rem;
+      margin: 0.75rem 0;
+      font-size: 0.97rem;
+    }
+
+    .trap-label {
+      font-weight: 700;
+      color: var(--badge-carlos-text);
+      display: block;
+      margin-bottom: 0.25rem;
+    }
+
+    code {
+      font-family: ui-monospace, monospace;
+      font-size: 0.88em;
+      background: var(--btn-bg);
+      padding: 0.1em 0.35em;
+      border-radius: 3px;
+    }
+
+    /* ── Mnemónico ── */
+    .mnemonic {
+      border-left: 4px solid var(--accent-ana);
+      background: var(--bullet-bg-ana);
+      padding: 0.85rem 1rem;
+      border-radius: 0 8px 8px 0;
+      margin: 1rem 0;
+    }
+
+    .mnemonic p { margin-bottom: 0.35rem; }
+    .mnemonic p:last-child { margin-bottom: 0; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="header-inner">
+      <a class="back-link" href="https://ezelee.github.io/">← Guion</a>
+      <span class="header-title">Load Balancer + Auto Scaling</span>
+      <button id="theme-btn" aria-label="Toggle dark/light mode" title="Toggle dark/light mode">◑</button>
+    </div>
+  </header>
+
+  <main>
+    <h1>Load Balancer + Auto Scaling: la combinación ganadora</h1>
+
+    <div class="diagram">
+      <svg width="100%" viewBox="0 0 680 580" role="img" xmlns="http://www.w3.org/2000/svg">
+  <title>Load Balancer con y sin Auto Scaling</title>
+  <desc>Comparación entre un Load Balancer con Auto Scaling Group y uno sin Auto Scaling, mostrando el flujo de tráfico y health checks</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+  <mask id="imagine-text-gaps-jmwlfg" maskUnits="userSpaceOnUse"><rect x="0" y="0" width="680" height="580" fill="white"/><rect x="114.17500305175781" y="12" width="121.6500015258789" height="22" fill="black" rx="2"/><rect x="151.76666259765625" y="54" width="46.46666717529297" height="22" fill="black" rx="2"/><rect x="157.11666870117188" y="116" width="35.766666412353516" height="22" fill="black" rx="2"/><rect x="130.85833740234375" y="135.5" width="88.28333282470703" height="19" fill="black" rx="2"/><rect x="116.55000305175781" y="194" width="116.9000015258789" height="19" fill="black" rx="2"/><rect x="97.16666412353516" y="228" width="35.66666603088379" height="22" fill="black" rx="2"/><rect x="88.92500305175781" y="246.5" width="52.150001525878906" height="19" fill="black" rx="2"/><rect x="232.1666717529297" y="228" width="35.66666603088379" height="22" fill="black" rx="2"/><rect x="223.9250030517578" y="246.5" width="52.150001525878906" height="19" fill="black" rx="2"/><rect x="165.1666717529297" y="308" width="35.66666603088379" height="22" fill="black" rx="2"/><rect x="149.85000610351562" y="327.5" width="66.29999923706055" height="19" fill="black" rx="2"/><rect x="165.1666717529297" y="388" width="35.66666603088379" height="22" fill="black" rx="2"/><rect x="135.0416717529297" y="407.5" width="95.91666412353516" height="19" fill="black" rx="2"/><rect x="206" y="353" width="80.05000305175781" height="19" fill="black" rx="2"/><rect x="77.7750015258789" y="463.5" width="234.4499969482422" height="19" fill="black" rx="2"/><rect x="452.6333312988281" y="12" width="114.73332977294922" height="22" fill="black" rx="2"/><rect x="486.76666259765625" y="54" width="46.46666717529297" height="22" fill="black" rx="2"/><rect x="492.1166687011719" y="116" width="35.766666412353516" height="22" fill="black" rx="2"/><rect x="465.85833740234375" y="135.5" width="88.28333282470703" height="19" fill="black" rx="2"/><rect x="455.48333740234375" y="192" width="109.03333282470703" height="19" fill="black" rx="2"/><rect x="437.1666564941406" y="226" width="35.66666603088379" height="22" fill="black" rx="2"/><rect x="428.92498779296875" y="244.5" width="52.150001525878906" height="19" fill="black" rx="2"/><rect x="552.1666870117188" y="226" width="35.66666603088379" height="22" fill="black" rx="2"/><rect x="536.8499755859375" y="244.5" width="66.29999923706055" height="19" fill="black" rx="2"/><rect x="446.6499938964844" y="326" width="126.69999694824219" height="19" fill="black" rx="2"/><rect x="534.4500122070312" y="176" width="51.099998474121094" height="19" fill="black" rx="2"/><rect x="458.0249938964844" y="380" width="103.94999694824219" height="22" fill="black" rx="2"/><rect x="433.8333435058594" y="400.5" width="152.3333282470703" height="19" fill="black" rx="2"/><rect x="393.64166259765625" y="463.5" width="232.71665954589844" height="19" fill="black" rx="2"/></mask></defs>
+
+  <!-- ===== LADO IZQUIERDO: Con Auto Scaling ===== -->
+  <text x="175" y="28" text-anchor="middle" style="fill:rgb(250,249,245);font-family:system-ui,-apple-system,sans-serif;font-size:14px;font-weight:500;">Con Auto Scaling</text>
+
+  <g>
+    <rect x="120" y="42" width="110" height="38" rx="8" style="fill:rgb(68,68,65);stroke:rgb(180,178,169);stroke-width:0.5px;"/>
+    <text x="175" y="65" text-anchor="middle" dominant-baseline="central" style="fill:rgb(211,209,199);font-family:system-ui,-apple-system,sans-serif;font-size:14px;font-weight:500;">Users</text>
+  </g>
+
+  <line x1="175" y1="80" x2="175" y2="108" marker-end="url(#arrow)" style="stroke:rgb(156,154,146);stroke-width:1.5px;fill:none;"/>
+
+  <g>
+    <rect x="100" y="108" width="150" height="48" rx="8" style="fill:rgb(60,52,137);stroke:rgb(175,169,236);stroke-width:0.5px;"/>
+    <text x="175" y="127" text-anchor="middle" dominant-baseline="central" style="fill:rgb(206,203,246);font-family:system-ui,-apple-system,sans-serif;font-size:14px;font-weight:500;">ALB</text>
+    <text x="175" y="145" text-anchor="middle" dominant-baseline="central" style="fill:rgb(175,169,236);font-family:system-ui,-apple-system,sans-serif;font-size:12px;">Health checks</text>
+  </g>
+
+  <line x1="175" y1="156" x2="175" y2="188" marker-end="url(#arrow)" style="stroke:rgb(156,154,146);stroke-width:1.5px;fill:none;"/>
+
+  <rect x="50" y="188" width="250" height="280" rx="14" style="fill:none;stroke:rgba(222,220,209,0.3);stroke-width:1px;stroke-dasharray:6px,4px;"/>
+  <text x="175" y="208" text-anchor="middle" style="fill:rgb(194,192,182);font-family:system-ui,-apple-system,sans-serif;font-size:12px;">Auto Scaling Group</text>
+
+  <g>
+    <rect x="70" y="220" width="90" height="48" rx="8" style="fill:rgb(8,80,65);stroke:rgb(93,202,165);stroke-width:0.5px;"/>
+    <text x="115" y="239" text-anchor="middle" dominant-baseline="central" style="fill:rgb(159,225,203);font-family:system-ui,-apple-system,sans-serif;font-size:14px;font-weight:500;">EC2</text>
+    <text x="115" y="256" text-anchor="middle" dominant-baseline="central" style="fill:rgb(93,202,165);font-family:system-ui,-apple-system,sans-serif;font-size:12px;">Healthy</text>
+  </g>
+  <g>
+    <rect x="205" y="220" width="90" height="48" rx="8" style="fill:rgb(8,80,65);stroke:rgb(93,202,165);stroke-width:0.5px;"/>
+    <text x="250" y="239" text-anchor="middle" dominant-baseline="central" style="fill:rgb(159,225,203);font-family:system-ui,-apple-system,sans-serif;font-size:14px;font-weight:500;">EC2</text>
+    <text x="250" y="256" text-anchor="middle" dominant-baseline="central" style="fill:rgb(93,202,165);font-family:system-ui,-apple-system,sans-serif;font-size:12px;">Healthy</text>
+  </g>
+
+  <g>
+    <rect x="138" y="300" width="90" height="48" rx="8" style="fill:rgb(121,31,31);stroke:rgb(240,149,149);stroke-width:0.5px;"/>
+    <text x="183" y="319" text-anchor="middle" dominant-baseline="central" style="fill:rgb(247,193,193);font-family:system-ui,-apple-system,sans-serif;font-size:14px;font-weight:500;">EC2</text>
+    <text x="183" y="337" text-anchor="middle" dominant-baseline="central" style="fill:rgb(240,149,149);font-family:system-ui,-apple-system,sans-serif;font-size:12px;">Unhealthy</text>
+  </g>
+
+  <g>
+    <rect x="138" y="380" width="90" height="48" rx="8" style="fill:rgb(8,80,65);stroke:rgb(93,202,165);stroke-width:0.5px;"/>
+    <text x="183" y="399" text-anchor="middle" dominant-baseline="central" style="fill:rgb(159,225,203);font-family:system-ui,-apple-system,sans-serif;font-size:14px;font-weight:500;">EC2</text>
+    <text x="183" y="417" text-anchor="middle" dominant-baseline="central" style="fill:rgb(93,202,165);font-family:system-ui,-apple-system,sans-serif;font-size:12px;">New (replaced)</text>
+  </g>
+
+  <line x1="183" y1="348" x2="183" y2="378" marker-end="url(#arrow)" style="stroke:rgb(156,154,146);stroke-width:1.5px;fill:none;"/>
+  <text x="210" y="367" text-anchor="start" style="fill:rgb(194,192,182);font-family:system-ui,-apple-system,sans-serif;font-size:12px;">auto-replace</text>
+
+  <g>
+    <rect x="70" y="450" width="250" height="38" rx="8" style="fill:rgb(8,80,65);stroke:rgb(93,202,165);stroke-width:0.5px;"/>
+    <text x="195" y="473" text-anchor="middle" dominant-baseline="central" style="fill:rgb(93,202,165);font-family:system-ui,-apple-system,sans-serif;font-size:12px;">Scale out/in según métricas (CPU, req/s)</text>
+  </g>
+
+  <line x1="150" y1="156" x2="115" y2="218" marker-end="url(#arrow)" mask="url(#imagine-text-gaps-jmwlfg)" style="stroke:rgb(156,154,146);stroke-width:1.5px;fill:none;"/>
+  <line x1="175" y1="156" x2="183" y2="298" stroke-dasharray="3 3" marker-end="url(#arrow)" mask="url(#imagine-text-gaps-jmwlfg)" style="stroke:rgb(156,154,146);stroke-width:1.5px;fill:none;"/>
+  <line x1="200" y1="156" x2="250" y2="218" marker-end="url(#arrow)" mask="url(#imagine-text-gaps-jmwlfg)" style="stroke:rgb(156,154,146);stroke-width:1.5px;fill:none;"/>
+
+  <!-- ===== DIVISOR ===== -->
+  <line x1="340" y1="20" x2="340" y2="560" style="stroke:rgba(222,220,209,0.15);stroke-width:1px;stroke-dasharray:4px,4px;fill:none;"/>
+
+  <!-- ===== LADO DERECHO: Sin Auto Scaling ===== -->
+  <text x="510" y="28" text-anchor="middle" style="fill:rgb(250,249,245);font-family:system-ui,-apple-system,sans-serif;font-size:14px;font-weight:500;">Sin Auto Scaling</text>
+
+  <g>
+    <rect x="455" y="42" width="110" height="38" rx="8" style="fill:rgb(68,68,65);stroke:rgb(180,178,169);stroke-width:0.5px;"/>
+    <text x="510" y="65" text-anchor="middle" dominant-baseline="central" style="fill:rgb(211,209,199);font-family:system-ui,-apple-system,sans-serif;font-size:14px;font-weight:500;">Users</text>
+  </g>
+
+  <line x1="510" y1="80" x2="510" y2="108" marker-end="url(#arrow)" style="stroke:rgb(156,154,146);stroke-width:1.5px;fill:none;"/>
+
+  <g>
+    <rect x="435" y="108" width="150" height="48" rx="8" style="fill:rgb(60,52,137);stroke:rgb(175,169,236);stroke-width:0.5px;"/>
+    <text x="510" y="127" text-anchor="middle" dominant-baseline="central" style="fill:rgb(206,203,246);font-family:system-ui,-apple-system,sans-serif;font-size:14px;font-weight:500;">ALB</text>
+    <text x="510" y="145" text-anchor="middle" dominant-baseline="central" style="fill:rgb(175,169,236);font-family:system-ui,-apple-system,sans-serif;font-size:12px;">Health checks</text>
+  </g>
+
+  <rect x="395" y="188" width="230" height="130" rx="12" style="fill:none;stroke:rgba(222,220,209,0.3);stroke-width:1px;"/>
+  <text x="510" y="206" text-anchor="middle" style="fill:rgb(194,192,182);font-family:system-ui,-apple-system,sans-serif;font-size:12px;">Target group (fijo)</text>
+
+  <g>
+    <rect x="415" y="218" width="80" height="48" rx="8" style="fill:rgb(8,80,65);stroke:rgb(93,202,165);stroke-width:0.5px;"/>
+    <text x="455" y="237" text-anchor="middle" dominant-baseline="central" style="fill:rgb(159,225,203);font-family:system-ui,-apple-system,sans-serif;font-size:14px;font-weight:500;">EC2</text>
+    <text x="455" y="254" text-anchor="middle" dominant-baseline="central" style="fill:rgb(93,202,165);font-family:system-ui,-apple-system,sans-serif;font-size:12px;">Healthy</text>
+  </g>
+
+  <g>
+    <rect x="530" y="218" width="80" height="48" rx="8" style="fill:rgb(121,31,31);stroke:rgb(240,149,149);stroke-width:0.5px;"/>
+    <text x="570" y="237" text-anchor="middle" dominant-baseline="central" style="fill:rgb(247,193,193);font-family:system-ui,-apple-system,sans-serif;font-size:14px;font-weight:500;">EC2</text>
+    <text x="570" y="254" text-anchor="middle" dominant-baseline="central" style="fill:rgb(240,149,149);font-family:system-ui,-apple-system,sans-serif;font-size:12px;">Unhealthy</text>
+  </g>
+
+  <line x1="538" y1="225" x2="602" y2="258" mask="url(#imagine-text-gaps-jmwlfg)" style="stroke:rgb(238,136,132);stroke-width:1.5px;fill:none;"/>
+  <line x1="602" y1="225" x2="538" y2="258" mask="url(#imagine-text-gaps-jmwlfg)" style="stroke:rgb(238,136,132);stroke-width:1.5px;fill:none;"/>
+
+  <text x="510" y="340" text-anchor="middle" style="fill:rgb(194,192,182);font-family:system-ui,-apple-system,sans-serif;font-size:12px;">No se reemplaza sola</text>
+  <line x1="570" y1="266" x2="570" y2="332" marker-end="url(#arrow)" mask="url(#imagine-text-gaps-jmwlfg)" style="stroke:rgb(156,154,146);stroke-width:0.5px;stroke-dasharray:4px,3px;fill:none;"/>
+
+  <line x1="490" y1="156" x2="455" y2="216" marker-end="url(#arrow)" mask="url(#imagine-text-gaps-jmwlfg)" style="stroke:rgb(156,154,146);stroke-width:1.5px;fill:none;"/>
+  <line x1="530" y1="156" x2="570" y2="216" stroke-dasharray="4 3" mask="url(#imagine-text-gaps-jmwlfg)" style="stroke:rgb(238,136,132);stroke-width:1px;fill:none;"/>
+  <text x="560" y="190" text-anchor="middle" style="fill:rgb(194,192,182);font-family:system-ui,-apple-system,sans-serif;font-size:12px;">excluye</text>
+
+  <g>
+    <rect x="395" y="370" width="230" height="56" rx="8" style="fill:rgb(99,56,6);stroke:rgb(239,159,39);stroke-width:0.5px;"/>
+    <text x="510" y="391" text-anchor="middle" dominant-baseline="central" style="fill:rgb(250,199,117);font-family:system-ui,-apple-system,sans-serif;font-size:14px;font-weight:500;">Pico de tráfico</text>
+    <text x="510" y="410" text-anchor="middle" dominant-baseline="central" style="fill:rgb(239,159,39);font-family:system-ui,-apple-system,sans-serif;font-size:12px;">Capacidad fija → overload</text>
+  </g>
+
+  <g>
+    <rect x="395" y="450" width="230" height="38" rx="8" style="fill:rgb(68,68,65);stroke:rgb(180,178,169);stroke-width:0.5px;"/>
+    <text x="510" y="473" text-anchor="middle" dominant-baseline="central" style="fill:rgb(180,178,169);font-family:system-ui,-apple-system,sans-serif;font-size:12px;">Scaling = manual (intervención humana)</text>
+  </g>
+
+</svg>
+    </div>
+
+    <h2>¿Qué hace cada uno?</h2>
+    <ul>
+      <li><strong>Load Balancer (ALB/NLB)</strong> — distribuye el tráfico entrante entre instancias del target group. Hace <em>health checks</em> y <strong>deja de enviar tráfico</strong> a instancias unhealthy. Pero eso es todo: no crea ni destruye nada.</li>
+      <li><strong>Auto Scaling Group (ASG)</strong> — mantiene un número deseado de instancias EC2. Reacciona a métricas (CPU, requests) para hacer <em>scale out</em> o <em>scale in</em>. Pero solo no sabe cómo distribuir el tráfico.</li>
+    </ul>
+    <p><strong>Juntos</strong> forman la dupla estándar de resiliencia y elasticidad.</p>
+
+    <hr>
+
+    <h2>Cómo se integran (el flujo)</h2>
+    <ol>
+      <li>El ALB hace un <strong>health check</strong> a cada instancia (HTTP GET a un endpoint, configurable).</li>
+      <li>Si una instancia falla → el ALB la saca del <em>target group</em> → deja de recibir tráfico.</li>
+      <li>El ASG recibe esa señal de salud (usa los health checks del ALB si está configurado así) → <strong>termina la instancia unhealthy</strong> → lanza una nueva.</li>
+      <li>La nueva instancia pasa el health check → el ALB la agrega al target group → empieza a recibir tráfico.</li>
+      <li>Si el CPU promedio del ASG sube al 70% → el <em>scaling policy</em> dispara un <em>scale out</em> → el ALB automáticamente empieza a enviarle tráfico a las nuevas instancias.</li>
+    </ol>
+
+    <blockquote>
+      <p><strong>Regla clave del examen:</strong> el ASG necesita saber que use los <em>health checks del ELB</em>, no solo los de EC2. Si no, puede no reemplazar una instancia que falla a nivel aplicación pero sigue "viva" a nivel EC2.</p>
+    </blockquote>
+
+    <hr>
+
+    <h2>Comparación para el examen</h2>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th></th>
+            <th>Solo Load Balancer</th>
+            <th>Load Balancer + ASG</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Distribución de tráfico</td>
+            <td><span class="check">✅ Sí</span></td>
+            <td><span class="check">✅ Sí</span></td>
+          </tr>
+          <tr>
+            <td>Excluye instancias unhealthy</td>
+            <td><span class="check">✅ Sí</span></td>
+            <td><span class="check">✅ Sí</span></td>
+          </tr>
+          <tr>
+            <td>Reemplaza instancias unhealthy</td>
+            <td><span class="cross">❌ No</span></td>
+            <td><span class="check">✅ Automático</span></td>
+          </tr>
+          <tr>
+            <td>Escala ante picos de tráfico</td>
+            <td><span class="cross">❌ No</span></td>
+            <td><span class="check">✅ Automático</span></td>
+          </tr>
+          <tr>
+            <td>Maneja caída de una AZ</td>
+            <td><span class="partial">⚠️ Parcial</span></td>
+            <td><span class="check">✅ Completo</span></td>
+          </tr>
+          <tr>
+            <td>Operación necesaria en fallos</td>
+            <td>Manual</td>
+            <td>Ninguna</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <hr>
+
+    <h2>Trampas de examen</h2>
+
+    <div class="trap">
+      <span class="trap-label">Trampa 1</span>
+      "El Load Balancer protege contra fallos" → <strong>parcialmente verdad</strong>. Redirige el tráfico, pero sin ASG la instancia muerta <em>queda muerta</em> y la capacidad se reduce.
+    </div>
+
+    <div class="trap">
+      <span class="trap-label">Trampa 2</span>
+      Un ASG con <code>health check type = EC2</code> (default) <strong>NO reemplaza</strong> una instancia que falla a nivel aplicación (proceso caído, 500 errors). Necesitás <code>health check type = ELB</code> para eso.
+    </div>
+
+    <div class="trap">
+      <span class="trap-label">Trampa 3</span>
+      Si el enunciado dice <em>"highly available"</em> + <em>"fault tolerant"</em> → siempre es <strong>Multi-AZ + ASG + ALB</strong>. Un solo AZ con ASG no es suficiente.
+    </div>
+
+    <hr>
+
+    <h2>Mnemónico</h2>
+
+    <div class="mnemonic">
+      <p><em>"El ALB decide; el ASG actúa."</em></p>
+      <p>El ALB sabe quién está sano; el ASG repara y escala.</p>
+    </div>
+
+  </main>
+
+  <script>
+    const root = document.documentElement;
+    const themeBtn = document.getElementById('theme-btn');
+
+    function applyTheme(theme) {
+      root.setAttribute('data-theme', theme);
+      themeBtn.textContent = theme === 'dark' ? '☀' : '◑';
+      themeBtn.setAttribute('aria-label', theme === 'dark' ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro');
+      localStorage.setItem('theme', theme);
+    }
+
+    const savedTheme = localStorage.getItem('theme')
+      || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    applyTheme(savedTheme);
+
+    themeBtn.addEventListener('click', () => {
+      applyTheme(root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
+    });
+  </script>
+
+</body>
+</html>

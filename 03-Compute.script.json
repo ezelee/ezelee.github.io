@@ -195,6 +195,14 @@
       "text": "El Load Balancer hace health checks periódicos a cada instancia backend — un HTTP GET a un endpoint que vos definís, o un TCP ping. Si una instancia no responde después de un umbral configurable de intentos fallidos, la marca como unhealthy y deja de mandarle tráfico. Cuando se recupera, vuelve al pool automáticamente. Combinado con Auto Scaling, si una instancia cae, Auto Scaling la reemplaza y el Load Balancer detecta la nueva."
     },
     {
+      "speaker": "ana",
+      "text": "Si querés profundizar en cómo el Load Balancer y el Auto Scaling se combinan para alta disponibilidad —el flujo completo, la comparación para el examen y las trampas— armé una guía aparte.",
+      "link": {
+        "href": "auto-scaling-load-balancer.html",
+        "text": "Ver guía: Load Balancer + Auto Scaling →"
+      }
+    },
+    {
       "speaker": "carlos",
       "text": "¿Y Sticky Sessions?"
     },
