@@ -230,6 +230,13 @@
       outline-offset: 2px;
     }
 
+    @keyframes turn-flash {
+      0%   { box-shadow: 0 0 0 3px var(--accent-ana); background: var(--bullet-bg-ana); }
+      60%  { box-shadow: 0 0 0 3px var(--accent-ana); background: var(--bullet-bg-ana); }
+      100% { box-shadow: none; }
+    }
+    .turn.highlighted { animation: turn-flash 2s ease-out forwards; }
+
     .turn-num {
       float: right;
       font-size: 0.72rem;
@@ -357,6 +364,7 @@
             const li = document.createElement('li');
             li.className = 'turn';
             li.dataset.speaker = (turn.speaker || '').toLowerCase();
+            if (turn.id) li.id = turn.id;
 
             const numSpan = document.createElement('span');
             numSpan.className = 'turn-num';
@@ -389,7 +397,18 @@
           });
 
           listEl.appendChild(fragment);
-          window.scrollTo({ top: 0, behavior: 'smooth' });
+
+          const anchor = hashParams && hashParams.id;
+          if (anchor) {
+            const target = document.getElementById(anchor);
+            if (target) {
+              target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              target.classList.add('highlighted');
+              target.addEventListener('animationend', () => target.classList.remove('highlighted'), { once: true });
+            }
+          } else {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }
         })
         .catch(err => {
           statusEl.textContent = `No se pudo cargar el guion. (${err.message})`;
@@ -398,11 +417,26 @@
     }
 
     // Cambio de módulo vía select
-    selectEl.addEventListener('change', () => loadModule(Number(selectEl.value)));
+    selectEl.addEventListener('change', () => {
+      history.replaceState(null, '', location.pathname);
+      loadModule(Number(selectEl.value));
+    });
 
-    // Init: restaurar último módulo o arrancar desde el 0
-    const lastIndex = Number(localStorage.getItem('lastModule') ?? 0);
-    const initIndex = lastIndex >= 0 && lastIndex < MODULES.length ? lastIndex : 0;
+    // Init: leer hash (#m=N&id=X) o restaurar último módulo
+    function parseHash() {
+      const p = {};
+      location.hash.slice(1).split('&').forEach(s => {
+        const [k, v] = s.split('=');
+        if (k) p[k] = v ? decodeURIComponent(v) : '';
+      });
+      return p;
+    }
+    const hashParams = parseHash();
+    const fromHash   = hashParams.m !== undefined ? Number(hashParams.m) : NaN;
+    const lastIndex  = Number(localStorage.getItem('lastModule') ?? 0);
+    const initIndex  = !isNaN(fromHash) && fromHash >= 0 && fromHash < MODULES.length
+      ? fromHash
+      : (lastIndex >= 0 && lastIndex < MODULES.length ? lastIndex : 0);
     selectEl.value = initIndex;
     loadModule(initIndex);
   </script>
