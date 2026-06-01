@@ -197,6 +197,7 @@
     {
       "speaker": "ana",
       "text": "Si querés profundizar en cómo el Load Balancer y el Auto Scaling se combinan para alta disponibilidad —el flujo completo, la comparación para el examen y las trampas— armé una guía aparte.",
+      "id": "health-check-link",
       "link": {
         "href": "auto-scaling-load-balancer.html",
         "text": "Ver guía: Load Balancer + Auto Scaling →"
