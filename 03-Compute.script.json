@@ -1,451 +1,182 @@
 {
   "module_title": "Module 03: Compute Services",
-  "estimated_duration_min": 45,
+  "estimated_duration_min": 43,
   "turns": [
-    {
-      "speaker": "ana",
-      "text": "Imaginate este escenario: el equipo de marketing lanza una campaña en redes, la app empieza a recibir diez veces más tráfico del normal, y el servidor se cae. O este otro: querés procesar un millón de imágenes durante la noche pero no querés pagar por servidores que solo usás dos horas. Estos son exactamente los problemas que AWS Compute resuelve. Hoy cubrimos el veinte por ciento del examen."
-    },
-    {
-      "speaker": "carlos",
-      "text": "Veinte por ciento es bastante. Vi que el módulo tiene E.C. 2, Lambda, Auto Scaling, Load Balancers, containers. Yo toqué algo de Fargate en el trabajo pero Auto Scaling, Load Balancers, Lambda, E.C. 2 directo — eso no lo configuré nunca. ¿Por dónde arrancamos?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Arrancamos por la base: Amazon E.C. 2. Después subimos en abstracción — de instancias a containers a serverless. Al final vas a poder usar un decision tree para cada escenario del examen: ¿qué servicio de compute elijo dado este problema? Ese esquema aparece constantemente en el examen."
-    },
-    {
-      "speaker": "ana",
-      "text": "Amazon Elastic Compute Cloud, o E.C. 2, es básicamente alquilar una computadora virtual en la nube. Elegís el sistema operativo, la cantidad de CPU, RAM, y capacidad de red. AWS maneja el hardware físico; vos manejás todo lo que corre arriba. La analogía más clara: es como alquilar un departamento en vez de comprar una casa. No mantenés el edificio, solo tu unidad."
-    },
-    {
-      "speaker": "carlos",
-      "text": "Eso lo entiendo. ¿Y cómo sé qué tipo de instancia elegir? Vi las letras C, R, M, T, I en el resumen — no me queda claro cuándo uso cada una."
-    },
-    {
-      "speaker": "ana",
-      "text": "Los instance types están organizados por familia. C es Compute Optimized — mucho CPU, para cargas de procesamiento intenso como encoding de video o cómputo científico. R es Memory Optimized, por RAM — bases de datos en memoria, caches grandes, procesamiento de datasets en RAM. M es General Purpose — balance entre CPU, RAM y red, el workhorse de la mayoría de las apps."
-    },
-    {
-      "speaker": "carlos",
-      "text": "¿Y T?"
-    },
-    {
-      "speaker": "ana",
-      "text": "T es Burstable Performance — instancias económicas con un baseline bajo de CPU que acumulan créditos cuando no están al tope. Cuando necesitás más potencia, gastás los créditos. Ideal para desarrollo, testing, apps con tráfico irregular. Si una instancia T se queda sin créditos, baja al baseline y puede volverse muy lenta. Para el examen: aplicación con tráfico variable y económica → T instances."
-    },
-    {
-      "speaker": "carlos",
-      "text": "Tiene sentido. ¿Y las I, D, H?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Storage Optimized. I es para muchas operaciones de I/O por segundo — bases de datos NoSQL, data warehouses. D es Dense Storage — mucho almacenamiento en disco en el mismo servidor, para Hadoop o data lakes on-instance. La regla del examen: si ves 'necesita muchos IOPS o mucho throughput de disco' → familia I o D. Si ves 'base de datos en memoria' → R. Si ves 'procesamiento numérico masivo' → C."
-    },
-    {
-      "speaker": "carlos",
-      "text": "Dale. Los modelos de precio de E.C. 2 me parecen clave para el examen. ¿Cuántos hay y cómo los distingo?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Hay cuatro principales. On-Demand: pagás por hora, sin compromiso, podés parar cuando querés. Es el más caro pero el más flexible — sin penalidad de cancelación. Ideal para desarrollo, testing, o workloads impredecibles donde no sabés cuánto tiempo vas a necesitar. Es el precio base contra el que se comparan todos los demás modelos."
-    },
-    {
-      "speaker": "carlos",
-      "text": "¿Y Reserved Instances?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Reserved Instances: comprometés usar E.C. 2 por uno o tres años a cambio de un descuento de hasta el setenta por ciento versus On-Demand. Podés pagar todo por adelantado, parcialmente, o nada por adelantado — más pago adelantado, más descuento. Importante para el examen: la reserva aplica a un tipo de instancia específico en una región específica. Si cambiás de tipo o región, perdés el descuento."
-    },
-    {
-      "speaker": "carlos",
-      "text": "¿Y si en tres años quiero cambiar de instance type? Eso parece muy rígido."
-    },
-    {
-      "speaker": "ana",
-      "text": "Para eso existen los Savings Plans. Comprometés un gasto mínimo por hora — por ejemplo cinco dólares por hora durante tres años — y AWS te da el descuento automáticamente sobre cualquier instancia que uses, en cualquier región, con cualquier tamaño. Es mucho más flexible que Reserved Instances. Para el examen: 'quiero ahorro de tres años pero con flexibilidad de tipo o región' → Savings Plans."
-    },
-    {
-      "speaker": "carlos",
-      "text": "Perfecto. ¿Y Spot Instances?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Spot Instances son capacidad disponible de AWS que podés usar a precios muy bajos — hasta el noventa por ciento de descuento versus On-Demand. El catch: AWS te puede interrumpir con dos minutos de aviso cuando necesite esa capacidad. Si tu proceso muere a la mitad sin checkpoint, perdés el trabajo. Por eso Spot es solo para workloads tolerantes a fallas — batch jobs, rendering, procesamiento paralelo, CI/CD."
-    },
-    {
-      "speaker": "carlos",
-      "text": "¿Y en el examen cómo reconozco cuándo la respuesta es Spot?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Buscá dos signals en el enunciado. Uno: 'fault-tolerant' o 'can be interrupted'. Dos: 'cost-effective' o 'cheapest option'. Si ves los dos juntos, casi siempre es Spot. Si ven 'steady-state workload de tres años' → Reserved o Savings Plans. Si ven 'workload impredecible, sin compromiso' → On-Demand. Si ven 'production database que no puede interrumpirse' → nunca Spot."
-    },
-    {
-      "speaker": "carlos",
-      "text": "Claro. ¿Y los Placement Groups? Vi tres tipos — Cluster, Spread, Partition — y no tengo claro cuándo usa cada uno."
-    },
-    {
-      "speaker": "ana",
-      "text": "Los Placement Groups controlan dónde físicamente AWS pone tus instancias. Cluster: todas las instancias en el mismo rack físico, misma Availability Zone. Esto da la latencia más baja posible — microsegundos — y el mayor ancho de banda entre instancias. Para High Performance Computing, modelado científico, cualquier workload donde los nodos necesitan comunicarse muy rápido entre sí."
-    },
-    {
-      "speaker": "carlos",
-      "text": "Pero si el rack falla, caen todas, ¿no?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Exacto. Es el tradeoff: performance máxima a cambio de single point of failure. Spread es el opuesto: cada instancia en hardware físico separado, en racks diferentes. Máximo siete instancias por Availability Zone. Pensalo para instancias críticas que no pueden fallar juntas — nodos de un sistema de votación, instancias de un cluster de Zookeeper, cualquier cosa donde 'dos instancias no pueden caer al mismo tiempo'."
-    },
-    {
-      "speaker": "carlos",
-      "text": "¿Y Partition?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Partition divide las instancias en grupos lógicos llamados partitions. Cada partition corre en hardware físico separado de las demás, pero dentro de una partition podés tener muchas instancias. Ideal para sistemas distribuidos grandes como Hadoop, Kafka, Cassandra — esos sistemas ya tienen su propia lógica de replicación por partición. El beneficio: aislás fallas por partición sin limitarte a siete instancias como Spread."
-    },
-    {
-      "speaker": "carlos",
-      "text": "Bien. Auto Scaling — esto no lo toqué nunca, te pregunto desde cero. Sé que ajusta la cantidad de instancias, pero ¿cómo funciona exactamente por dentro?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Un Auto Scaling Group es un conjunto de instancias E.C. 2 que Auto Scaling maneja como unidad. Definís tres números: minimum — cuántas instancias siempre corren aunque no haya tráfico. Desired — la cantidad normal en operación. Maximum — el techo absoluto que no vas a pasar. Auto Scaling agrega o saca instancias para mantener el desired dentro de esos límites."
-    },
-    {
-      "speaker": "carlos",
-      "text": "¿Y cómo decide cuándo agregar más?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Por las Scaling Policies. Target Tracking es la más simple: le decís 'mantené el promedio de CPU en cincuenta por ciento' y Auto Scaling agrega instancias si CPU sube, saca si baja. Funciona como un termostato — es el más usado en producción. Step Scaling es más granular: configurás alarmas de CloudWatch — 'si CPU supera setenta, agregá dos instancias; si supera noventa, agregá cinco'."
-    },
-    {
-      "speaker": "carlos",
-      "text": "¿Y Scheduled Scaling?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Scheduled es para cuando sabés de antemano el patrón de tráfico. El ejemplo clásico: un e-commerce que sabe que los lunes a las diez AM tiene pico. A las nueve cuarenta-y-cinco programás que el desired suba a veinte instancias, antes de que llegue el tráfico. Y Predictive Scaling usa machine learning para analizar tu historial y hacer forecast — escala proactivamente antes del próximo pico."
-    },
-    {
-      "speaker": "carlos",
-      "text": "¿Cuándo usaría Predictive versus Scheduled?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Scheduled cuando el patrón es fijo y conocido — siempre escala los lunes a las diez. Predictive cuando el patrón es variable pero recurrente — la app tiene picos pero no exactamente a la misma hora. Predictive analiza el historial de semanas anteriores y hace forecast. Ojo: necesita al menos veinticuatro horas de historial para funcionar bien — si la app es nueva no tiene datos para predecir."
-    },
-    {
-      "speaker": "carlos",
-      "text": "Capté. ¿Y el Cooldown Period?"
-    },
-    {
-      "speaker": "ana",
-      "text": "El Cooldown es un tiempo de espera después de una acción de scaling — el default son trescientos segundos. Sirve para evitar que Auto Scaling escale continuamente mientras las instancias nuevas están arrancando. Sin cooldown, si CPU sigue alto mientras las instancias arrancan, Auto Scaling podría agregar más y más en loop. Con cooldown espera que las nuevas estén operativas antes de volver a evaluar."
-    },
-    {
-      "speaker": "carlos",
-      "text": "¿Y los Lifecycle Hooks? No me quedó claro para qué sirven."
-    },
-    {
-      "speaker": "ana",
-      "text": "Lifecycle Hooks interceptan momentos clave del ciclo de vida de una instancia. Cuando una instancia nueva va a lanzarse — Pending state — podés pausarla y correr un script de configuración o registrarla en sistemas externos. Cuando Auto Scaling va a terminarla — Terminating state — podés drenar conexiones activas o guardar logs. El hook puede pausar la instancia hasta dos horas mientras tu automatización actúa."
-    },
-    {
-      "speaker": "carlos",
-      "text": "Bueno. Load Balancers — esto no lo toqué nunca, explicámelo de cero. Entiendo que distribuyen tráfico, pero ¿qué tipos hay y cuándo uso cada uno?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Hay tres tipos. ALB — Application Load Balancer — opera en Layer 7 del modelo OSI, el nivel de HTTP. Entiende el contenido de las requests: puede rutear basándose en el path de la URL, en headers HTTP, en el host. Si '/api' va a un target group de microservicios y '/static' va a otro de servidores de contenido estático — eso es ALB."
-    },
-    {
-      "speaker": "carlos",
-      "text": "Ah, o sea el ALB lee adentro del request HTTP, no solo la IP y el puerto."
-    },
-    {
-      "speaker": "ana",
-      "text": "Exacto. Y eso lo hace perfecto para arquitecturas de microservicios donde distintos paths van a distintos servicios. Soporta HTTP, HTTPS, WebSockets, HTTP/2. El segundo tipo es NLB — Network Load Balancer — opera en Layer 4, solo ve puertos y protocolos TCP y UDP. No entiende el contenido del request pero puede manejar millones de requests por segundo con latencia ultra baja."
-    },
-    {
-      "speaker": "carlos",
-      "text": "¿Por qué sería más rápido si sabe menos del request?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Porque no tiene que parsear el HTTP. ALB lee headers, evalúa reglas, decide a qué target group mandar. NLB solo mira el puerto destino y hace un forward casi directo. Es como la diferencia entre un guardia que revisa tu identificación detalladamente versus uno que solo mira si tenés credencial. Y NLB tiene una característica clave para el examen: IP estática por Availability Zone."
-    },
-    {
-      "speaker": "carlos",
-      "text": "¿Por qué importa tener IP estática?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Hay clientes corporativos o sistemas legacy que requieren IPs fijas en sus firewalls — solo permiten tráfico desde ciertas IPs. Con ALB la IP es dinámica, ligada a un DNS que puede cambiar. Con NLB podés dar una IP fija por región. En el examen: 'millones de requests por segundo' o 'IP estática requerida' → NLB. 'Content-based routing', 'path-based routing', 'microservicios' → ALB."
-    },
-    {
-      "speaker": "carlos",
-      "text": "¿Y el health check cómo funciona?"
-    },
-    {
-      "speaker": "ana",
-      "text": "El Load Balancer hace health checks periódicos a cada instancia backend — un HTTP GET a un endpoint que vos definís, o un TCP ping. Si una instancia no responde después de un umbral configurable de intentos fallidos, la marca como unhealthy y deja de mandarle tráfico. Cuando se recupera, vuelve al pool automáticamente. Combinado con Auto Scaling, si una instancia cae, Auto Scaling la reemplaza y el Load Balancer detecta la nueva."
-    },
-    {
-      "speaker": "ana",
-      "text": "Si querés profundizar en cómo el Load Balancer y el Auto Scaling se combinan para alta disponibilidad —el flujo completo, la comparación para el examen y las trampas— armé una guía aparte.",
-      "id": "health-check-link",
-      "link": {
-        "href": "auto-scaling-load-balancer.html",
-        "text": "Ver guía: Load Balancer + Auto Scaling →"
-      }
-    },
-    {
-      "speaker": "carlos",
-      "text": "¿Y Sticky Sessions?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Sticky Sessions hacen que el Load Balancer siempre mande las requests del mismo cliente a la misma instancia backend — usando una cookie. Útil para apps legadas que guardan estado de sesión en memoria de la instancia. El problema: si esa instancia cae, el usuario pierde la sesión. Y desbalanceás la carga — algunos backends sobrecargados mientras otros están vacíos. La solución moderna: guardar estado en ElastiCache o DynamoDB y hacer la app stateless."
-    },
-    {
-      "speaker": "carlos",
-      "text": "¿Y Cross-Zone Load Balancing?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Cross-Zone Load Balancing determina si el Load Balancer puede mandar requests a instancias en otras Availability Zones. Sin cross-zone, cada nodo del Load Balancer solo rutea a instancias en su misma A.Z.. Con cross-zone activado, distribuye el tráfico uniformemente entre todas las A.Z.. En ALB está activado por default sin costo extra. En NLB está desactivado por default y tiene costo de transferencia de datos entre A.Z. si lo activás."
-    },
-    {
-      "speaker": "carlos",
-      "text": "Perfecto. Lambda — esto tampoco lo toqué directo. Sé que tiene límite de quince minutos. ¿Cómo funciona el modelo de ejecución?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Lambda es serverless a nivel de función. Subís tu código — Python, Node.js, Java, Go, Ruby, entre otros — y definís el trigger. Cuando el trigger se activa, AWS ejecuta tu función en un ambiente efímero. No manejás servidores, no pagás cuando la función no corre. El modelo de costo es por uso: veinte centavos por millón de requests, más el costo de ejecución por GB-segundo."
-    },
-    {
-      "speaker": "carlos",
-      "text": "¿GB-segundo? No entendí esa unidad."
-    },
-    {
-      "speaker": "ana",
-      "text": "Si tu función usa 512 megabytes de memoria y corre por dos segundos, consumís un GB-segundo. Si usa un gigabyte y corre cuatro segundos, consumís cuatro GB-segundo. Lambda tiene memoria configurable de 128 megabytes a 10 gigabytes. Acá viene el gotcha de examen: el CPU de Lambda escala proporcionalmente a la memoria. Si tu función es lenta, a veces la solución es darle más memoria, no reescribir el código."
-    },
-    {
-      "speaker": "carlos",
-      "text": "Eso es contraintuitivo — subir memoria para que sea más rápida. ¿Y cuáles son los límites importantes para el examen?"
-    },
-    {
-      "speaker": "ana",
-      "text": "El más crítico: ejecución máxima de quince minutos. Absoluto, no configurable. Si tu workload puede durar más, Lambda está descartado — necesitás E.C. 2, Fargate, o Batch. Almacenamiento temporal en /tmp de 512 megabytes a 10 gigabytes — pero efímero, se borra cuando termina la ejecución. Y concurrencia simultánea default de mil ejecuciones. Si tu app necesita más, hay que pedirle a AWS que aumente el límite."
-    },
-    {
-      "speaker": "carlos",
-      "text": "¿Y los tipos de invocación? Vi Synchronous, Asynchronous, y Event Source Mapping."
-    },
-    {
-      "speaker": "ana",
-      "text": "Synchronous: el caller espera a que Lambda responda. API Gateway invocando Lambda es synchronous — el usuario espera su response HTTP. Si Lambda falla, el error le vuelve directamente al caller. Asynchronous: el evento entra a una cola interna de Lambda y el caller no espera — S3 events, SNS notifications, EventBridge. Si Lambda falla, reintenta automáticamente dos veces antes de enviar a una dead-letter queue."
-    },
-    {
-      "speaker": "carlos",
-      "text": "¿Y Event Source Mapping?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Event Source Mapping es cuando Lambda tiene un poller interno que lee activamente de un stream o queue — SQS, Kinesis Data Streams, DynamoDB Streams. La diferencia clave con Asynchronous: en Asynchronous el servicio fuente empuja el evento a Lambda. En Event Source Mapping Lambda va a buscar los mensajes — lee en batches, procesa, confirma. Para el examen: 'Lambda procesa mensajes de SQS' → Event Source Mapping, no invocación directa."
-    },
-    {
-      "speaker": "carlos",
-      "text": "¿Y Lambda puede reemplazar siempre a E.C. 2?"
-    },
-    {
-      "speaker": "ana",
-      "text": "No. Lambda tiene restricciones importantes. Quince minutos máximos — ya lo vimos. No podés levantar un servidor HTTP persistente — Lambda es efímero y stateless. No tiene acceso a hardware especializado como GPU. Lambda es perfecto para event-driven: algo pasa, ejecuto código, termino. E.C. 2 es para workloads que necesitan estar siempre corriendo. El examen siempre te va a dar el hint del tiempo de ejecución."
-    },
-    {
-      "speaker": "carlos",
-      "text": "Containers. Acá sí tengo algo de experiencia — usé ECS Fargate para unos scrapers que corrí. Tasks one-shot, sin service. Pero no entiendo bien la diferencia entre Fargate y E.C. 2 launch type para el examen."
-    },
-    {
-      "speaker": "ana",
-      "text": "La diferencia fundamental: con E.C. 2 launch type, vos manejás las instancias E.C. 2 donde corren los contenedores — patch de sistema operativo, capacidad, logs de instancia. Con Fargate, AWS maneja todo eso. Vos solo definís cuánto CPU y RAM necesita tu tarea en la task definition, y Fargate provisiona el compute invisible. Para el examen: 'sin querer manejar servidores de contenedores' → Fargate."
-    },
-    {
-      "speaker": "carlos",
-      "text": "¿Y cuándo elegiría E.C. 2 launch type sobre Fargate?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Cuando necesitás hardware específico — GPU para machine learning, o instancias con mucho storage local. Fargate no expone eso. O cuando querés alta densidad de contenedores por instancia para optimizar costo — con E.C. 2 launch type metés varios contenedores en una instancia grande y ahorrás versus pagar Fargate por task. El tradeoff es gestionar esas instancias. Si no hay razón específica, Fargate es la respuesta correcta."
-    },
-    {
-      "speaker": "carlos",
-      "text": "Voy a aprovechar para preguntar algo que me confundió cuando trabajé con Fargate. El Task Role y el Execution Role — una vez le di el permiso de S3 al Execution Role pensando que era lo que necesitaba mi código Python, y no funcionó. ¿Cómo los diferencio bien?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Es el error más frecuente. El Execution Role lo usa el agente ECS para arrancar el contenedor — pull de la imagen desde ECR, escribir logs en CloudWatch. Todo lo que necesita ECS para gestionar el lifecycle del contenedor. El Task Role lo usa el código dentro del contenedor — si tu Python necesita hacer PutObject en S3 o leer de SSM Parameter Store, ese permiso va en el Task Role."
-    },
-    {
-      "speaker": "carlos",
-      "text": "O sea: Execution Role es para ECS, Task Role es para mi app."
-    },
-    {
-      "speaker": "ana",
-      "text": "Esa frase la memorizás y en el examen no te equivocás. Es uno de los escenarios más frecuentes: 'tu aplicación no puede acceder a S3 desde un contenedor Fargate' — la respuesta siempre empieza por revisar el Task Role, no el Execution Role. Ahora, EKS — Elastic Kubernetes Service — es managed Kubernetes. AWS maneja el control plane. Vos manejás los worker nodes, o también podés correr Fargate con EKS."
-    },
-    {
-      "speaker": "carlos",
-      "text": "¿Cuándo elegiría EKS sobre ECS?"
-    },
-    {
-      "speaker": "ana",
-      "text": "ECS si empezás de cero en AWS y querés simplicidad — es más fácil de operar. EKS si ya tenés workloads en Kubernetes — on-premise o en otro cloud — y querés portabilidad, o si tu equipo ya conoce Kubernetes. EKS tiene un costo de cluster de diez centavos por hora. ECS no tiene ese costo extra. Para el examen: 'equipo ya usa Kubernetes' → EKS. 'Nuevo en containers, quiere simplicidad' → ECS Fargate."
-    },
-    {
-      "speaker": "carlos",
-      "text": "Dale. ¿Y Elastic Beanstalk? Vi que es PaaS."
-    },
-    {
-      "speaker": "ana",
-      "text": "Elastic Beanstalk es Platform as a Service. Subís tu código en un ZIP o un container, y Beanstalk aprovisiona E.C. 2, Auto Scaling, Load Balancer, y CloudWatch automáticamente. Soporta Java, .NET, Python, Node.js, PHP, Ruby, Go, Docker. Para el examen: 'developer quiere deployar código sin manejar infraestructura' → Elastic Beanstalk. Vos controlás el código, AWS controla la plataforma."
-    },
-    {
-      "speaker": "carlos",
-      "text": "¿Y si necesito más control del que Beanstalk da?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Beanstalk te da acceso SSH a las instancias si lo necesitás, y podés personalizar con archivos de configuración. Pero si necesitás configuración muy granular de networking, instancias específicas, o políticas de scaling complejas, mejor hacelo manual con E.C. 2, Auto Scaling, y ALB. Beanstalk también retiene el historial de versiones de tu aplicación — gotcha del examen: eso es útil para rollback rápido."
-    },
-    {
-      "speaker": "carlos",
-      "text": "¿Y AWS Batch?"
-    },
-    {
-      "speaker": "ana",
-      "text": "AWS Batch es para batch computing — jobs que procesan grandes datasets en paralelo y pueden tomar mucho tiempo. Definís el job y el compute environment, Batch maneja la cola de jobs y provisiona el compute automáticamente — puede usar Spot instances para ahorrar. No tiene límite de quince minutos como Lambda. Para el examen: 'batch jobs de larga duración que necesitan ser económicos' → AWS Batch con Spot instances."
-    },
-    {
-      "speaker": "carlos",
-      "text": "¿Y Lightsail?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Lightsail es el VPS de AWS — Virtual Private Server. Precio fijo por mes, instancias preconfiguradas con stacks comunes: WordPress, LAMP, Node.js, Django. Está diseñado para developers que no quieren aprender la complejidad de AWS. Para el examen casi no aparece, pero si ven 'simple, precio predecible mensual, no necesita escalar' → Lightsail. Si ven cualquier necesidad de integración con otros servicios AWS → no es Lightsail."
-    },
-    {
-      "speaker": "ana",
-      "text": "Vamos a los exam tips — acá se gana o se pierde el veinte por ciento. El primero es el decision tree de compute. 'Correr código sin manejar servidores' → Lambda primero. '¿Puede durar más de quince minutos?' → Lambda está out. 'Containers sin manejar servidores' → Fargate. 'Deploy código sin pensar en infraestructura' → Elastic Beanstalk. 'Control total del servidor' → E.C. 2. 'Batch jobs largos y económicos' → AWS Batch con Spot."
-    },
-    {
-      "speaker": "carlos",
-      "text": "¿Y para pricing de E.C. 2?"
-    },
-    {
-      "speaker": "ana",
-      "text": "El truco es el compromiso versus la flexibilidad. On-Demand: sin compromiso, más caro. Spot: máximo ahorro, puede interrumpirse — solo para workloads tolerantes a fallas. Reserved Instances: compromiso de tres años en tipo y región específica, descuento hasta setenta por ciento. Savings Plans: compromiso de spend sin atar tipo de instancia, más flexible. Para el examen: workload estable de tres años → Reserved o Savings Plans. Fault-tolerant batch → Spot."
-    },
-    {
-      "speaker": "carlos",
-      "text": "¿Algún gotcha de pricing que no sea obvio?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Sí. Reserved Instances no significa que la instancia corre sola — es un descuento de billing. Si comprás una Reserved Instance y después apagás la instancia, AWS te cobra igual el compromiso. Otro: Savings Plans computacional aplica a E.C. 2 y también a Fargate. Savings Plans de E.C. 2 aplica solo a E.C. 2. El examen puede preguntarte cuál aplica a containers — la respuesta es Compute Savings Plans, no E.C. 2 Savings Plans."
-    },
-    {
-      "speaker": "carlos",
-      "text": "No sabía eso. ¿Y gotchas de Auto Scaling?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Tres importantes. Primero: health checks. Si configurás solo E.C. 2 health check, Auto Scaling solo sabe si la instancia está corriendo — no si tu app está respondiendo. Si la app está caída pero la instancia está viva, Auto Scaling no la reemplaza. Con ELB health check, si el Load Balancer detecta que la app no responde, Auto Scaling termina y reemplaza la instancia. Siempre ELB health check cuando hay Load Balancer de por medio."
-    },
-    {
-      "speaker": "carlos",
-      "text": "Ese es importante. ¿El segundo gotcha?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Cooldown Period — default trescientos segundos. En el examen puede aparecer como la causa de por qué Auto Scaling 'tarda en reaccionar' o agrega 'demasiado pocas instancias en el pico'. Si la respuesta esperada es 'reducir el tiempo de scaling', el ajuste correcto es reducir el cooldown o cambiar a Target Tracking que tiene su propio scaling cooldown configurable. El tercero: Lifecycle Hooks — si tu automatización falla, la instancia queda stuck hasta dos horas."
-    },
-    {
-      "speaker": "carlos",
-      "text": "¿Y gotchas de Load Balancers?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Tres. Primero: ALB Layer 7 content-based routing, NLB Layer 4 ultra performance con IP estática — no los confundas. Segundo: Cross-Zone activo por default en ALB sin costo, pero en NLB es opcional y tiene costo de data transfer entre A.Z. — el examen puede preguntar por qué hay costo inesperado de transferencia con NLB. Tercero: SSL termination. El Load Balancer puede terminar TLS y mandar HTTP al backend — así el backend no maneja criptografía."
-    },
-    {
-      "speaker": "carlos",
-      "text": "¿Y gotchas de Lambda?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Cuatro. Uno: quince minutos máximos, absoluto. Si ven 'puede necesitar más de quince minutos', Lambda está descartado. Dos: más memoria también da más CPU — si la función es lenta, a veces subir memoria la acelera sin tocar el código. Tres: cold start — cuando Lambda no tuvo ejecuciones recientes, el primer request paga el costo de inicializar el ambiente. Provisioned Concurrency mitiga eso pero tiene costo. Cuatro: concurrencia default de mil executions simultáneas."
-    },
-    {
-      "speaker": "carlos",
-      "text": "¿Y containers?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Task Role versus Execution Role — ya lo practicamos: Task Role es para el código de tu app, Execution Role es para que ECS arranque el contenedor. Es el error más frecuente en escenarios de examen sobre Fargate. Otro: ECS versus EKS — si el enunciado menciona 'Kubernetes' o 'K8s', la respuesta es EKS. Si no, ECS. Y para Placement Groups: 'lowest latency networking' → Cluster. 'Critical instances separated' → Spread. 'Hadoop or Kafka' → Partition."
-    },
-    {
-      "speaker": "carlos",
-      "text": "Dale, voy a cerrar con el recap. E.C. 2 tiene instance types por familia: C para compute intenso, R para RAM y bases de datos en memoria, M para general purpose, T para burstable con tráfico variable, I y D para storage intensivo. Para pricing: On-Demand sin compromiso, Reserved o Savings Plans para tres años, Spot para fault-tolerant y económico, Savings Plans computacional también aplica a Fargate."
-    },
-    {
-      "speaker": "ana",
-      "text": "Bien. ¿Placement Groups?"
-    },
-    {
-      "speaker": "carlos",
-      "text": "Cluster para latencia más baja posible — todo en el mismo rack — pero single point of failure si el rack falla. Spread para instancias críticas que no pueden caer juntas — máximo siete por Availability Zone. Partition para sistemas distribuidos grandes como Hadoop o Kafka — muchas instancias en particiones físicamente separadas, con aislamiento de fallas por partición."
-    },
-    {
-      "speaker": "ana",
-      "text": "¿Auto Scaling?"
-    },
-    {
-      "speaker": "carlos",
-      "text": "Auto Scaling Group con minimum, desired, maximum. Target Tracking para mantener una métrica como CPU, Step Scaling por alarmas graduales de CloudWatch, Scheduled cuando sabés el patrón de tráfico, Predictive con machine learning para patrones variables recurrentes. Cooldown de trescientos segundos por default para no escalar en loop. Lifecycle Hooks para interceptar launch y termination. ELB health check siempre que haya Load Balancer."
-    },
-    {
-      "speaker": "ana",
-      "text": "¿Load Balancers?"
-    },
-    {
-      "speaker": "carlos",
-      "text": "ALB en Layer 7 para content-based routing por path o headers, ideal para microservicios. NLB en Layer 4 para millones de requests por segundo y IP estática. Health checks automáticos combinados con Auto Scaling dan alta disponibilidad. Sticky Sessions para apps legadas stateful, aunque la solución moderna es hacer la app stateless. Cross-Zone activo por default en ALB, opcional con costo en NLB."
-    },
-    {
-      "speaker": "ana",
-      "text": "¿Lambda?"
-    },
-    {
-      "speaker": "carlos",
-      "text": "Lambda serverless, pago por request y por GB-segundo. Límite absoluto de quince minutos. Memoria de 128 MB a 10 GB donde más memoria también da más CPU. Tres tipos de invocación: synchronous donde el caller espera, asynchronous con retry automático en background, event source mapping donde Lambda va a buscar los mensajes a SQS o Kinesis. Cold start mitigable con Provisioned Concurrency."
-    },
-    {
-      "speaker": "ana",
-      "text": "¿Containers y el resto?"
-    },
-    {
-      "speaker": "carlos",
-      "text": "ECS con Fargate para containers sin manejar servidores — Task Role para permisos del código de la app, Execution Role para que ECS arranque el contenedor. E.C. 2 launch type cuando necesitás GPU o control de densidad. EKS si ya tenés Kubernetes. Elastic Beanstalk para deploy de código sin pensar en infraestructura con rollback por versionado. AWS Batch para batch jobs largos con Spot. Lightsail para VPS simple con precio fijo."
-    },
-    {
-      "speaker": "ana",
-      "text": "Excelente recap, Carlos. Compute es el veinte por ciento del examen por algo — es la columna vertebral de toda arquitectura en AWS. El pattern más frecuente es la combinación Auto Scaling Group más Application Load Balancer más E.C. 2 para alta disponibilidad y escalabilidad horizontal. Dominá ese trifecta y el decision tree de cuándo usar cada servicio, y ya tenés una parte importante del examen. En el próximo episodio arrancamos Storage — S3, EBS, EFS. Nos vemos."
-    }
+    {"speaker": "ana", "text": "Bienvenidos a otro episodio. Te tiro un escenario tipo examen, Carlos. Una startup tiene un workload que durante el día explota de tráfico y de noche queda casi en cero. Te dan cuatro opciones de compute: una instancia E.C. 2 gigante, un cluster fijo, Fargate, o Lambda. Tenés que elegir la más cost-effective. ¿Por dónde arranca la trampa?"},
+    {"speaker": "carlos", "text": "Uy, a ver… mi instinto me dice E.C. 2 grande, porque tengo más control. Pero algo me huele a que esa es justo la respuesta incorrecta. Cada vez que el examen dice cost-effective y el workload es variable, siento que me están tendiendo una trampa."},
+    {"speaker": "ana", "text": "Exacto, ese olfato te va a salvar. Acá está el corazón del módulo de compute: matchear el servicio correcto al patrón del workload. Y es el dominio más pesado del examen. Hoy lo desarmamos entero."},
+    {"speaker": "carlos", "text": "Dale. ¿Qué tan pesado estamos hablando? Porque si es el bloque más grande, le quiero dar prioridad en mi estudio."},
+    {"speaker": "ana", "text": "Compute pesa cerca del veinte a veinticinco por ciento del examen. Es de los más grandes, junto con networking. Cubrimos E.C. 2, Auto Scaling, Elastic Load Balancing, Lambda, y los contenedores: Elastic Container Service, Elastic Kubernetes Service y Fargate. Más algunos de nicho como Batch y Outposts."},
+    {"speaker": "carlos", "text": "O sea, si domino compute, ya tengo casi un cuarto del examen asegurado. Me gusta. ¿Por dónde empezamos?"},
+    {"speaker": "ana", "text": "Por la base de todo: E.C. 2, Elastic Compute Cloud. Son servidores virtuales que alquilás por tiempo. La analogía clásica: en vez de comprar una casa, alquilás un departamento y pagás por el tiempo que lo usás. Y elegís el tamaño y el tipo según lo que necesités."},
+    {"speaker": "carlos", "text": "Esa parte de los tipos siempre me marea. Hay como cincuenta familias de instancias. ¿Cómo lo memorizo sin volverme loco para el examen?"},
+    {"speaker": "ana", "text": "Muy buena pregunta. No memorices las cincuenta, memorizá las letras clave. C de Compute optimized, para CPU intensiva. R de RAM, memory optimized. M de Main, general purpose, el equilibrado. T de burstable, rinde en ráfagas. Y la familia I, D, H para storage optimized."},
+    {"speaker": "carlos", "text": "Esperá, dejame ver si capté. Si tengo una app que machaca CPU, tipo procesamiento de video, voy a la familia C. Si tengo una base de datos en memoria que necesita un montón de RAM, voy a la R. ¿Así de directo?"},
+    {"speaker": "ana", "text": "Tal cual. Y la M es tu default cuando no hay un cuello de botella obvio: web servers, apps balanceadas. La T es interesante para examen: es burstable. Acumula CPU credits cuando está ociosa y los gasta en los picos. Ideal para cargas livianas e intermitentes, como un entorno de desarrollo."},
+    {"speaker": "carlos", "text": "Ah, los T instances son los burstable, me lo anoto. ¿Y eso de los credits no te puede jugar en contra? Tipo, si la carga sube y se quedó sin credits, ¿qué pasa?"},
+    {"speaker": "ana", "text": "Ojo con eso, justo. Si agotás los credits, la performance se estrangula al baseline, salvo que actives el modo unlimited y pagues el extra. Para el examen: T es burstable, cargas variables y chicas. Si necesitás performance sostenida y predecible, T no es tu familia."},
+    {"speaker": "carlos", "text": "Dale, eso me cierra. Ahora, lo de los pricing models es lo que más me confunde para las preguntas de cost-effective. Hay On-Demand, Reserved, Spot… ¿me los ordenás?"},
+    {"speaker": "ana", "text": "Claro. Pensalos como formas de pagar el mismo auto. On-Demand: alquiler por hora, sin compromiso, el más caro por hora pero el más flexible. Reserved Instances: te comprometés uno o tres años y pagás bastante menos. Savings Plans: parecido, pero te comprometés a un monto de gasto por hora, no a una instancia específica."},
+    {"speaker": "carlos", "text": "¿Y los Spot? Esos siempre los escucho como los más baratos pero peligrosos."},
+    {"speaker": "ana", "text": "Exacto. Spot instances usa capacidad ociosa de AWS con un descuento enorme. La contra: AWS te los puede sacar con solo dos minutos de aviso si necesita esa capacidad. Entonces, jamás los uses para algo que no tolere interrupciones. Pero para batch jobs o procesamiento tolerante a fallas, son ideales."},
+    {"speaker": "carlos", "text": "Una duda con Spot: si AWS me los va a sacar, ¿me avisa o simplemente desaparecen y me quedo sin nada en el medio de un proceso?"},
+    {"speaker": "ana", "text": "Te avisa. AWS manda una Spot instance interruption notice dos minutos antes de terminar la instancia. Tu aplicación puede escuchar ese aviso y guardar el estado, drenar el trabajo o levantar capacidad en otro lado. Por eso Spot brilla en cargas que pueden checkpointear o reintentar. Si tu workload no tolera esos dos minutos de corte, Spot no va, y justo ahí está la trampa."},
+    {"speaker": "carlos", "text": "A ver si lo aterrizo para el examen. Si la pregunta dice fault-tolerant batch job y quiere el costo más bajo, la respuesta es Spot. Si dice workload estable veinticuatro siete por tres años, es Reserved. Si dice flexible y de corto plazo, On-Demand. ¿Voy bien?"},
+    {"speaker": "ana", "text": "Perfecto, esos tres mapeos te resuelven la mayoría. Agrego uno: Dedicated Hosts, cuando tenés requerimientos de licencias o compliance que exigen hardware físico dedicado. Es el más caro y aparece poco, pero si ves la palabra licencia BYOL o compliance de hardware, ahí está la pista."},
+    {"speaker": "carlos", "text": "Che, con Reserved escuché que hay dos variantes: Standard y Convertible. ¿En qué se diferencian?"},
+    {"speaker": "ana", "text": "Buena. Las Standard Reserved Instances te dan el descuento más alto, pero quedás fijo a una familia de instancia. Las Convertible te dejan cambiar el tipo de instancia durante el período, a cambio de un descuento un poco menor. Para el examen: si necesitás flexibilidad de cambiar de familia más adelante, Convertible; si querés el ahorro máximo y no vas a cambiar, Standard."},
+    {"speaker": "carlos", "text": "¿Y cuándo me conviene Savings Plans en vez de Reserved? Porque dijiste que son parecidos y me confunden."},
+    {"speaker": "ana", "text": "Se solapan, sí. Los Savings Plans son más flexibles: te comprometés a gastar tanto por hora y el descuento aplica a E.C. 2, a Fargate e incluso a Lambda, sin atarte a una instancia específica. Reserved es más rígido, pero a veces más barato para una instancia puntual. Tendencia moderna y respuesta segura cuando el enunciado pide flexibilidad de cómputo: Savings Plans."},
+    {"speaker": "carlos", "text": "Antes de seguir, escuché algo de instancias Graviton, que serían más baratas. ¿Eso entra al examen?"},
+    {"speaker": "ana", "text": "Cada vez más. Graviton son procesadores ARM diseñados por AWS, que dan mejor relación precio-rendimiento que los x86 equivalentes para muchas cargas. Si el enunciado pide bajar el costo de cómputo sin perder performance, y la app es compatible con ARM, migrar a Graviton es una respuesta válida. Y aparece tanto en E.C. 2 como en Lambda y Fargate."},
+    {"speaker": "carlos", "text": "Capté. Cambiando un poco: ¿de dónde sale la imagen base de una instancia? Vi la sigla AMI dando vueltas."},
+    {"speaker": "ana", "text": "Buena. La Amazon Machine Image, o A M I, es la plantilla con el sistema operativo y el software base desde la que se lanza una instancia E.C. 2. Podés usar las que ofrece AWS, las del Marketplace, o armarte una custom con tu app ya preinstalada para que las instancias nuevas arranquen más rápido. Para el examen, A M I es la plantilla de arranque de la instancia."},
+    {"speaker": "carlos", "text": "Y cuando una instancia arranca desde esa A M I, ¿puedo correr un script de instalación automáticamente, o tengo que entrar a mano cada vez?"},
+    {"speaker": "ana", "text": "Podés, con el user data: un script que la instancia ejecuta una sola vez en su primer arranque. Sirve para instalar paquetes, bajar tu app o configurar el entorno sin entrar por SSH. En un Auto Scaling Group es clave, porque cada instancia nueva se bootstrapea sola con ese script. Para el examen, user data es el script de arranque automático."},
+    {"speaker": "carlos", "text": "Una última de E.C. 2 que me confunde: el almacenamiento. Vi que hay instance store y EBS. ¿Cuál es cuál?"},
+    {"speaker": "ana", "text": "Buena, y cae en examen. El instance store es disco físico pegado a la máquina: rapidísimo, pero efímero. Si parás la instancia o se muere, perdés esos datos. El EBS, Elastic Block Store, es un volumen de bloque persistente que vive aparte; sobrevive al apagado de la instancia. Datos que tenés que conservar, EBS."},
+    {"speaker": "carlos", "text": "Ah, entonces instance store es scratch temporal y EBS es lo persistente. Y el EBS está atado a una sola Availability Zone, ¿no? Eso lo leí por ahí."},
+    {"speaker": "ana", "text": "Exacto, el volumen EBS vive en una sola Availability Zone; no podés pegarlo a una instancia de otra zona directamente, primero hacés un snapshot. Eso lo profundizamos en el módulo de Storage. Por ahora quedate con: instance store efímero, EBS persistente y atado a una Availability Zone."},
+    {"speaker": "carlos", "text": "Buenísimo. Hay otra cosa que vi en mis notas: placement groups. Eso no lo toqué nunca, te pregunto desde cero. ¿Qué son?"},
+    {"speaker": "ana", "text": "Dale, de cero. Un placement group es una forma de decirle a AWS cómo ubicar físicamente tus instancias E.C. 2 entre sí. Hay tres sabores y cada uno resuelve un problema distinto. El examen los ama porque suenan parecidos pero hacen cosas opuestas."},
+    {"speaker": "carlos", "text": "Tres sabores. Tirame los tres."},
+    {"speaker": "ana", "text": "Primero, Cluster: mete todas las instancias bien juntas, en la misma Availability Zone, para latencia bajísima entre ellas. Ideal para High Performance Computing. La contra: si esa zona cae, perdés todo. Segundo, Spread: separa cada instancia en hardware distinto, máximo siete por Availability Zone, para apps críticas donde no querés que dos instancias compartan el mismo punto de falla."},
+    {"speaker": "carlos", "text": "Esperá, el Cluster es low latency pero arriesgado porque está todo junto, y el Spread es lo opuesto, máxima separación para no compartir falla. ¿Y el tercero?"},
+    {"speaker": "ana", "text": "El tercero es Partition: agrupa instancias en particiones, cada una en racks separados. Pensado para sistemas distribuidos grandes como Hadoop, Cassandra o Kafka, donde el software ya maneja réplicas y querés aislar fallas por grupo. Regla de examen: low latency, Cluster. Apps críticas con pocas instancias, Spread. Big data distribuido, Partition."},
+    {"speaker": "carlos", "text": "Cluster para velocidad, Spread para seguridad, Partition para big data. Listo, me lo grabo así de simple."},
+    {"speaker": "ana", "text": "Ese resumen está perfecto. Pasemos a algo que es puro examen: E.C. 2 Auto Scaling. Te adelanto que esto se combina con casi todo lo demás del módulo."},
+    {"speaker": "carlos", "text": "Auto Scaling… yo esto no lo toqué, así que te pregunto desde cero. Lo entiendo en concepto, agrega y saca servidores solo, pero no sé cómo lo decide."},
+    {"speaker": "ana", "text": "Bien que lo aclarás. El Auto Scaling Group, o A S G, mantiene un número de instancias E.C. 2 sanas entre tres valores: minimum, desired y maximum. Si una instancia muere, la reemplaza para volver al desired. Y si configurás políticas, mueve el desired hacia arriba o abajo según la demanda."},
+    {"speaker": "carlos", "text": "A ver, entonces el minimum es el piso que siempre mantiene, el maximum es el techo que no pasa, y el desired es donde apunta ahora mismo. ¿El desired es el que se mueve con la demanda?"},
+    {"speaker": "ana", "text": "Exactamente. El minimum y el maximum son los límites de seguridad; el desired es el que baila. Ahora, cómo decide moverlo: hay cuatro tipos de scaling policies. La estrella del examen es Target Tracking."},
+    {"speaker": "carlos", "text": "Una pregunta práctica antes de las policies: ¿cómo sabe el Auto Scaling Group qué tipo de instancia lanzar cuando necesita escalar?"},
+    {"speaker": "ana", "text": "Excelente. Usa un launch template, que es la receta de la instancia nueva: qué A M I, qué tipo, qué security groups, qué user data. Antes existían las launch configurations, pero quedaron legacy; hoy AWS recomienda launch templates porque soportan más features y versionado. Si en una pregunta vieja ves launch configuration, sabé que es el equivalente antiguo del launch template."},
+    {"speaker": "carlos", "text": "Una más de Auto Scaling: escuché que un grupo puede mezclar instancias On-Demand y Spot. ¿Eso existe o lo soñé?"},
+    {"speaker": "ana", "text": "Existe, se llama mixed instances policy. El Auto Scaling Group combina una base de instancias On-Demand, para garantizar capacidad mínima estable, con Spot para el resto, que sale más barato. Así tenés un piso confiable y ahorrás en el excedente. Para el examen: si piden alta disponibilidad y bajo costo a la vez en un A S G, esa mezcla de base On-Demand más Spot es la respuesta elegante."},
+    {"speaker": "carlos", "text": "Anotado. Volvamos a las policies: ¿qué hace exactamente el Target Tracking?"},
+    {"speaker": "ana", "text": "Le das un objetivo de métrica, por ejemplo, mantener el CPU promedio en cincuenta por ciento. El A S G agrega o saca instancias solo para mantener ese número. Es el más simple y el que AWS recomienda por default. Si el examen dice mantené la utilización en tal valor, es Target Tracking casi seguro."},
+    {"speaker": "carlos", "text": "Capté. ¿Y los otros tres?"},
+    {"speaker": "ana", "text": "Step Scaling: escalás en escalones según alarmas de CloudWatch; si el CPU pasa de setenta agregás dos, si pasa de noventa agregás cuatro. Scheduled Scaling: escalás por horario, ideal si sabés que todos los lunes a las nueve explota el tráfico. Y Predictive Scaling: usa machine learning para anticipar la demanda según patrones históricos."},
+    {"speaker": "carlos", "text": "Esperá, el Scheduled me suena clave. Si yo sé que mi carga es predecible por horario, tipo apertura de mercado a una hora fija, ¿escalo programado en vez de reactivo?"},
+    {"speaker": "ana", "text": "Tal cual, y esa es una trampa común. Si el patrón es conocido y temporal, Scheduled. Si es desconocido pero querés anticiparte con histórico, Predictive. Si simplemente querés reaccionar a la demanda real, Target Tracking. El examen premia que elijas según cuánta información tenés del patrón."},
+    {"speaker": "carlos", "text": "Buenísimo. Vi también algo de lifecycle hooks y cooldown. ¿Eso qué tan importante es?"},
+    {"speaker": "ana", "text": "Nivel medio, pero entra. Los lifecycle hooks te dejan ejecutar acciones cuando una instancia entra o sale del grupo, por ejemplo instalar software o drenar conexiones antes de matarla. El cooldown period es una pausa, por default trescientos segundos, para que no escale como loco mientras las métricas se estabilizan."},
+    {"speaker": "carlos", "text": "Ah, el cooldown es para que no se vuelva histérico agregando y sacando instancias en cada microcambio. Tiene sentido. ¿Y los health checks?"},
+    {"speaker": "ana", "text": "Clave. El A S G chequea salud de dos formas: E.C. 2 status checks, o los checks del load balancer. Si la instancia falla, la termina y lanza una nueva. Y acá viene lo lindo: Auto Scaling se combina con Elastic Load Balancing para tener alta disponibilidad real. Justo nuestro próximo tema."},
+    {"speaker": "carlos", "text": "Perfecto, porque los load balancers son otra cosa que nunca configuré — explicámelo de cero. Sé que reparten tráfico, pero entre ALB y NLB me pierdo en las siglas."},
+    {"speaker": "ana", "text": "Vamos de cero. Elastic Load Balancing, o E L B, distribuye el tráfico entrante entre varias instancias para que ninguna se sature, y para que si una cae, el tráfico vaya a las sanas. La analogía: es el anfitrión de un restaurante que reparte a los comensales entre los mozos disponibles."},
+    {"speaker": "carlos", "text": "Me gusta. ¿Y los tipos?"},
+    {"speaker": "ana", "text": "Dos protagonistas para el examen. Application Load Balancer, A L B: trabaja en capa siete, el nivel de HTTP y HTTPS. Entiende el contenido del request, entonces puede rutear según la URL. Por ejemplo, la ruta api va a un backend y la ruta images va a otro target. Eso se llama content-based routing."},
+    {"speaker": "carlos", "text": "A ver, entonces si la pregunta dice routing basado en la URL o en el path, ¿es ALB sí o sí?"},
+    {"speaker": "ana", "text": "Sí o sí. Content-based routing, host-based, path-based, todo eso grita ALB. Ahora el segundo: Network Load Balancer, N L B. Trabaja en capa cuatro, nivel TCP y UDP. No mira el contenido, solo reparte paquetes, pero lo hace a una velocidad bestial: millones de requests por segundo, latencia ultrabaja, y te da una IP estática."},
+    {"speaker": "carlos", "text": "Esperá. Entonces si el examen dice millones de requests por segundo, o extreme performance, o necesito una IP estática fija, ¿voy a NLB?"},
+    {"speaker": "ana", "text": "Exacto. Esas tres pistas (extreme performance, ultra low latency, static IP) son NLB. Y si dice content routing o capa siete, ALB. Esa sola distinción te resuelve un montón de preguntas. Hay un tercero, Gateway Load Balancer, para appliances de seguridad de terceros, pero aparece poco."},
+    {"speaker": "carlos", "text": "Una duda fina entre ALB y NLB: si mi tráfico no es HTTP, tipo un protocolo TCP propio o un juego online, ¿igual puedo usar ALB?"},
+    {"speaker": "ana", "text": "No, ahí va NLB. El ALB solo entiende HTTP y HTTPS, capa siete. Si tu protocolo es TCP o UDP puro (un juego, MQTT, cualquier cosa no-HTTP) necesitás el Network Load Balancer en capa cuatro. Regla rápida: HTTP, ALB; no-HTTP, NLB. Y si además querés conservar la IP de origen del cliente, NLB te la preserva."},
+    {"speaker": "carlos", "text": "Volviendo al load balancer, ¿cómo sabe el ALB a qué instancias mandarle cada request?"},
+    {"speaker": "ana", "text": "A través de los target groups. Un target group es un conjunto de destinos (instancias E.C. 2, IPs, o hasta funciones Lambda) cada uno con su propio health check. El ALB tiene reglas de listener que dicen: si la URL es tal, mandá a este target group. Esa es justo la mecánica detrás del content-based routing que vimos recién."},
+    {"speaker": "carlos", "text": "Ah, entonces las reglas de routing apuntan a target groups, no a instancias directo. ¿Y qué pasa con las conexiones abiertas cuando una instancia está por darse de baja?"},
+    {"speaker": "ana", "text": "Ahí entra la connection draining, también llamada deregistration delay. Cuando una instancia se va a sacar, el load balancer deja de mandarle requests nuevos, pero espera a que terminen los que ya estaban en curso, hasta un timeout que configurás. Así no le cortás una operación a la mitad a un usuario. Es un detalle fino, pero a veces aparece en el examen."},
+    {"speaker": "carlos", "text": "Dale. ¿Y los features comunes? Vi sticky sessions, cross-zone, SSL termination."},
+    {"speaker": "ana", "text": "Sí, repasemos rápido. Sticky sessions: amarra a un usuario a la misma instancia, útil si la sesión se guarda local. SSL/TLS termination: el load balancer desencripta el HTTPS y libera a tus instancias de ese trabajo. Cross-zone load balancing: reparte parejo entre todas las Availability Zones, no solo dentro de una."},
+    {"speaker": "carlos", "text": "Y los health checks del load balancer son los mismos que mencionaste con Auto Scaling, ¿no? El que detecta una instancia caída y deja de mandarle tráfico."},
+    {"speaker": "ana", "text": "Exacto, se potencian. El load balancer deja de enviar tráfico a la instancia enferma, y el Auto Scaling Group la reemplaza. Juntos te dan el patrón clásico de alta disponibilidad: ALB adelante y un A S G atrás, repartido en varias Availability Zones. Ese diagrama aparece en cien preguntas."},
+    {"speaker": "ana", "text": "Si querés profundizar en cómo el Load Balancer y el Auto Scaling se combinan para alta disponibilidad —el flujo completo, la comparación para el examen y las trampas— armé una guía aparte.", "id": "health-check-link", "link": {"href": "auto-scaling-load-balancer.html","text": "Ver guía: Load Balancer + Auto Scaling →"}},
+    {"speaker": "carlos", "text": "Buenísimo, ese combo lo voy a dibujar. Ahora vamos a lo serverless: Lambda. Esto tampoco lo configuré nunca de cero, aunque sé que existe y que tiene el famoso límite de quince minutos."},
+    {"speaker": "ana", "text": "Perfecto que arranques por ahí, porque ese límite es de los datos más preguntados. AWS Lambda corre tu código sin que vos manejes ningún servidor. Subís una función, definís cuándo se dispara, y AWS la ejecuta y escala sola. Pagás solo por lo que corre; cuando está idle, no pagás nada."},
+    {"speaker": "carlos", "text": "Pará, eso último es clave para las de cost-effective, ¿no? Si no pago cuando está idle, para una carga esporádica gana por lejos a tener un E.C. 2 prendido todo el día esperando."},
+    {"speaker": "ana", "text": "Exactísimo, ahí está la trampa del cold open. Para cargas event-driven, esporádicas o de bajo volumen, Lambda casi siempre le gana a E.C. 2 en costo, porque no pagás idle. Pero ojo: si la carga es constante veinticuatro siete y alta, un E.C. 2 reserved puede salir más barato. No es Lambda siempre."},
+    {"speaker": "carlos", "text": "Ah, buena aclaración, no es serverless por default. Y volviendo al límite que mencionaste: si una tarea dura más de quince minutos, ¿Lambda queda descartado y me tengo que ir a contenedores o E.C. 2 sí o sí?"},
+    {"speaker": "ana", "text": "Exacto, y es justo un criterio de examen. Lambda topa a quince minutos de ejecución. Si tu tarea dura más, no es opción, y vas a Fargate o E.C. 2. Por eso, cuando veas una duración larga en el enunciado, descartá Lambda de una. Mirá siempre la duración antes de elegir."},
+    {"speaker": "carlos", "text": "Capté. ¿Y qué otros límites entran al examen además de los quince minutos?"},
+    {"speaker": "ana", "text": "Los que conviene tener a mano: memoria de ciento veintiocho megabytes hasta diez gigabytes. El almacenamiento temporal arranca en quinientos doce megas y se puede subir a diez gigas. Y las ejecuciones concurrentes por default son mil, pero es un límite soft que podés pedir que te suban."},
+    {"speaker": "carlos", "text": "¿Y cómo se dispara una Lambda? Porque imagino que no es solo llamarla a mano."},
+    {"speaker": "ana", "text": "Hay tres formas, y conviene distinguirlas. Synchronous: alguien la llama y espera la respuesta, como API Gateway o el CLI. Asynchronous: la disparás y no esperás, como S3 cuando sube un archivo, o Simple Notification Service, SNS. Y Event Source Mapping: Lambda lee de una cola o stream, como Simple Queue Service, SQS, Kinesis o DynamoDB Streams."},
+    {"speaker": "carlos", "text": "Esperá, dejame procesar la diferencia entre async y event source mapping, porque suenan parecidas. En la async, el servicio empuja el evento a Lambda. En el event source mapping, Lambda va y lee del origen. ¿Es esa la diferencia de dirección?"},
+    {"speaker": "ana", "text": "Excelente, captaste la esencia: push versus poll. En async, el servicio empuja, por ejemplo S3 te avisa cuando llega un objeto. En event source mapping, Lambda hace polling, va y consulta la cola o el stream. Para el examen alcanza con saber qué servicio cae en cada categoría. S3 y SNS, async. SQS y Kinesis, event source mapping."},
+    {"speaker": "carlos", "text": "Escuché el término cold start con Lambda. ¿Eso qué es y me importa para el examen?"},
+    {"speaker": "ana", "text": "Sí, aparece. Un cold start es la latencia extra la primera vez que se invoca una función, porque AWS tiene que levantar el entorno de ejecución desde cero. Si la función se usa seguido, queda caliente y responde rápido. Si necesitás latencia consistente y baja, existe la provisioned concurrency, que mantiene entornos pre-inicializados listos. Pista de examen: latencia predecible en Lambda igual provisioned concurrency."},
+    {"speaker": "carlos", "text": "Esperá, ¿reserved concurrency y provisioned concurrency son lo mismo? Porque suenan casi igual y me marean."},
+    {"speaker": "ana", "text": "No, ojo, son distintas y el examen las cruza. La reserved concurrency garantiza y a la vez limita cuántas ejecuciones simultáneas puede tener una función, para que no se coma el pool de toda tu cuenta. La provisioned concurrency mantiene entornos pre-calentados para matar el cold start. Una controla cantidad, la otra controla latencia. Reserved es cuota, provisioned es latencia."},
+    {"speaker": "carlos", "text": "Capté. ¿Y una Lambda puede hablar con recursos privados, tipo una base de datos en una subnet privada?"},
+    {"speaker": "ana", "text": "Sí. Conectás la función a tu Virtual Private Cloud, o V P C, asignándole subnets y security groups, y ahí accede a recursos privados como esa base de datos. Ojo con este dato: por default, Lambda corre fuera de tu V P C, en infraestructura de AWS. Solo la metés adentro de la V P C cuando necesita alcanzar esos recursos privados."},
+    {"speaker": "carlos", "text": "Che, una que me traba: ¿cómo decido entre Lambda y Fargate cuando los dos son serverless?"},
+    {"speaker": "ana", "text": "Gran pregunta de examen. Lambda es para piezas chiquitas y event-driven, que arrancan, hacen algo corto y terminan, con el tope de quince minutos. Fargate es para contenedores que pueden correr largo o estar siempre arriba, como una API o un worker. Tarea corta por evento, Lambda. Contenedor o proceso largo, Fargate. Esa frontera te resuelve muchas preguntas."},
+    {"speaker": "carlos", "text": "Buenísimo. Ahora sí, contenedores, que es lo único de este módulo donde tengo algo de experiencia real. Pero quiero que me ordenes ECS, EKS y Fargate, porque siempre los mezclo."},
+    {"speaker": "ana", "text": "Dale. Pensalo en dos ejes. Primer eje: cómo orquestás los contenedores. Elastic Container Service, ECS, es el orquestador propio de AWS, más simple. Elastic Kubernetes Service, EKS, es Kubernetes managed, para cuando ya usás Kubernetes o lo necesitás por portabilidad. Ese es el qué orquesta."},
+    {"speaker": "carlos", "text": "Okay, ECS es el de AWS y más fácil, EKS es Kubernetes y más estándar pero más complejo. ¿Y el segundo eje?"},
+    {"speaker": "ana", "text": "El segundo eje: quién pone los servidores, los launch types. Con el launch type E.C. 2, vos manejás las instancias donde corren los contenedores: parcharlas, escalarlas, todo tuyo. Con Fargate, no manejás ningún servidor; AWS te corre el contenedor y pagás por task. Fargate es el serverless de contenedores."},
+    {"speaker": "carlos", "text": "Ah, entonces Fargate no es un competidor de ECS, es un modo de correr ECS o EKS sin manejar servidores. Eso lo entendí mal mil veces."},
+    {"speaker": "ana", "text": "Exacto, ese es el error clásico. Fargate no compite con ECS ni EKS; es el launch type serverless que funciona con los dos. ECS y EKS son el orquestador; E.C. 2 o Fargate son el dónde corre. Dos ejes independientes. Si tenés eso claro, ya estás arriba del promedio."},
+    {"speaker": "carlos", "text": "Sobre EKS, ¿es más caro que ECS? Porque Kubernetes suena a un montón de piezas más."},
+    {"speaker": "ana", "text": "Hay un detalle de costo que cae en examen. EKS te cobra una tarifa fija por hora por cada cluster, por el control plane que AWS te administra, más el compute que corras encima. ECS no te cobra por el orquestador en sí; solo pagás el compute. Entonces, a igualdad de todo, ECS sale un poco más barato. EKS lo elegís cuando necesitás Kubernetes de verdad."},
+    {"speaker": "carlos", "text": "Tiene sentido. ¿Y existe algo como las Spot pero para Fargate, para abaratar contenedores tolerantes a fallas?"},
+    {"speaker": "ana", "text": "Sí, Fargate Spot. Misma idea que las Spot instances: capacidad con un gran descuento que AWS te puede reclamar con aviso. Ideal para tasks que toleran interrupción, como procesamiento batch en contenedores. Para cargas que tienen que estar siempre arriba, Fargate normal. Si el enunciado dice contenedores, tolerante a fallas y barato, pensá Fargate Spot."},
+    {"speaker": "carlos", "text": "Pregunta de contenedores: el Auto Scaling que vimos era para E.C. 2. ¿Los contenedores en Fargate también escalan solos, o tengo que ir agregando tasks a mano?"},
+    {"speaker": "ana", "text": "Muy buena. Escalan solos, pero con otro servicio: Application Auto Scaling. Le ponés una política, por ejemplo target tracking sobre CPU o memoria, y ECS agrega o saca tasks del Service automáticamente. Es el primo del E.C. 2 Auto Scaling, pero para tasks de contenedores. Mismo concepto de minimum, desired y maximum, aplicado a tasks en vez de instancias."},
+    {"speaker": "carlos", "text": "Una de red sobre Fargate: cuando corro una task, ¿cómo le doy conectividad si no hay una E.C. 2 mía debajo?"},
+    {"speaker": "ana", "text": "Buena. Fargate usa el modo de red awsvpc: cada task recibe su propia interfaz de red, una E N I, dentro de tus subnets, con su IP privada y sus security groups. O sea, la task se comporta como si fuera un mini servidor dentro de tu Virtual Private Cloud. Por eso podés controlarle el tráfico con security groups, igual que a una instancia E.C. 2."},
+    {"speaker": "carlos", "text": "Esto justo lo viví. Yo un par de scrapers los corrí en Fargate como one-shot task, no como service, porque no quería manejar instancias E.C. 2 para algo que arrancaba y terminaba. Elegí Fargate puro para no pensar en servidores. ¿Ese razonamiento es el correcto para el examen?"},
+    {"speaker": "ana", "text": "Totalmente correcto. Si el qualifier dice sin servidores que administrar, o least operational overhead, y son contenedores, la respuesta es Fargate. Vos lo viviste: una tarea que corre y termina, no querés una flota de E.C. 2 ociosa. Ese es el caso de uso textual que premia el examen."},
+    {"speaker": "carlos", "text": "Me deja tranquilo. Ahora, ahí también toqué los roles y siempre los confundo. Estaban el Task Role y el Execution Role. El Execution Role era el que usaba mi código Python para escribir en S3, ¿no?"},
+    {"speaker": "ana", "text": "Ahí te equivocaste, y es la confusión más común, no te preocupes. Al revés: el Task Role es el que usa tu código adentro del contenedor, para hablar con S3 o con Systems Manager. El Execution Role lo usa el agente de ECS para arrancar el contenedor: bajar la imagen y escribir logs. Tu código, Task Role."},
+    {"speaker": "carlos", "text": "Uy, claro, los tenía dados vuelta. Entonces mi permiso de S3 PutObject iba en el Task Role, porque lo usaba el código. Y el Execution Role solo necesitaba permisos para bajar la imagen y loguear. Ahora me cierra."},
+    {"speaker": "ana", "text": "Tal cual, ahora sí. Truco para acordarte: el Task Role es lo que la task hace mientras corre, tu aplicación. El Execution Role es lo que se necesita para ejecutar, o sea arrancar, el contenedor. La aplicación versus el arranque. Esa distinción cae en preguntas de permisos de ECS."},
+    {"speaker": "carlos", "text": "Genial, me salvaste. ¿Y los componentes de ECS? Vi Task Definition, Task, Service, Cluster."},
+    {"speaker": "ana", "text": "Rápido y claro. La Task Definition es la receta: qué imagen, cuánta CPU y memoria, qué variables. La Task es una instancia corriendo de esa receta. El Service mantiene un número deseado de tasks vivas y las reemplaza si mueren, parecido al Auto Scaling pero para contenedores. Y el Cluster es la agrupación lógica donde corre todo."},
+    {"speaker": "carlos", "text": "Ah, entonces el Service tiene sentido para algo que tiene que estar siempre vivo, como una API, y una task suelta para algo que corre y termina, como un scraper o un batch. ¿Esa es la distinción clave?"},
+    {"speaker": "ana", "text": "Exactísimo, esa es la distinción justa. Service para algo que debe estar siempre corriendo, como un web server; task suelta para algo que arranca y termina, como un batch. Esa diferencia, task versus service, también aparece en el examen. La captaste perfecto."},
+    {"speaker": "carlos", "text": "Y la última que toqué de esta familia: ECR, donde guardaba las imágenes. Elastic Container Registry, ¿no? Es como el Docker Hub pero de AWS y privado."},
+    {"speaker": "ana", "text": "Esa analogía es perfecta. Elastic Container Registry, ECR, es el registro privado de imágenes de contenedor de AWS. Guardás tus imágenes ahí y ECS, EKS o Fargate las bajan para correr tus tasks. Se integra nativo con Identity and Access Management, o sea I A M, para los permisos."},
+    {"speaker": "carlos", "text": "Me acuerdo que la primera vez me peleé con un error de autenticación, un 403, al hacer push. Lo resolví re-autenticándome con get-login-password. Pero nunca entendí del todo por qué se me vencía. ¿Sabés por qué?"},
+    {"speaker": "ana", "text": "Sí, porque ese token de autenticación de ECR dura doce horas. Pasado ese rato, tenés que volver a pedir login. No es un bug, es por seguridad: credenciales de corta vida. Para el examen no entra ese detalle, pero sí que ECR es el registro privado y que se integra con I A M. Tu anécdota igual ilustra bien el concepto."},
+    {"speaker": "carlos", "text": "Buenísimo saberlo igual. Bueno, esos eran los servicios que toqué. ¿Qué queda?"},
+    {"speaker": "ana", "text": "Quedan varios que conviene reconocer aunque no los uses seguido. Arranquemos por Elastic Beanstalk. Es un servicio de tipo Platform as a Service. Vos subís tu código, y AWS te arma toda la infraestructura por debajo: las instancias E.C. 2, el load balancer, el Auto Scaling, todo. Vos solo te ocupás del código."},
+    {"speaker": "carlos", "text": "Esperá, ¿en qué se diferencia de Lambda o Fargate entonces? Porque todos suenan a no te preocupes por la infra."},
+    {"speaker": "ana", "text": "Buena distinción. En Beanstalk, la infraestructura existe y es tuya, podés verla y tocar las E.C. 2 si querés; AWS solo te la orquesta. Es para subir una app web tradicional rápido, sin rearquitecturarla. Lambda y Fargate son serverless de verdad: ni ves los servidores. Beanstalk es el puente para apps clásicas."},
+    {"speaker": "carlos", "text": "Capté: Beanstalk es para subir una app web normal sin pelearte con la infra, pero la infra sigue ahí. ¿Y soporta cualquier lenguaje?"},
+    {"speaker": "ana", "text": "Soporta los típicos: Java, punto NET, PHP, Node punto j-s, Python, Ruby, Go, y Docker. Para el examen, la pista es: deploy rápido de una aplicación web sin gestionar infraestructura manualmente, y querés que escale y balancee solo. Si ves quiero subir mi código y olvidarme, pensá Beanstalk."},
+    {"speaker": "carlos", "text": "Dale. ¿Y AWS Batch? El nombre se explica solo, pero igual contame."},
+    {"speaker": "ana", "text": "Batch es justo eso: computación por lotes, managed. Le mandás miles de jobs y él te aprovisiona y escala los recursos de compute solo, los corre, y los apaga. Y acá viene el dato de examen: usa Spot instances por debajo para ahorrar. Si ves procesamiento batch a gran escala y cost-effective, pensá Batch sobre Spot."},
+    {"speaker": "carlos", "text": "Ah, Batch más Spot es el combo barato para lotes tolerantes a fallas. Me lo llevo. ¿Y Outposts? Ese nombre no me dice nada."},
+    {"speaker": "ana", "text": "Outposts es de los más fáciles una vez que lo ves. Son racks de hardware de AWS que te mandan físicamente a tu propio data center. Corrés servicios de AWS, como E.C. 2 o ECS, pero on-premises, en tu edificio. Es para cuando tenés requisitos de baja latencia local o de residencia de datos que te obligan a tener el compute ahí."},
+    {"speaker": "carlos", "text": "O sea, Outposts es traer un pedacito de AWS a mi data center. ¿Y eso por qué lo elegiría en vez de simplemente usar la nube?"},
+    {"speaker": "ana", "text": "Por dos razones de examen. Una: latencia ultrabaja contra sistemas que ya viven en tu data center y no podés mover. Dos: data residency, regulación que te obliga a que ciertos datos no salgan de tus instalaciones físicas. Si ves AWS on-premises o en mi propio data center, la respuesta es Outposts."},
+    {"speaker": "carlos", "text": "Anotado. Vi también dos nombres sueltos: Wavelength y VMware Cloud on AWS. ¿Esos qué tan a fondo los necesito?"},
+    {"speaker": "ana", "text": "Solo el caso de uso, no el detalle. Wavelength pone compute en el borde de las redes 5G, para apps móviles que necesitan latencia ultrabaja, como gaming o realidad aumentada en el celular. VMware Cloud on AWS es para hacer lift-and-shift de cargas VMware existentes a AWS sin rearquitecturar. Reconocé la pista, nada más."},
+    {"speaker": "carlos", "text": "Listo: Wavelength es 5G ultrabaja latencia móvil, VMware Cloud es mover VMware tal cual a AWS. Con reconocer la palabra clave me alcanza."},
+    {"speaker": "ana", "text": "Perfecto. Ahora viene la parte que más puntos te da: los qualifiers que el examen repite en compute. Prestá atención, porque son patrones, no servicios sueltos."},
+    {"speaker": "carlos", "text": "Dale, esto es lo que más necesito. Tirámelos."},
+    {"speaker": "ana", "text": "Primero, el más frecuente: least operational overhead, fully managed, o no servers to manage. Apuntá siempre a lo más managed o serverless: Lambda, Fargate. La trampa es que te ofrecen E.C. 2 self-managed porque controlás todo. El examen premia que AWS opere por vos. E.C. 2 ahí casi siempre es el distractor."},
+    {"speaker": "carlos", "text": "Ese lo tengo fresco del cold open. Si dice sin servidores que administrar, no elijo E.C. 2. ¿El siguiente?"},
+    {"speaker": "ana", "text": "Most cost-effective o lowest cost. Elegí la más barata que cumpla el requisito, no la más barata a secas. La trampa clásica: workload variable, elegís E.C. 2 creyendo que es más barato, pero Fargate o Lambda gana porque no pagás idle. Y al revés: si es constante veinticuatro siete, ahí es E.C. 2 Reserved o Savings Plans."},
+    {"speaker": "carlos", "text": "Esa es la que más me cuesta, porque depende del patrón. Variable o esporádico, serverless. Constante y alto, Reserved. La clave está en leer si la carga es estable o no."},
+    {"speaker": "ana", "text": "Exacto, leé siempre el patrón de la carga antes de elegir el precio. Tercero: scalable, handle unpredictable spikes, elastic. La respuesta es Auto Scaling o serverless, escalado horizontal. La trampa es que te ofrecen una instancia más grande, escalado vertical. Si pide elasticidad, agregás máquinas, no agrandás una."},
+    {"speaker": "carlos", "text": "Horizontal sobre vertical cuando piden elasticidad. Esa la confundía, gracias. ¿Hay alguno más?"},
+    {"speaker": "ana", "text": "Sí, dos pistas rápidas que caen en compute. Content-based routing o capa siete, ALB. Millones de requests por segundo o IP estática, NLB. Y para latencia mínima entre instancias, Cluster placement group. Y nunca olvides: fault-tolerant batch barato, Spot instances. Esos mapeos directos son plata fácil en el examen."},
+    {"speaker": "carlos", "text": "Me los anoto como flashcards. Che, una pregunta de validación: si me dan un escenario con una app web que tiene que aguantar picos impredecibles y estar siempre disponible, ¿el patrón es ALB más Auto Scaling Group en varias Availability Zones?"},
+    {"speaker": "ana", "text": "Esa es la respuesta modelo, te felicito. ALB adelante para repartir, Auto Scaling Group atrás para crecer y encogerse, todo distribuido en múltiples Availability Zones para alta disponibilidad. Ese trío (ALB, A S G y multi Availability Zone) es la columna vertebral de mil arquitecturas del examen. Si dudás, ese patrón suele estar cerca de la respuesta correcta."},
+    {"speaker": "carlos", "text": "Che, ¿me tirás una pregunta de práctica para ver si aplico todo esto de una?"},
+    {"speaker": "ana", "text": "Dale. Una empresa procesa videos pesados que tardan unos cuarenta minutos cada uno, en lotes, y quieren el menor costo posible, tolerando que un job se reinicie si algo falla. ¿Qué compute elegís?"},
+    {"speaker": "carlos", "text": "A ver… cuarenta minutos descarta Lambda por el límite de quince. Es batch y tolera reinicio, así que Spot encaja por el costo. Lo armaría con AWS Batch corriendo sobre Spot instances. ¿Voy bien?"},
+    {"speaker": "ana", "text": "Impecable. AWS Batch sobre Spot, o un Auto Scaling Group con Spot, es la respuesta. Descartaste Lambda por la duración y elegiste Spot por el costo y la tolerancia a fallas. Ese es exactamente el razonamiento de tres pasos que te tiene que salir solo: duración, patrón de carga, y tolerancia a interrupción."},
+    {"speaker": "carlos", "text": "Buenísimo que me salió. Dale, tirame una más."},
+    {"speaker": "ana", "text": "Va. Una API recibe tráfico impredecible, con picos repentinos, y el equipo no quiere administrar ningún servidor. La mayor parte del tiempo el volumen es bajo. ¿Qué elegís?"},
+    {"speaker": "carlos", "text": "Sin servidores que administrar, más bajo volumen con picos… eso grita Lambda. Serverless, escala sola, no pago idle. Si fuera un contenedor sin servidores sería Fargate, pero para código suelto detrás de una API, voy con Lambda más API Gateway."},
+    {"speaker": "ana", "text": "Exacto. Lambda detrás de API Gateway: cero servidores, escala automática, pagás por request. Si en cambio te dijeran que ya tienen una app containerizada, ahí iría Fargate. Leíste bien las dos pistas, sin servidores y volumen variable, y eso te lleva directo a serverless. Vas afilado, Carlos."},
+    {"speaker": "carlos", "text": "Una última de práctica y arrancamos el recap, ¿dale?"},
+    {"speaker": "ana", "text": "Dale. Una app corre en una sola instancia E.C. 2 y el cliente exige que siga disponible aunque se caiga una Availability Zone entera, sin tocar el código. ¿Qué armás?"},
+    {"speaker": "carlos", "text": "Si tiene que sobrevivir a la caída de una zona, necesito más de una Availability Zone. Pondría un Auto Scaling Group con instancias en varias Availability Zones y un load balancer adelante repartiendo. Así, si una zona muere, las otras siguen. ¿Es ese el patrón?"},
+    {"speaker": "ana", "text": "Exacto, ese es el patrón canónico de alta disponibilidad: A S G multi Availability Zone con un ALB adelante. Ojo con la trampa: te van a ofrecer una instancia más grande o un backup manual, pero eso no sobrevive a una zona caída. La respuesta siempre es repartir en varias Availability Zones."},
+    {"speaker": "carlos", "text": "Buenísimo. Dejame intentar el recap a ver si retuve. Arranqué con E.C. 2: familias por letra, C compute, R RAM, M general, T burstable. Pricing: On-Demand flexible, Reserved comprometido, Spot barato pero interrumpible con dos minutos de aviso. Placement groups: Cluster velocidad, Spread seguridad, Partition big data."},
+    {"speaker": "ana", "text": "Impecable hasta ahí. Seguí."},
+    {"speaker": "carlos", "text": "Después Auto Scaling: minimum, desired, maximum, y cuatro policies, donde Target Tracking es la estrella. Load balancers: ALB en capa siete para content routing, NLB en capa cuatro para extreme performance e IP estática. Y el combo de ALB más A S G en múltiples Availability Zones para alta disponibilidad."},
+    {"speaker": "ana", "text": "Perfecto. Te faltan serverless y contenedores, dale."},
+    {"speaker": "carlos", "text": "Lambda: serverless, tope quince minutos, no pagás idle, ideal para cargas esporádicas y event-driven. Contenedores en dos ejes: ECS o EKS orquestan, E.C. 2 o Fargate es el dónde corre, y Fargate es el serverless. Más Task Role para mi código y Execution Role para arrancar el contenedor, que ya no me los confundo."},
+    {"speaker": "ana", "text": "Esa última me deja orgullosa, porque entraste confundiéndolos y saliste distinguiéndolos. Sumale los de nicho: Beanstalk para subir apps web sin tocar infra, Batch sobre Spot para lotes baratos, Outposts para AWS on-premises, Wavelength para 5G. Con eso tenés el módulo de compute entero en la cabeza."},
+    {"speaker": "carlos", "text": "Me quedo con la regla de oro: leé el patrón del workload y el qualifier antes de elegir el servicio. Variable, serverless. Constante, Reserved. Sin servidores, Fargate o Lambda. Elasticidad, horizontal. Y ante la duda en una app web, ALB más Auto Scaling en múltiples Availability Zones."},
+    {"speaker": "ana", "text": "Ese es exactamente el chip que te tiene que quedar para el examen. Compute es el dominio más grande, pero si pensás en patrones y no en servicios sueltos, se vuelve manejable. Practicá mapeando cada qualifier a su servicio y vas a ver que las preguntas se repiten."},
+    {"speaker": "carlos", "text": "Gracias, Ana, me destrabaste un montón, sobre todo lo de los roles y lo de elegir el costo según el patrón."},
+    {"speaker": "ana", "text": "Un placer, Carlos. Para la próxima nos metemos con Storage: EBS, S3, EFS y las storage classes, que se conecta directo con lo que vimos hoy. Repasá los mapeos de qualifiers, hacé un par de preguntas de práctica de compute, y nos vemos en el próximo episodio. ¡Éxitos con el estudio!"}
   ]
 }
