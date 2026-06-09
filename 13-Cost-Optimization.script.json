@@ -1,426 +1,175 @@
 {
   "module_title": "Module 13: Cost Optimization",
-  "estimated_duration_min": 39,
+  "estimated_duration_min": 40,
   "turns": [
-    {
-      "speaker": "ana",
-      "text": "¿Alguna vez viste una factura de AWS que te dejó con la boca abierta? El famoso bill shock — el mes pasado gastaste mil dólares y este mes son cuatro mil, sin que hayas cambiado nada evidente. Eso le pasa a la mayoría de los equipos que empiezan en la nube porque el modelo pay-as-you-go es cómodo para arrancar pero puede sorprenderte si no tenés visibilidad ni estrategia. Hoy atacamos exactamente ese problema."
-    },
-    {
-      "speaker": "carlos",
-      "text": "a ver — yo nunca tuve acceso directo a la factura de AWS en los proyectos donde trabajé, así que este módulo me parece muy útil. ¿Por dónde empezamos?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Empezamos por los fundamentos del pricing de AWS, que definen todo lo que viene después. El modelo es pay-as-you-go: pagás solo lo que usás, sin compromisos mínimos, sin costos de cancelación. Hay tres ejes principales. Compute: se cobra por tiempo de cómputo, generalmente por segundo. Storage: por gigabyte-mes. Y data transfer: con sus propias reglas que importa conocer bien."
-    },
-    {
-      "speaker": "carlos",
-      "text": "dale, ¿cuáles son las reglas de data transfer? Escuché que puede ser caro y nunca entendí bien cuándo se cobra."
-    },
-    {
-      "speaker": "ana",
-      "text": "La regla central que el examen pregunta seguido: inbound — datos que entran a AWS desde internet — es gratis. Outbound — datos que salen de AWS hacia internet — se cobra, con precios en tiers que bajan según el volumen. Tráfico entre servicios en la misma región es generalmente gratis. Entre regiones se cobra. Y entre A.Z. dentro de la misma región hay un pequeño cargo que muchos ignoran pero que acumula en arquitecturas Multi-A.Z.."
-    },
-    {
-      "speaker": "carlos",
-      "text": "uy, entre A.Z. se cobra también. ¿Y cómo reduzco el costo de data transfer en una arquitectura AWS?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Tres estrategias principales. CloudFront — el CDN de AWS — reduce el outbound porque el tráfico desde CloudFront al usuario final tiene pricing diferente y más barato que salir directo desde E.C. 2 o S3. Mantener recursos en la misma región cuando sea posible. Y usar VPC Endpoints en vez de NAT Gateways para comunicarse con servicios de AWS — el NAT Gateway cobra por gigabyte procesado, el VPC Endpoint es mucho más barato o gratis según el tipo."
-    },
-    {
-      "speaker": "carlos",
-      "text": "capté — CloudFront para reducir outbound, misma región para evitar inter-region, VPC Endpoints en vez de NAT Gateway. ¿Y el AWS Free Tier qué cubre?"
-    },
-    {
-      "speaker": "ana",
-      "text": "El Free Tier tiene tres tipos. Always Free: servicios gratis indefinidamente dentro de límites — Lambda un millón de requests por mes, DynamoDB veinticinco gigabytes de storage, SNS un millón de publicaciones. Doce meses gratis después de crear la cuenta: E.C. 2 setecientas cincuenta horas de t2.micro, S3 cinco gigabytes, CloudFront cincuenta gigabytes de data transfer. Y Trials: períodos cortos para servicios específicos como SageMaker o Redshift."
-    },
-    {
-      "speaker": "carlos",
-      "text": "a ver — Always Free es para siempre con límites, doce meses es por cuenta nueva, y Trials son períodos cortos. ¿Y TCO qué significa?"
-    },
-    {
-      "speaker": "ana",
-      "text": "TCO es Total Cost of Ownership — el costo total de poseer la infraestructura. En on-premises incluye hardware, licencias de software, data center — espacio, electricidad, refrigeración — y personal de IT. En AWS esos costos se reemplazan por compute, storage, y network on-demand, eliminando gran parte del gasto fijo. AWS tiene una TCO Calculator para comparar tu infraestructura on-premises contra lo que costaría en AWS. Para el examen, TCO aparece en escenarios de migración."
-    },
-    {
-      "speaker": "carlos",
-      "text": "dale. ¿Cuáles son los modelos de compra de E.C. 2? Ese es el servicio que más influye en el costo, ¿no?"
-    },
-    {
-      "speaker": "ana",
-      "text": "E.C. 2 tiene seis modelos de compra. On-Demand: pagás por segundo, sin compromisos — el más flexible y el más caro. Reserved Instances: comprometés uno o tres años a cambio de hasta setenta y dos por ciento de descuento. Savings Plans: comprometés un gasto mínimo por hora, más flexible que los RIs. Spot: usás capacidad de sobra de AWS con hasta noventa por ciento de descuento, pero AWS puede interrumpirlo. Dedicated Hosts: servidor físico exclusivo. Y Capacity Reservations."
-    },
-    {
-      "speaker": "carlos",
-      "text": "seis modelos. ¿Cuándo conviene On-Demand y cuándo conviene pasar a otra opción?"
-    },
-    {
-      "speaker": "ana",
-      "text": "On-Demand es para workloads cortos, impredecibles, o cuando estás probando algo nuevo. El caso clásico del examen: un nuevo proyecto que no sabés cuánto va a crecer, un entorno de desarrollo que se apaga los fines de semana, o picos estacionales que no ocurren siempre. En cuanto el uso se vuelve predecible y estable — una base de datos que corre las veinticuatro horas — el cambio a Reserved Instances o Savings Plans es donde está el ahorro."
-    },
-    {
-      "speaker": "carlos",
-      "text": "capté — On-Demand para impredecible y variable, cambiar cuando el uso se vuelve estable. ¿Y Reserved Instances cómo funcionan exactamente?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Con Reserved Instances comprometés usar un tipo de instancia por uno o tres años y a cambio obtenés descuento sobre el precio On-Demand. Tres opciones de pago: All Upfront — pagás todo adelantado, máximo descuento de hasta setenta y dos por ciento. Partial Upfront — parte adelante y parte mensual, descuento intermedio. No Upfront — solo pago mensual, menor descuento pero sin inversión inicial. A mayor compromiso de pago, mayor ahorro."
-    },
-    {
-      "speaker": "carlos",
-      "text": "uy, setenta y dos por ciento de descuento con All Upfront. ¿Y hay tipos de Reserved Instances?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Dos tipos principales. Standard RIs: el mayor descuento pero sin flexibilidad — no podés cambiar la familia de instancia. Podés venderlos en el RI Marketplace si ya no los necesitás. Convertible RIs: menor descuento — hasta cincuenta y cuatro por ciento — pero podés cambiar la familia de instancia, el sistema operativo, y la tenancy durante la vigencia. Más flexible. Para el examen: máximo descuento apunta a Standard, máxima flexibilidad apunta a Convertible."
-    },
-    {
-      "speaker": "carlos",
-      "text": "a ver — Standard para mayor descuento y se puede vender, Convertible para flexibilidad pero no se puede vender en el marketplace. ¿Y hay diferencia entre RI Regional y Zonal?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Sí, y eso lo preguntan. Regional RIs aplican a cualquier A.Z. de la región y tienen flexibilidad de tamaño dentro de la misma familia — si comprás una m5 regional, aplica a m5.large o m5.xlarge también. Zonal RIs aplican a una A.Z. específica y además reservan capacidad en esa A.Z. — garantizás que la instancia esté disponible aunque haya poca capacidad. Regional tiene más flexibilidad, Zonal tiene reserva de capacidad."
-    },
-    {
-      "speaker": "carlos",
-      "text": "capté — Regional para flexibilidad de A.Z. y tamaño, Zonal para garantizar capacidad específica. ¿Y Savings Plans en qué se diferencia de los RIs?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Savings Plans es más flexible. En vez de comprometerte con un tipo de instancia específico, te comprometés con un gasto mínimo por hora — por ejemplo un dólar por hora durante un año. AWS aplica el descuento automáticamente al uso que tengas. Hay tres tipos: Compute Savings Plans — el más flexible — aplica a E.C. 2, Fargate, y Lambda en cualquier región con hasta sesenta y seis por ciento de descuento. E.C. 2 Instance Savings Plans aplica a una familia en una región pero da hasta setenta y dos por ciento."
-    },
-    {
-      "speaker": "carlos",
-      "text": "esperá — Compute Savings Plans cubren Fargate y Lambda también, no solo E.C. 2. Yo una vez corrí scrapers en Fargate y siempre los usé On-Demand — pensé que los Savings Plans eran solo para E.C. 2."
-    },
-    {
-      "speaker": "ana",
-      "text": "No, Compute Savings Plans cubren cualquier uso de Fargate y Lambda también. El descuento aplica automáticamente cuando el gasto acumulado supera el compromiso por hora. Lo que sí hay que analizar es si el compromiso mínimo se justifica: si los scrapers corrían una vez al día por pocos minutos, el gasto total en Fargate por mes puede ser bajo, y el ahorro del Savings Plan puede no cubrir el mínimo comprometido. Hay que hacer los números."
-    },
-    {
-      "speaker": "carlos",
-      "text": "capté — Savings Plans cubre Fargate pero hay que analizar si el compromiso mínimo tiene sentido para workloads esporádicos. ¿Y existía algo más para bajar el costo de los Fargate tasks?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Sí, Fargate Spot. Funciona similar a E.C. 2 Spot: usás capacidad de sobra de AWS con hasta setenta por ciento de descuento, pero AWS puede interrumpir el task. La diferencia con E.C. 2 Spot es que el aviso de terminación en Fargate Spot es de solo treinta segundos — más corto que los dos minutos de E.C. 2. Para tareas idempotentes que podés reiniciar desde cero si se interrumpen, Fargate Spot es excelente."
-    },
-    {
-      "speaker": "carlos",
-      "text": "yo identifiqué Fargate Spot como una optimización para los scrapers pero nunca lo activé — ¿era una buena decisión haberlo puesto desde el principio?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Para scrapers que corren tareas idempotentes — si se interrumpen se puede reiniciar el scraping sin perder datos — Fargate Spot es ideal. Treinta segundos de aviso son suficientes para hacer un checkpoint o simplemente dejar que la próxima ejecución del cron repita el trabajo. Si el scraper tardaba menos de diez minutos, la probabilidad de interrupción era baja. La decisión de no activarlo fue conservadora pero no incorrecta — activarlo hubiera reducido el costo sin riesgo significativo."
-    },
-    {
-      "speaker": "carlos",
-      "text": "ah, bueno saber que era viable. ¿Y E.C. 2 Spot cómo funciona para workloads más grandes?"
-    },
-    {
-      "speaker": "ana",
-      "text": "E.C. 2 Spot usa capacidad de sobra de AWS con hasta noventa por ciento de descuento versus On-Demand. AWS puede reclamar la instancia con dos minutos de aviso cuando necesita la capacidad. Los mejores casos: batch processing, análisis de datos, CI/CD, big data con Spark en EMR — cualquier workload tolerante a interrupciones. Lo que no ponés en Spot: bases de datos, aplicaciones críticas sin checkpointing, o cualquier proceso que no pueda reiniciarse limpiamente."
-    },
-    {
-      "speaker": "carlos",
-      "text": "uy, noventa por ciento de ahorro es mucho. ¿Y hay estrategias para minimizar el riesgo de interrupciones en Spot?"
-    },
-    {
-      "speaker": "ana",
-      "text": "La estrategia principal es diversificar — usar múltiples tipos de instancia y múltiples A.Z.. Para eso existe Spot Fleet: una colección de instancias Spot — y opcionalmente On-Demand como fallback — que define una capacidad objetivo y AWS la mantiene eligiendo las mejores pools. Las estrategias son: Lowest Price para el costo mínimo, Diversified para distribuir entre pools, y Capacity Optimized para lanzar en pools con mayor capacidad disponible y reducir interrupciones."
-    },
-    {
-      "speaker": "carlos",
-      "text": "capté — Spot Fleet para diversificar, Capacity Optimized para reducir interrupciones. ¿Y Dedicated Hosts para qué se usan?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Dedicated Hosts son servidores físicos dedicados exclusivamente a tu cuenta. Son la opción más cara, pero hay dos casos específicos que el examen menciona. BYOL — Bring Your Own License — cuando tenés licencias de software vinculadas al servidor físico, como Oracle o Windows Server con licencias por socket o por core. Y compliance regulatorio que exige que el workload corra en hardware dedicado, no compartido con otros clientes de AWS."
-    },
-    {
-      "speaker": "carlos",
-      "text": "capté — Dedicated Hosts para BYOL y compliance de hardware. ¿Y Capacity Reservations?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Capacity Reservations te permiten reservar capacidad de E.C. 2 en una A.Z. específica sin comprometerte por un año. Pagás la tarifa On-Demand por la capacidad reservada, la uses o no. El uso es garantizar que la instancia esté disponible cuando la necesitás — por ejemplo, en un plan de disaster recovery donde necesitás poder lanzar instancias rápidamente. No da descuento, solo garantía de capacidad. Combinalo con RIs o Savings Plans para obtener tanto reserva de capacidad como descuento."
-    },
-    {
-      "speaker": "carlos",
-      "text": "a ver — Capacity Reservation garantiza capacidad sin descuento, RI da descuento sin garantía de capacidad salvo que sea Zonal. ¿Y cómo se cobra S3?"
-    },
-    {
-      "speaker": "ana",
-      "text": "S3 tiene varios componentes. Storage: por gigabyte-mes, con precios distintos según la storage class — Standard es la más cara, Glacier Deep Archive es la más barata. Requests: PUT, GET, LIST tienen sus propios precios — pequeños pero acumulan con millones de objetos. Y data transfer: salida hacia internet se cobra, entrada es gratis. Para optimizar S3 usás lifecycle policies para mover objetos a clases más baratas según su antigüedad."
-    },
-    {
-      "speaker": "carlos",
-      "text": "dale. ¿Y Lambda cómo se cobra?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Lambda tiene dos componentes. Requests: el primer millón por mes es gratis, después se cobra por cada millón. Y duration: se cobra por gigabyte-segundo — la memoria configurada multiplicada por el tiempo de ejecución. Los primeros cuatrocientas mil gigabytes-segundo por mes son gratis. Para optimizar Lambda, la variable más importante es la memoria: más memoria reduce el tiempo de ejecución pero cuesta más por segundo. El punto óptimo requiere benchmarking."
-    },
-    {
-      "speaker": "carlos",
-      "text": "capté — duration es memoria por tiempo, el punto óptimo depende del balance. ¿Y RDS cómo se cobra?"
-    },
-    {
-      "speaker": "ana",
-      "text": "RDS cobra por instancia-hora según el tipo de instancia, por storage en gigabytes-mes, y por I/O requests si usás magnetic storage. Los backups tienen una cuota gratuita igual al tamaño de la DB, el exceso se cobra. Para optimizar RDS: usá Reserved Instances para instancias de producción de larga vida — descuentos similares a E.C. 2. Y evaluá Aurora Serverless para workloads variables — escala a cero cuando no hay conexiones activas."
-    },
-    {
-      "speaker": "carlos",
-      "text": "a ver — Aurora Serverless escala a cero cuando no hay conexiones. ¿Eso es un ahorro significativo?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Puede ser enorme para workloads intermitentes. Un sistema de reportes que se usa de lunes a viernes en horario de oficina, con Aurora Serverless, pagaría solo las horas de uso real — no las doce horas nocturnas ni el fin de semana. Con RDS On-Demand pagarías las veinticuatro horas de todos los días. La desventaja es que el cold start — cuando escala desde cero — puede tomar varios segundos. No es bueno para aplicaciones que necesitan baja latencia constante."
-    },
-    {
-      "speaker": "carlos",
-      "text": "uy, cold start en Aurora Serverless. ¿Qué es Cost Explorer?"
-    },
-    {
-      "speaker": "ana",
-      "text": "AWS Cost Explorer es la herramienta de visualización y análisis de costos. Gratis de usar via consola — solo se cobra si accedés via API a cero punto cero uno de dólar por request. Te muestra hasta doce meses de historial, podés filtrar por servicio, región, tipo de instancia, o tags. Hace forecasting: proyecta los próximos tres a doce meses basado en el uso histórico. Y tiene recomendaciones integradas de right-sizing y Reserved Instances."
-    },
-    {
-      "speaker": "carlos",
-      "text": "uy, forecasting integrado. ¿Cómo funciona ese forecasting?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Analiza tu historial de uso y proyecta con un intervalo de confianza del ochenta por ciento. Si venís con tendencia creciente, la proyección muestra esa tendencia. Si el uso es estacional — picos en diciembre, valles en enero — lo captura también. Podés proyectar el próximo mes o los próximos doce meses. El caso de uso del examen: empresa quiere estimar los costos para el año siguiente — Cost Explorer con forecasting."
-    },
-    {
-      "speaker": "carlos",
-      "text": "capté — forecasting con historial y estacionalidad. ¿Y las recomendaciones de right-sizing qué analizan?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Analizan métricas de CloudWatch — CPU, memoria, red — de tus instancias E.C. 2. Si una instancia está consistentemente por debajo del veinte por ciento de CPU, Cost Explorer sugiere hacer downsize a un tipo menor y estima el ahorro proyectado. También tiene recomendaciones de Reserved Instances: basado en tu uso histórico On-Demand, te dice qué RIs comprar y cuánto ahorrarías en uno o tres años."
-    },
-    {
-      "speaker": "carlos",
-      "text": "muy útil. ¿Y Cost Allocation Tags cómo se usan con Cost Explorer?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Los Cost Allocation Tags son tags que activás en la consola de Billing — no todos los tags aparecen automáticamente en Cost Explorer, tenés que activarlos explícitamente. Una vez activados, filtrás y agrupás costos por esos tags. Por ejemplo: tageás todos los recursos con Project=WebApp y ves exactamente cuánto gasta ese proyecto. Ojo: hay delay de hasta veinticuatro horas para que los tags nuevos aparezcan en los reportes."
-    },
-    {
-      "speaker": "carlos",
-      "text": "a ver — tags activados en Billing, veinticuatro horas de delay. ¿Y AWS Budgets qué hace?"
-    },
-    {
-      "speaker": "ana",
-      "text": "AWS Budgets permite setear umbrales de costo o uso y recibir alertas cuando los superás o cuando la proyección indica que los vas a superar. Tiene cuatro tipos: Cost Budget — alertás cuando el gasto real supera un monto. Usage Budget — cuando el uso en unidades supera un límite. Savings Plans Budget — monitoreás la utilización de tus Savings Plans. Y Reservation Budget — la utilización de tus Reserved Instances."
-    },
-    {
-      "speaker": "carlos",
-      "text": "esperá — podés alertar tanto en costo real como en proyección futura. ¿Cuál es la diferencia entre alerta Actual y Forecasted?"
-    },
-    {
-      "speaker": "ana",
-      "text": "La alerta Actual se dispara cuando el costo real ya superó el umbral — es reactiva, ya te pasaste. La alerta Forecasted se dispara cuando AWS proyecta que vas a superar el umbral antes de que termine el período — es proactiva. Por ejemplo, si tu presupuesto es mil dólares y a mitad de mes ya gastaste ochocientos, la alerta Forecasted te avisa con tiempo para tomar acción: apagar instancias, pausar procesos. Para el examen, esta distinción la preguntan."
-    },
-    {
-      "speaker": "carlos",
-      "text": "ah, tiene sentido — Forecasted para actuar antes de pasarse, Actual para saber que ya te pasaste. ¿Y Budget Actions qué son?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Budget Actions son respuestas automatizadas cuando se dispara un alert. Podés configurar que cuando el gasto supere el noventa por ciento del presupuesto, AWS aplique una IAM policy que restringe crear más recursos. O que detenga instancias E.C. 2 o RDS automáticamente. También podés disparar un SNS topic que activa una Lambda para hacer cualquier acción custom. Para el examen: Budget Actions es el mecanismo de respuesta automática en AWS Budgets."
-    },
-    {
-      "speaker": "carlos",
-      "text": "uy, detener instancias automáticamente cuando se supera el presupuesto. ¿Y cuánto cuestan los Budgets?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Los primeros dos budgets son gratis. Después se cobra dos centavos de dólar por día por budget. Para la mayoría de equipos pequeños, dos budgets cubren lo básico: uno general mensual y uno por proyecto o ambiente. La práctica recomendada es usar múltiples umbrales por budget — alerta al cincuenta por ciento, al ochenta, y al cien — para tener tiempo de reaccionar antes de pasarte."
-    },
-    {
-      "speaker": "carlos",
-      "text": "capté — primeros dos gratis, dos centavos por día después. ¿Y CUR qué hace diferente a Cost Explorer?"
-    },
-    {
-      "speaker": "ana",
-      "text": "CUR — Cost and Usage Reports — es el reporte más detallado y granular de AWS: el dato crudo. Se entrega en un bucket de S3, en formato CSV o Parquet, con line-items por cada recurso con granularidad horaria si lo configurás así. Podés consultarlo con Athena y hacer queries SQL arbitrarias. A diferencia de Cost Explorer que tiene filtros predefinidos, CUR te da acceso a todos los datos sin límites. También podés visualizarlo con QuickSight."
-    },
-    {
-      "speaker": "carlos",
-      "text": "a ver — CUR es el raw data en S3 para análisis granular, Cost Explorer es la UI interactiva. ¿Para qué caso concreto conviene CUR sobre Cost Explorer?"
-    },
-    {
-      "speaker": "ana",
-      "text": "CUR conviene cuando necesitás análisis muy específico que la UI no soporta — costo por resource ID específico, análisis de data transfer entre A.Z., o reportes de chargeback por equipo con lógica custom. También para integrar datos de costo en herramientas de BI propias. Para el examen el caso de uso típico de CUR es: 'queremos análisis de costos detallado con SQL' — la respuesta es CUR más Athena."
-    },
-    {
-      "speaker": "carlos",
-      "text": "dale. ¿Y Organizations y Consolidated Billing cómo ayudan con costos?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Consolidated Billing en AWS Organizations agrupa la factura de todas las cuentas en una sola. El beneficio clave no es solo administrativo — también hay volume discounts. Muchos servicios de AWS tienen precios en tiers donde el costo unitario baja al usar más. Con Consolidated Billing, el uso de todas las cuentas se suma, llegás antes a los tiers de mayor volumen, y todos los miembros se benefician del descuento agregado."
-    },
-    {
-      "speaker": "carlos",
-      "text": "uy, el uso agregado de todas las cuentas baja el precio por tier. ¿Y los Reserved Instances se comparten entre cuentas también?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Sí. Si una cuenta compra Reserved Instances y no las usa por completo, el beneficio de precio automáticamente aplica a otras cuentas miembros que tengan uso compatible. Lo mismo con Savings Plans. Podés deshabilitar el compartido por cuenta si querés que cada una gestione sus propios RIs de forma aislada. Para el examen: Consolidated Billing da single billing, volume discounts, y RI y Savings Plans sharing entre cuentas."
-    },
-    {
-      "speaker": "carlos",
-      "text": "capté. ¿Y la práctica de tener cuentas separadas por ambiente — producción, desarrollo, staging — ayuda con costo?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Sí, y es una best practice en Organizations. Cuentas separadas por ambiente o equipo te permiten ver exactamente cuánto gasta cada uno con Cost Explorer filtrado por linked account, setear budgets por cuenta, y limitar el blast radius de un gasto inesperado. Si desarrollo explota el costo de un experimento, no afecta el presupuesto de producción. Dentro de Organizations todos siguen bajo el mismo billing y se benefician del volume discount."
-    },
-    {
-      "speaker": "carlos",
-      "text": "dale, hablemos de estrategias concretas. ¿Por dónde arranca alguien que quiere bajar su factura de AWS?"
-    },
-    {
-      "speaker": "ana",
-      "text": "La primera estrategia y la más impactante suele ser right-sizing. Es ajustar el tamaño de instancias al workload real. La mayoría de los equipos sobre-aprovisionan por precaución — compran m5.xlarge cuando el workload necesita m5.large. Con CloudWatch ves que el CPU promedio es del quince por ciento — eso indica sobre-provisionamiento. Cost Explorer y Compute Optimizer te dan recomendaciones específicas de qué instancias bajar y cuánto ahorrarías."
-    },
-    {
-      "speaker": "carlos",
-      "text": "a ver — right-sizing primero porque la mayoría está sobre-aprovisionada. ¿Y cuánto ahorro puede generar?"
-    },
-    {
-      "speaker": "ana",
-      "text": "No es raro ver reducciones del veinte al cincuenta por ciento en costos de E.C. 2 solo con right-sizing. Similar para RDS y ElastiCache. El proceso: revisás métricas de CloudWatch, identificás instancias con uso consistentemente bajo, probás la instancia más chica en staging, y si el performance es aceptable pasás a producción. Es continuo — los workloads cambian y el tamaño correcto de hace seis meses puede no serlo hoy."
-    },
-    {
-      "speaker": "carlos",
-      "text": "capté — right-sizing es continuo, no un evento único. ¿Y cómo decido qué modelo de compra usar para cada workload?"
-    },
-    {
-      "speaker": "ana",
-      "text": "La regla de oro del examen: On-Demand para workloads impredecibles o de corto plazo. Reserved Instances o Savings Plans para workloads estables que corren todo el tiempo — bases de datos, servidores siempre encendidos. Spot para workloads tolerantes a interrupciones — batch processing, CI/CD, EMR. Una arquitectura bien optimizada mezcla los tres: base estable con RIs, burst con On-Demand, y trabajo batch con Spot."
-    },
-    {
-      "speaker": "carlos",
-      "text": "uy, mezclar los tres modelos. ¿Y Auto Scaling cómo ayuda a reducir costos?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Auto Scaling es clave para no pagar por capacidad ociosa. Si tu tráfico baja de noche o los fines de semana, Auto Scaling reduce la cantidad de instancias automáticamente y reduce el costo. Scheduled scaling te permite decir 'a las once de la noche bajá a dos instancias y a las ocho de la mañana subí a diez'. Target tracking mantiene una métrica objetivo — CPU al sesenta por ciento. Pagás solo por lo que necesitás en cada momento."
-    },
-    {
-      "speaker": "carlos",
-      "text": "capté — Auto Scaling para no pagar capacidad ociosa de noche o fines de semana. ¿Y estrategias de storage?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Para S3, la estrategia principal son las lifecycle policies — reglas que mueven objetos automáticamente a clases más baratas según su edad. Por ejemplo: después de treinta días a Standard-IA, después de noventa a Glacier, después de ciento ochenta a Glacier Deep Archive. El costo de Standard puede ser veinte a cuarenta veces más caro que Deep Archive. También conviene borrar objetos incompletos de multipart upload — acumulan costo silenciosamente."
-    },
-    {
-      "speaker": "carlos",
-      "text": "a ver — lifecycle policies para bajar de Standard a Glacier según la antigüedad. ¿Y para EBS?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Para EBS: eliminá volúmenes que no están attached a ninguna instancia — se siguen cobrando aunque no estén en uso. Borrá snapshots viejos innecesarios. Y si usás gp2, considerá migrar a gp3 — es más barato que gp2 y tiene mejor performance de base, así que es ganancia en costo y performance simultáneamente. Para RDS eliminá snapshots manuales viejos y apagá instancias de test o desarrollo en horario no laboral."
-    },
-    {
-      "speaker": "carlos",
-      "text": "uy, volúmenes EBS sin instancia se siguen cobrando — eso es importante saberlo. ¿Y Compute Optimizer qué es?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Compute Optimizer usa machine learning para recomendar el tipo óptimo de recursos basado en tus métricas de CloudWatch. Cubre E.C. 2, Auto Scaling groups, volúmenes EBS, funciones Lambda — específicamente la configuración de memoria de Lambda — y ECS en Fargate. La diferencia con Cost Explorer Right-Sizing: Cost Explorer solo recomienda para E.C. 2. Compute Optimizer es más amplio y toca Lambda y EBS también. Para el examen: recomendaciones de memory para Lambda apuntan a Compute Optimizer."
-    },
-    {
-      "speaker": "carlos",
-      "text": "capté — Compute Optimizer para Lambda y EBS también, Cost Explorer solo para E.C. 2. ¿Y Trusted Advisor?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Trusted Advisor hace checks automatizados de best practices — incluyendo cost optimization. Identifica instancias E.C. 2 con bajo uso, RDS ociosas, Elastic IPs sin asociar, y EBS con poco uso. Las checks más completas requieren Business o Enterprise Support. Para el examen: Trusted Advisor es el servicio que identifica recursos ociosos y hace recomendaciones de cost optimization. Si el escenario pide detectar 'underutilized resources', Trusted Advisor es una de las respuestas correctas."
-    },
-    {
-      "speaker": "carlos",
-      "text": "ok, creo que cubrimos todo el módulo. ¿Me hacés el resumen de exam tips?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Empecemos por E.C. 2 pricing. Las palabras clave del examen: workload estable y predecible de larga duración apunta a Reserved Instances o Savings Plans. Ahorro máximo posible tolerante a interrupciones apunta a Spot. BYOL o compliance de hardware dedicado apunta a Dedicated Hosts. Corto plazo e impredecible apunta a On-Demand. Necesito capacidad garantizada en una A.Z. específica apunta a Capacity Reservation o Zonal RI."
-    },
-    {
-      "speaker": "carlos",
-      "text": "ok — palabras clave al modelo de compra. ¿Y la diferencia entre RI y Savings Plans que el examen toma?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Ojo con esto. Compute Savings Plans es el más flexible: cubre E.C. 2, Fargate, y Lambda en cualquier región con hasta sesenta y seis por ciento. E.C. 2 Instance Savings Plans cubre una familia de instancias en una región con hasta setenta y dos por ciento — menos flexible, más descuento. Standard RI tiene el mayor descuento pero no podés cambiar la familia. Convertible RI tiene menor descuento pero podés convertirlo. Si el examen dice 'necesitás flexibilidad para cambiar de instancia en el futuro', es Savings Plans o Convertible RI."
-    },
-    {
-      "speaker": "carlos",
-      "text": "capté. ¿Y los gotchas de Cost Explorer y Budgets?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Para Cost Explorer: gratis en la consola, pero las llamadas API cuestan cero punto cero uno de dólar cada una. Para AWS Budgets: primeros dos budgets gratis, el resto cuesta dos centavos por día. Podés alertar en Actual — ya lo superaste — o Forecasted — lo vas a superar. Budget Actions pueden detener instancias o aplicar IAM policies automáticamente como respuesta. Si el examen pregunta cómo automatizar respuestas a overbudget, la respuesta es Budget Actions."
-    },
-    {
-      "speaker": "carlos",
-      "text": "ok — API de Cost Explorer se cobra, Budgets primeros dos gratis, Budget Actions para automatizar respuestas. ¿Y los scenarios de tags?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Los scenarios de tags siempre involucran visibilidad de costos por proyecto, equipo, o ambiente. Si el examen dice 'queremos saber cuánto gasta el equipo de frontend versus el de backend', la respuesta es cost allocation tags — tageás los recursos, los activás en Billing, y filtrás en Cost Explorer. Dos gotchas: hay delay de veinticuatro horas para que aparezcan en reportes. Y los tags deben ser activados en la consola de Billing explícitamente — no alcanza con crearlos en los recursos."
-    },
-    {
-      "speaker": "carlos",
-      "text": "capté — tags activados en Billing, veinticuatro horas de delay. ¿Y los scenarios de Consolidated Billing?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Consolidated Billing aparece en escenarios de multi-account: empresa con múltiples equipos en cuentas separadas quiere una sola factura y aprovechar volume discounts. La respuesta es Organizations con Consolidated Billing. También: 'un equipo compró RIs pero no los usa al cien por cien, ¿pueden beneficiar a otro equipo?' — sí, con RI sharing en Organizations. Y para análisis granular de costos de cada cuenta, CUR más Athena para queries SQL."
-    },
-    {
-      "speaker": "carlos",
-      "text": "perfecto. Bueno Ana, hacé que te haga el recap del módulo. Pricing de AWS: pay-as-you-go, datos inbound gratis, outbound se cobra. E.C. 2 tiene seis modelos: On-Demand para impredecible, Reserved Instances y Savings Plans para workloads estables con hasta setenta y dos por ciento de descuento, Spot para tolerante a interrupciones con hasta noventa por ciento, Dedicated Hosts para BYOL y compliance, y Capacity Reservations para garantizar capacidad."
-    },
-    {
-      "speaker": "ana",
-      "text": "Muy bien. Agregá los matices: Standard RI máximo descuento y se puede vender en marketplace, Convertible RI tiene flexibilidad para cambiar familia pero no se vende. Compute Savings Plans cubre E.C. 2, Fargate, y Lambda en cualquier región. Fargate Spot da hasta setenta por ciento de descuento con treinta segundos de aviso — ideal para tasks idempotentes. Y las dos alertas de Budgets: Actual para saber que ya te pasaste, Forecasted para actuar antes."
-    },
-    {
-      "speaker": "carlos",
-      "text": "y las herramientas: Cost Explorer para visualización con forecasting y right-sizing integrados, AWS Budgets para alertas y Budget Actions automáticas, CUR en S3 para análisis granular con Athena y SQL, y Cost Allocation Tags para trackear costos por equipo o proyecto — con veinticuatro horas de delay para aparecer en reportes."
-    },
-    {
-      "speaker": "ana",
-      "text": "Exacto. Y las estrategias de optimización: right-sizing primero — downsize instancias con bajo uso. Mix de modelos: RIs o Savings Plans para base estable, Spot para batch, On-Demand para burst. Auto Scaling para no pagar capacidad ociosa. S3 lifecycle policies para mover data a Glacier. Borrar recursos huérfanos — EBS sin instancia, snapshots viejos, Elastic IPs libres. Serverless para workloads variables. Y gp3 en vez de gp2 para EBS."
-    },
-    {
-      "speaker": "carlos",
-      "text": "y Consolidated Billing en Organizations para single billing, volume discounts, y sharing de RIs y Savings Plans entre cuentas. Trusted Advisor para detectar recursos ociosos, Compute Optimizer para recomendaciones con machine learning — cubre Lambda y EBS además de E.C. 2. ¿Me faltó algo?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Un detalle final del Well-Architected Cost Optimization: el principio de stop spending on undifferentiated heavy lifting — usar servicios managed de AWS en vez de administrar infraestructura propia. Cada hora que un equipo gasta instalando patches en E.C. 2 o administrando un cluster de bases de datos podría invertirse en valor de negocio. Usar RDS en vez de MySQL en E.C. 2, Lambda en vez de servidores, Fargate en vez de E.C. 2 para containers — eso es Cost Optimization del pilar Well-Architected."
-    },
-    {
-      "speaker": "carlos",
-      "text": "ah, managed services también como estrategia de costo — no solo de operaciones. Tengo todo claro."
-    },
-    {
-      "speaker": "ana",
-      "text": "Exacto. Hoy cubriste el módulo de Cost Optimization: los seis modelos de compra de E.C. 2 y cuándo usar cada uno, las herramientas de visibilidad — Cost Explorer, Budgets, CUR, y Tags — y las estrategias concretas de ahorro. Cost Optimization es el pilar del Well-Architected con más impacto práctico, y el examen lo toma en serio — esperá scenarios donde tenés que elegir el modelo de compra correcto y las herramientas de visibilidad adecuadas. Hasta la próxima."
-    }
+    {"speaker": "ana", "text": "Carlos, arranco con una historia de terror moderna. Una startup deja corriendo un cluster de instancias enormes en una cuenta de desarrollo, un viernes. El lunes abren el mail y la factura de AWS dice cinco mil dólares en vez de quinientos. Nadie rompió nada, nadie los hackeó. Simplemente nadie estaba mirando los costos. De eso va el episodio de hoy: cost optimization."},
+    {"speaker": "carlos", "text": "Uy, eso duele hasta de escucharlo. Y lo peor es que debe ser súper común, ¿no? Porque en la nube nada te frena de gastar: la elasticidad funciona para los dos lados. ¿Esto en el examen pesa mucho?"},
+    {"speaker": "ana", "text": "Pesa muchísimo. Es el Domain four completo, Design Cost-Optimized Architectures, un veinte por ciento del examen. Una de cada cinco preguntas, más o menos. Y te adelanto algo: es de los dominios más rendidores, porque casi todo se resuelve entendiendo la lógica de los pricing models y un puñado de herramientas."},
+    {"speaker": "carlos", "text": "Dale, ¿y qué cubrimos hoy exactamente?"},
+    {"speaker": "ana", "text": "Cuatro bloques. Primero, cómo cobra AWS: pay-as-you-go, el Free Tier, data transfer. Segundo, las opciones de compra de EC2: On-Demand, Reserved Instances, Savings Plans, Spot y Dedicated Hosts. Tercero, las herramientas: Cost Explorer, Budgets, el Cost and Usage Report, los cost allocation tags y consolidated billing. Y cerramos con estrategias concretas de optimización y los tips de examen."},
+    {"speaker": "carlos", "text": "Perfecto. Te hago una confesión de entrada: Cost Explorer, Budgets, Reserved Instances... yo esto no lo toqué, así que te pregunto desde cero."},
+    {"speaker": "ana", "text": "Me parece perfecto, porque este módulo es mucho más conceptual que técnico. Arranquemos por la base: pay-as-you-go. AWS cobra como la compañía de luz: pagás por lo que consumís, cuando lo consumís. Sin costos upfront, sin compromisos mínimos, sin penalidades por irte. Si apagás todo hoy, mañana la factura es cero."},
+    {"speaker": "carlos", "text": "O sea, sin contrato de permanencia como el cable. ¿Y qué es exactamente lo que se paga? Porque consumir puede ser mil cosas."},
+    {"speaker": "ana", "text": "Tres grandes categorías. Uno, compute: pagás por tiempo de cómputo, por segundo o por hora, y cuando frenás la instancia dejás de pagar. Dos, storage: pagás por gigabyte almacenado por mes, y cada storage class tiene su precio. Y tres, data transfer, que es donde está la letra chica."},
+    {"speaker": "carlos", "text": "Esperá, ¿la transferencia de datos no era gratis? Yo tenía la idea de que mover datos dentro de AWS no costaba."},
+    {"speaker": "ana", "text": "Depende de la dirección, y esto cae en el examen. Todo lo que entra a AWS desde internet, el inbound, es gratis. Lo que sale a internet, el outbound, se cobra. Entre servicios dentro de la misma Region suele ser gratis. Pero entre Regions se cobra, y entre Availability Zones también, aunque es poquito."},
+    {"speaker": "carlos", "text": "Ah, tiene sentido como negocio: entrar es gratis y salir cuesta, como un estacionamiento. Entonces la arquitectura barata es la que mantiene el tráfico adentro de la misma Region."},
+    {"speaker": "ana", "text": "Exacto, y lo retomamos en un rato. Antes, el Free Tier, que tiene tres sabores. Always Free: cosas gratis para siempre dentro de un límite mensual, como cierta cantidad de requests de Lambda, storage de DynamoDB o custom metrics de CloudWatch. Twelve months free: gratis el primer año de la cuenta, como horas de t dos micro, S3 Standard y CloudFront. Y Trials: pruebas cortas, como los noventa días de Amazon Inspector."},
+    {"speaker": "carlos", "text": "¿Y el examen te pregunta los números exactos de los límites del Free Tier?"},
+    {"speaker": "ana", "text": "No, tranquilo. El examen maneja los costos en términos relativos: qué opción es más barata o más cara que otra cumpliendo el requisito. Lo que sí tenés que saber son las tres categorías del Free Tier y la lógica de cada pricing model. Nada de memorizar tablas de precios."},
+    {"speaker": "carlos", "text": "¿Y qué pasa cuando se vence el año del Free Tier? Me imagino un montón de cuentas con sorpresas cuando la t dos micro que estaba gratis empieza a cobrar."},
+    {"speaker": "ana", "text": "Pasa todo el tiempo, y es la versión chiquita del susto del principio: recursos que eran gratis y un día dejan de serlo, sin que nadie avise a gritos. Por eso una de las primeras cosas que se configuran en cualquier cuenta nueva es un budget con alertas, que es justo una de las herramientas de hoy. Lo dejamos picando y lo retomamos en un rato."},
+    {"speaker": "carlos", "text": "Capté. Una cosa más de fundamentos: vi que el módulo menciona el Total Cost of Ownership, T C O. ¿Qué era eso exactamente?"},
+    {"speaker": "ana", "text": "El costo total de ser dueño de tu infraestructura. Cuando comparás on-premises contra AWS no podés mirar solo el precio del servidor: on-premises pagás el hardware, las licencias, el data center con su espacio, energía y refrigeración, el staff de IT, el mantenimiento. En AWS pagás compute, storage y red, y casi todo ese costo de capital desaparece. Para modelar la comparación existe el AWS Pricing Calculator."},
+    {"speaker": "carlos", "text": "Claro, es como comparar auto propio contra taxi: el auto no es solo la cuota, es el seguro, la cochera, el service. Bueno, dale, vamos a lo que más me intriga: las formas de pagar EC2."},
+    {"speaker": "ana", "text": "Dale. EC2 tiene cinco formas principales de compra y el examen las ama. La primera: On-Demand. Pagás por segundo en Linux, con un mínimo de sesenta segundos, sin compromiso ni pago adelantado. Es la opción default: ideal para dev y test, workloads impredecibles o con picos, y aplicaciones nuevas donde todavía no sabés cómo se van a comportar."},
+    {"speaker": "carlos", "text": "A ver, si On-Demand es tan flexible, ¿por qué no usarlo para todo y listo?"},
+    {"speaker": "ana", "text": "Porque es la opción más cara por hora. Pensalo como hospedaje: On-Demand es el hotel, total flexibilidad, precio máximo. Si sabés que te quedás un año en la misma ciudad, te conviene alquilar con contrato. Eso son las Reserved Instances: te comprometés por uno o tres años y el descuento llega hasta el setenta y dos por ciento contra On-Demand."},
+    {"speaker": "carlos", "text": "¿Y cómo se paga ese compromiso? ¿Todo junto al principio?"},
+    {"speaker": "ana", "text": "Hay tres payment options, y la regla es: cuanto más pagás por adelantado, mayor descuento. All Upfront, todo de entrada, máximo descuento. Partial Upfront, una parte ahora y el resto mensual, descuento intermedio. Y No Upfront, nada adelantado, el descuento más chico, aunque sigue siendo mucho mejor que On-Demand. Lo mismo aplica al plazo: tres años ahorra más que uno."},
+    {"speaker": "carlos", "text": "Capté. ¿Y son todas iguales las Reserved Instances o hay variantes?"},
+    {"speaker": "ana", "text": "Dos tipos. Standard: el descuento más alto, hasta setenta y dos por ciento, podés cambiar el tamaño dentro de la misma familia de instancia, y si te sobran las podés vender en el R I Marketplace. Convertible: descuento menor, hasta cincuenta y cuatro por ciento, pero a cambio podés cambiar familia de instancia, sistema operativo y tenancy durante el plazo."},
+    {"speaker": "carlos", "text": "O sea, Standard si estás seguro de lo que necesitás, Convertible si querés margen para cambiar de idea. ¿Y eso del scope Regional o Zonal que aparece en el módulo?"},
+    {"speaker": "ana", "text": "Muy buena pregunta. Una Reserved Instance Regional aplica a cualquier Availability Zone de la Region y te da flexibilidad de tamaño, pero ojo: no te reserva capacidad. Una Zonal aplica a una Availability Zone específica, pierde la flexibilidad de tamaño, pero a cambio sí te reserva capacidad en esa zona."},
+    {"speaker": "carlos", "text": "Esperá, ¿reservar capacidad significa que cuando la necesite va a haber lugar sí o sí? ¿Eso no estaba garantizado siempre?"},
+    {"speaker": "ana", "text": "No siempre. En momentos de demanda extrema una Availability Zone puede quedarse sin capacidad de cierto tipo de instancia. Si tu workload es crítico y necesitás la garantía de poder lanzar, la Reserved Instance Zonal o una Capacity Reservation te dan esa garantía. Es un matiz que el examen usa para diferenciar opciones."},
+    {"speaker": "carlos", "text": "Dale. ¿Y los Savings Plans? Porque de afuera suenan a lo mismo: comprometerse a cambio de descuento."},
+    {"speaker": "ana", "text": "Son la versión moderna y flexible. En vez de comprometerte a una instancia concreta, te comprometés a un gasto: tantos dólares por hora de compute, durante uno o tres años. Todo lo que uses hasta ese commitment se factura con descuento, y lo que se pase se cobra a precio On-Demand. El descuento también llega hasta el setenta y dos por ciento."},
+    {"speaker": "carlos", "text": "A ver, pará, dame un ejemplo con números, porque eso del commitment por hora no me termina de cerrar."},
+    {"speaker": "ana", "text": "Supongamos que te comprometés a tres dólares por hora. En una hora donde usás cinco dólares de compute, los primeros tres se facturan con el descuento del plan y los dos restantes a precio On-Demand. Y en una hora donde usás solo un dólar, igual pagás los tres del commitment, porque eso se paga sí o sí."},
+    {"speaker": "carlos", "text": "Ah, o sea que el commitment se paga úselo o no. Entonces conviene comprometer el piso de tu consumo, nunca el pico."},
+    {"speaker": "ana", "text": "Exacto, esa es la regla de oro. Comprometés la base que sabés que vas a usar siempre, y los picos los dejás en On-Demand. Y no tenés que adivinar el número: Cost Explorer te lo recomienda mirando tu historial de uso, que lo vemos en un rato."},
+    {"speaker": "carlos", "text": "¿Y aplica solo a EC2?"},
+    {"speaker": "ana", "text": "Depende del tipo. El Compute Savings Plan es el más flexible: aplica a EC2 de cualquier familia, tamaño, sistema operativo y Region, y también a Fargate y a Lambda, con descuento de hasta sesenta y seis por ciento. El EC2 Instance Savings Plan da el descuento más grande, hasta setenta y dos, pero te ata a una familia de instancia en una Region específica. Y hay un tercero para SageMaker."},
+    {"speaker": "carlos", "text": "A ver si lo digo con mis palabras: la Reserved Instance es comprometerse con una instancia, el Savings Plan es comprometerse con una plata por hora. ¿Cuándo elijo cuál en el examen?"},
+    {"speaker": "ana", "text": "Excelente resumen. Si el escenario menciona mezcla de EC2 con Fargate o Lambda, workloads en varias Regions, o pide flexibilidad: Compute Savings Plans. Si es un workload estable y conocido en una sola Region y querés exprimir el máximo descuento: EC2 Instance Savings Plan o Standard Reserved Instance. Y la clave compartida: los dos son para uso estable y predecible, el famoso steady-state."},
+    {"speaker": "carlos", "text": "Dale, vamos a la que más misterio tiene: Spot Instances. ¿Es verdad eso de hasta noventa por ciento más barato?"},
+    {"speaker": "ana", "text": "Hasta noventa por ciento de descuento contra On-Demand, sí. El trato es este: AWS te alquila capacidad ociosa, los servidores que nadie está usando en ese momento. La trampa: si AWS necesita esa capacidad de vuelta, te la quita con solo dos minutos de aviso. Dos minutos. Por eso el precio."},
+    {"speaker": "carlos", "text": "Uy, esto me suena. Para un scraper que corrí en Fargate tenía anotado Fargate Spot como optimización pendiente, y nunca lo prendí. ¿Es el mismo concepto?"},
+    {"speaker": "ana", "text": "El mismo concepto exacto, aplicado a Fargate: capacidad sobrante con descuento grande, a cambio de tolerar interrupciones. Y un scraper es el candidato perfecto: si la task muere, la relanzás y seguís donde quedaste. Para el examen, Spot es para batch processing, pipelines de C I C D, big data con E M R, contenedores fault-tolerant y computación de alto rendimiento. Nunca para bases de datos ni nada que no tolere interrupción."},
+    {"speaker": "carlos", "text": "¿Y cómo manejo la interrupción en la práctica? ¿Me entero de algo antes de que muera?"},
+    {"speaker": "ana", "text": "Recibís el termination notice de dos minutos, y tu aplicación debería escucharlo para hacer checkpoint del progreso y cerrar prolijo. Las best practices: diversificar entre tipos de instancia y Availability Zones, guardar el progreso seguido, y combinar Spot con On-Demand como fallback. Para eso existe Spot Fleet: pedís una capacidad objetivo y la llena desde múltiples pools, con estrategias de allocation como lowest-price o capacity-optimized."},
+    {"speaker": "carlos", "text": "¿Y esas estrategias de allocation qué cambian? ¿No es siempre ir por lo más barato y listo?"},
+    {"speaker": "ana", "text": "No siempre conviene. Lowest-price elige los pools más baratos, pero suelen ser los más demandados y te interrumpen más seguido. Capacity-optimized elige los pools con más capacidad sobrante, así que minimiza las interrupciones. Diversified reparte entre varios pools. Y price-capacity-optimized balancea precio y capacidad, que es la recomendada hoy. Si el examen pide minimizar interrupciones de Spot, la respuesta apunta a capacity-optimized."},
+    {"speaker": "carlos", "text": "Capté. ¿Y los requests de Spot eran de un solo tipo?"},
+    {"speaker": "ana", "text": "Dos tipos: one-time, que lanza la instancia una vez y listo, y persistent, que si te interrumpen vuelve a pedir la instancia automáticamente cuando hay capacidad de nuevo."},
+    {"speaker": "carlos", "text": "¿Y una aplicación web puede correr en Spot? Porque por lo que decís suena a que solo sirve para batch y procesos que se pueden cortar tranquilos."},
+    {"speaker": "ana", "text": "Puede, con diseño. El patrón es una web fleet detrás de un load balancer con Auto Scaling: una base de instancias On-Demand o reservadas que garantiza el servicio mínimo, y arriba instancias Spot que abaratan la capacidad extra. Si AWS te quita una Spot, el load balancer deja de mandarle tráfico y el Auto Scaling la repone con otra, de otro pool si hace falta."},
+    {"speaker": "carlos", "text": "Ah, capté: el truco es que ninguna instancia individual sea imprescindible. Si cualquiera puede morir en dos minutos, ninguna puede guardar estado importante adentro."},
+    {"speaker": "ana", "text": "Exacto, stateless es la palabra. La sesión va afuera, a una base o a un cache, y las instancias pasan a ser reemplazables. Con ese diseño, Spot deja de ser solo para batch."},
+    {"speaker": "carlos", "text": "Dale. ¿Y Dedicated Hosts? Eso ya suena caro de entrada."},
+    {"speaker": "ana", "text": "Es la opción más cara de todas. Te dan un servidor físico entero de EC2 dedicado para vos, con control sobre cómo se ubican las instancias adentro. Se paga por host, no por instancia, y puede ser On-Demand o Reserved. ¿Para qué sirve? Dos razones: Bring Your Own License, o sea B Y O L, licencias que se cobran por socket o por core como Oracle o SQL Server, y requisitos de compliance que exigen hardware no compartido."},
+    {"speaker": "carlos", "text": "¿Y Dedicated Instances es lo mismo dicho de otra forma?"},
+    {"speaker": "ana", "text": "Parecido pero no igual, y el examen explota esa diferencia. Dedicated Instances te garantiza hardware dedicado, no compartís el fierro con otros clientes, pero no ves el host físico ni controlás dónde cae cada instancia. Dedicated Hosts te da visibilidad del servidor físico y control del placement, que es justo lo que las licencias por socket necesitan. Regla rápida: si la pregunta dice B Y O L o licencias por core, es Dedicated Hosts."},
+    {"speaker": "carlos", "text": "Capté. ¿Y qué eran las Capacity Reservations? Porque las nombraste antes y suenan a Reserved Instance, pero ya dijiste que no es lo mismo."},
+    {"speaker": "ana", "text": "Reservan capacidad en una Availability Zone específica, sin ningún compromiso de plazo: la creás hoy, la cancelás mañana. El detalle: pagás precio On-Demand por esa capacidad, la uses o no. No tiene descuento por sí sola, pero la podés combinar con Reserved Instances o Savings Plans para tener descuento más garantía de capacidad. Caso típico: eventos críticos de corto plazo o disaster recovery."},
+    {"speaker": "carlos", "text": "Bien, hasta acá EC2. ¿Pero los demás servicios cómo cobran? Porque el examen no es solo EC2, me imagino."},
+    {"speaker": "ana", "text": "Veamos los que más caen. S3 primero: pagás por cuatro cosas. Storage por gigabyte al mes según la storage class, requests como PUT y GET, data transfer hacia afuera, y features de management como replication o inventory. La palanca de ahorro más grande son las storage classes: de Standard hacia abajo, las clases de archivo como Glacier son muchísimo más baratas por gigabyte almacenado."},
+    {"speaker": "carlos", "text": "¿Me repasás la escalera de storage classes? Que siempre las mezclo cuando aparecen todas juntas entre las opciones."},
+    {"speaker": "ana", "text": "De más cara a más barata por almacenamiento. S3 Standard: acceso frecuente, sin fees de retrieval. Intelligent-Tiering: precio parecido, pero se acomoda solo según el acceso real. Standard-IA: más barato guardar, pero pagás por recuperar; es para acceso infrecuente. One Zone-IA: todavía más barato porque vive en una sola Availability Zone, así que es solo para datos que podés regenerar."},
+    {"speaker": "carlos", "text": "¿Y de ahí para abajo ya es archivo?"},
+    {"speaker": "ana", "text": "Sí, la familia Glacier. Glacier Instant Retrieval: archivo con acceso inmediato cuando lo necesitás. Glacier Flexible Retrieval: recuperación en minutos u horas. Y Glacier Deep Archive: lo más barato de todo S3, pensado para retención de años, con recuperación de horas. La regla mental: cuanto más barato es guardar, más caro o más lento es recuperar."},
+    {"speaker": "carlos", "text": "Esto me toca. Yo tengo un bucket que uso de data lake raw para un scraper, y en su momento anoté lifecycle policies como optimización, pero nunca las implementé. ¿Cómo funcionan exactamente?"},
+    {"speaker": "ana", "text": "Son reglas automáticas sobre el bucket: a los treinta días movés los objetos a una clase más barata como Standard-IA, a los noventa a Glacier, y al año los borrás, por ejemplo. Transición y expiración, todo automático. Para un data lake raw es ahorro casi gratis. Eso sí, ojo: las clases de archivo cobran retrieval fees y tienen duraciones mínimas de almacenamiento, así que son para datos que casi nunca leés."},
+    {"speaker": "carlos", "text": "¿Y si no sé qué patrón de acceso tienen mis datos? Porque a veces no tenés idea de qué se va a leer y qué no."},
+    {"speaker": "ana", "text": "Para eso existe Intelligent-Tiering: mueve los objetos automáticamente entre tiers según el acceso real, sin que tengas que adivinar nada. Patrón de acceso desconocido o cambiante, en el examen, es igual a Intelligent-Tiering. Y un truco extra que poca gente conoce: borrá los multipart uploads incompletos, que ocupan espacio facturable invisible. Una lifecycle rule lo hace sola."},
+    {"speaker": "carlos", "text": "Eso de los multipart incompletos no lo sabía. ¿Y RDS cómo cobra?"},
+    {"speaker": "ana", "text": "RDS cobra horas de instancia, storage por gigabyte al mes, backups más allá del espacio gratis, y data transfer saliente. Las optimizaciones: right-sizing de la instancia, Reserved DB Instances para bases de producción estables, que es el mismo concepto de las R I pero para bases, borrar snapshots innecesarios, y Aurora Serverless cuando la carga es variable. Y ojo: Multi-AZ duplica el costo de instancia, habilitalo solo donde la disponibilidad lo justifique."},
+    {"speaker": "carlos", "text": "¿Y Lambda? Tengo entendido que el free tier ahí es generoso."},
+    {"speaker": "ana", "text": "Sí, bastante. Lambda cobra dos cosas: cantidad de requests y duración medida en gigabyte-segundos, o sea memoria asignada multiplicada por tiempo de ejecución. Y acá viene una paradoja linda de examen: a veces darle más memoria a la función sale más barato."},
+    {"speaker": "carlos", "text": "Esperá, ¿cómo va a ser más barato pagar más memoria?"},
+    {"speaker": "ana", "text": "Porque con más memoria Lambda también te da más CPU, y la función termina antes. Si duplicás la memoria pero el tiempo de ejecución cae a menos de la mitad, los gigabyte-segundos totales bajan y pagás menos. Por eso el right-sizing de memoria aplica a Lambda también. Y un detalle: provisioned concurrency se factura aunque esté idle, así que usala solo si de verdad necesitás latencia constante."},
+    {"speaker": "carlos", "text": "Ah, tiene sentido, es el área del rectángulo: memoria por tiempo. Bueno, retomemos lo que dejaste picando al principio: data transfer."},
+    {"speaker": "ana", "text": "Dale, repaso y profundizo. Gratis: todo lo inbound desde internet, el tráfico entre servicios en la misma Region en general, y el tráfico de CloudFront hacia tu origin. Se cobra: el outbound a internet, que además es tiered, el precio por gigabyte baja a medida que el volumen sube; el tráfico entre Regions; y el cruce entre Availability Zones, aunque es chico."},
+    {"speaker": "carlos", "text": "¿Y cómo se optimiza eso en una arquitectura real?"},
+    {"speaker": "ana", "text": "Cuatro palancas. CloudFront al frente, porque servir desde el edge sale menos que el egress directo desde tus servers. Mantener el tráfico dentro de la misma Region. Comprimir los datos antes de moverlos. Y la cuarta, que es pregunta de examen: V P C endpoints para hablar con servicios de AWS sin pasar por un NAT Gateway, porque el NAT Gateway cobra por hora y además por cada gigabyte que procesa."},
+    {"speaker": "carlos", "text": "Ah, esto me toca de cerca. Para un scraper que corrí en Fargate yo usé subnet pública con assignPublicIp habilitado en vez de NAT Gateway, justamente para esquivar ese costo. ¿Estuvo bien o fue mala práctica?"},
+    {"speaker": "ana", "text": "Para ese caso, trade-off válido: workload efímero, sin datos sensibles, y te ahorraste el costo fijo por hora más el procesamiento por gigabyte. Ahora, para workloads sensibles o de larga vida la respuesta de examen es otra: subnets privadas, y la salida controlada con NAT Gateway o V P C endpoints. Si la pregunta dice most secure, va por ahí, no por tu atajo."},
+    {"speaker": "carlos", "text": "Me quedo tranquilo entonces. ¿Y el V P C endpoint cómo evita el costo del NAT exactamente?"},
+    {"speaker": "ana", "text": "Porque el tráfico hacia el servicio va directo por la red interna de AWS sin tocar el NAT. Los Gateway endpoints, que existen para S3 y DynamoDB, son además gratis. Entonces el patrón clásico: instancias en subnet privada que escriben mucho a S3, en vez de mandar todo por el NAT Gateway pagando procesamiento por gigabyte, le ponés un Gateway endpoint y ese tráfico sale gratis. Examen puro."},
+    {"speaker": "carlos", "text": "Buenísimo. Pasemos a las herramientas, que es donde estoy más flojo. Cost Explorer nombraste primero. No, esto nunca lo configuré, explicámelo de cero."},
+    {"speaker": "ana", "text": "Cost Explorer es la herramienta visual de análisis de costos: gráficos interactivos de en qué se te va la plata. Te muestra hasta doce meses de historia y proyecta hasta doce meses de forecast con un intervalo de confianza. Podés filtrar y agrupar por servicio, cuenta, Region, tipo de instancia o cost allocation tags, con granularidad diaria o mensual. Usarlo desde la consola es gratis; solo se cobran las requests programáticas a la API."},
+    {"speaker": "carlos", "text": "¿Y el forecast qué tan confiable es? Porque predecir el futuro siempre me suena medio a humo."},
+    {"speaker": "ana", "text": "Se basa en tu uso histórico y te da la proyección con un intervalo de confianza: cuanto más estable es tu consumo, más angosta la banda. No es una bola de cristal, pero para planificar presupuesto alcanza y sobra. Y esa misma proyección es la que alimenta las alertas de tipo forecasted que vamos a ver enseguida en Budgets."},
+    {"speaker": "carlos", "text": "¿Y solo te muestra, o también te recomienda cosas?"},
+    {"speaker": "ana", "text": "Recomienda, y esto cae en el examen. Por un lado, recomendaciones de Reserved Instances y de Savings Plans: analiza tu uso On-Demand de los últimos siete, treinta o sesenta días y te sugiere qué comprar, con términos, payment options y ahorro estimado. Por otro, right-sizing: mira métricas de CloudWatch, detecta instancias subutilizadas y te sugiere tipos más chicos."},
+    {"speaker": "carlos", "text": "O sea que la pregunta tipo identificar instancias subutilizadas se responde con Cost Explorer."},
+    {"speaker": "ana", "text": "Cost Explorer right-sizing o Compute Optimizer, que lo vemos en un rato. Sigamos con AWS Budgets: presupuestos custom con alertas cuando cruzás umbrales. Hay cuatro tipos: Cost Budget, el clásico de plata; Usage Budget, que trackea unidades de uso como horas o gigabytes; y Savings Plans Budget y Reservation Budget, que alertan cuando la utilización de tus commitments cae, o sea cuando pagaste descuentos que no estás aprovechando."},
+    {"speaker": "carlos", "text": "¿Y el budget es siempre mensual y de monto fijo?"},
+    {"speaker": "ana", "text": "No, es configurable. El período puede ser diario, mensual, trimestral o anual, y el monto puede ser fijo o planned, o sea que varía por período, útil si tu negocio es estacional. Y se filtra igual que Cost Explorer: por servicio, por linked account, por Region, por tag o por tipo de instancia. Podés tener un budget solo para el ambiente de desarrollo, por ejemplo."},
+    {"speaker": "carlos", "text": "¿Y las alertas avisan recién cuando ya gastaste de más? Porque ahí ya es tarde, como el susto del principio."},
+    {"speaker": "ana", "text": "Muy buena observación. Hay dos tipos de alerta: actual, que dispara cuando efectivamente cruzaste el umbral, y forecasted, que dispara cuando la proyección dice que lo vas a cruzar. La forecasted es tu alarma temprana. La best practice: varios umbrales escalonados, cincuenta por ciento aviso, ochenta alerta, cien crítico, más una alerta forecasted para enterarte antes."},
+    {"speaker": "carlos", "text": "¿Y el aviso te llega por mail nomás?"},
+    {"speaker": "ana", "text": "Email, un topic de Simple Notification Service, o sea S N S, para disparar automatización, o integraciones de chat tipo Slack. Y acá viene lo más potente: Budget Actions. El budget no solo avisa, puede actuar solo: aplicar una I A M policy restrictiva que bloquee crear recursos nuevos, o directamente frenar instancias de EC2 y RDS cuando se llega al límite."},
+    {"speaker": "carlos", "text": "Uy, eso no lo sabía. O sea que la cuenta de desarrollo del susto inicial se salvaba con un Budget Action que apague todo al llegar al límite."},
+    {"speaker": "ana", "text": "Exactamente. Cost budget mensual, umbrales, y una action que frene las instancias. Los primeros budgets son gratis y después tienen un costo chiquito cada uno, así que no hay excusa: arrancás con un presupuesto general mensual, y después agregás budgets por servicio, por proyecto o por tag."},
+    {"speaker": "carlos", "text": "Dale. ¿Y qué pasa cuando Cost Explorer no te alcanza? Digo, si necesito el detalle fino de cada recurso, línea por línea."},
+    {"speaker": "ana", "text": "Ahí entra el Cost and Usage Report, o sea, C U R. Es la fuente más completa y detallada de datos de costo y uso que existe: line items de cada servicio y cada recurso, con resource IDs, usage amounts, tags, y el detalle de Reserved Instances y Savings Plans. Se entrega a un bucket de S3, en formato CSV o Parquet, con granularidad horaria, diaria o mensual."},
+    {"speaker": "carlos", "text": "¿Y eso después cómo se consulta? Porque un CSV gigante tirado en S3 no es muy amigable que digamos."},
+    {"speaker": "ana", "text": "Con Amazon Athena, justo lo del módulo de Analytics: habilitás la integración, el C U R arma las tablas solo, y corrés S Q L estándar para cortar el costo por servicio, por día, por tag, por cuenta, como quieras. Y QuickSight encima si querés dashboards. La combinación mágica para el examen: análisis de costos detallado y custom con S Q L es igual a C U R más Athena."},
+    {"speaker": "carlos", "text": "¿Y el C U R se paga?"},
+    {"speaker": "ana", "text": "El servicio es gratis, solo pagás el storage del bucket de S3 donde se guarda. Y una nota de examen: el formato Parquet conviene sobre CSV porque es columnar y comprimido, así las queries de Athena escanean menos datos y salen más baratas."},
+    {"speaker": "carlos", "text": "Mencionaste varias veces los cost allocation tags. Sospecho que son la pieza que une todo esto, ¿no?"},
+    {"speaker": "ana", "text": "Son la columna vertebral del tracking de costos. Tags clave-valor sobre los recursos: Environment, Project, Owner, CostCenter. Con eso, en Cost Explorer y en el C U R podés responder cuánto gasta cada proyecto, cada equipo, cada ambiente. Hay dos tipos: los AWS-generated, que arrancan con el prefijo aws, como aws createdBy, y los user-defined, que son los tuyos."},
+    {"speaker": "carlos", "text": "¿Y alcanza con taguear los recursos y ya aparecen en los reportes?"},
+    {"speaker": "ana", "text": "No, y este detalle cae en el examen: hay que activarlos. Tagueás los recursos, después vas a la consola de Billing, sección Cost Allocation Tags, y activás los tags que querés usar. Recién ahí empiezan a aparecer en los reportes, y tardan hasta veinticuatro horas en verse."},
+    {"speaker": "carlos", "text": "¿Y la historia vieja? Si activo un tag hoy, ¿puedo ver el gasto de ese proyecto en los meses anteriores?"},
+    {"speaker": "ana", "text": "No, los datos aparecen de la activación en adelante. Por eso la best practice es definir la estrategia de tagging temprano, documentarla, y hacerla cumplir: I A M policies que exijan tags al crear recursos, AWS Config rules que detecten recursos sin taguear, y Tag Policies o S C P a nivel de AWS Organizations."},
+    {"speaker": "carlos", "text": "Justo ibas a llegar ahí: Organizations. ¿Qué cambia en la facturación cuando tenés muchas cuentas?"},
+    {"speaker": "ana", "text": "Aparece consolidated billing, que es gratis con AWS Organizations: una sola factura para todas las cuentas, pagada desde la management account. Y tiene tres beneficios que el examen ama. Uno, un solo pago, contabilidad simple. Dos, volume discounts: el uso se suma entre todas las cuentas, así que llegás antes a los tiers de precio más baratos de S3 o de data transfer. Tres, sharing de Reserved Instances y Savings Plans entre cuentas."},
+    {"speaker": "carlos", "text": "Esperá, ¿eso significa que una Reserved Instance comprada en una cuenta puede descontar en otra?"},
+    {"speaker": "ana", "text": "Exacto. Si la cuenta A compró una R I y no la está usando, el descuento aplica automáticamente a una instancia que matchee en la cuenta B. Se puede deshabilitar por cuenta si querés, pero por default se comparte. Escenario de examen: múltiples cuentas, quieren una sola factura y maximizar descuentos por volumen. Respuesta: consolidated billing, siempre."},
+    {"speaker": "carlos", "text": "¿Y lo del volume discount cómo juega exactamente? Dame un ejemplo."},
+    {"speaker": "ana", "text": "S3 y el data transfer tienen precios escalonados: el precio por gigabyte baja cuando superás ciertos volúmenes. Imaginate dos cuentas que guardan cuarenta terabytes cada una. Por separado, las dos pagan el tier caro. Consolidadas, AWS las ve como ochenta terabytes en total, y una parte ya entra en el tier más barato. Mismo uso, menos plata, solo por sumar las cuentas."},
+    {"speaker": "carlos", "text": "¿Y hay una best practice de cómo estructurar las cuentas?"},
+    {"speaker": "ana", "text": "Cuentas separadas por ambiente, producción, desarrollo, test, o por proyecto, con tags consistentes en todas. Así el costo por cuenta sale solo en Cost Explorer filtrando por linked account, y el detalle fino lo da el C U R con line items separados por cuenta."},
+    {"speaker": "carlos", "text": "Bien. Pasemos a las estrategias entonces. Si tuviera que ordenar la caja de herramientas de optimización, ¿por dónde arranco?"},
+    {"speaker": "ana", "text": "Te las ordeno en siete movimientos. Uno: right-sizing, ajustar el tamaño de las instancias al uso real. La gente sobredimensiona por miedo, y eso es plata quemada todos los meses. Se detecta con métricas de CloudWatch, con las recomendaciones de Cost Explorer, o con AWS Compute Optimizer, que usa machine learning y recomienda tipos de instancia, configuración de Auto Scaling groups, volúmenes de E B S y memoria de Lambda, con ahorro estimado."},
+    {"speaker": "carlos", "text": "¿Y achicar una instancia no es riesgoso? Digo, en producción me daría miedito."},
+    {"speaker": "ana", "text": "Por eso el proceso tiene pasos: detectás la instancia subutilizada con las métricas, validás que el pico real de carga entre en el tamaño nuevo, y hacés el cambio en una ventana de mantenimiento. Y es continuo, no de una sola vez: cada tantos meses lo repetís. Bien hecho, el right-sizing suele recortar una parte sustancial del gasto de EC2 y RDS."},
+    {"speaker": "carlos", "text": "¿Compute Optimizer se paga aparte?"},
+    {"speaker": "ana", "text": "Las recomendaciones estándar son gratis. Movimiento dos: optimizar las purchasing options, que ya las tenés: cubrir la base estable con Reserved Instances o Savings Plans, apuntando a una cobertura de entre sesenta y ochenta por ciento, manejar los picos con On-Demand, y el batch tolerante a fallos con Spot. Tres: Auto Scaling, escalar con la demanda en vez de aprovisionar para el pico, así no pagás capacidad ociosa."},
+    {"speaker": "carlos", "text": "O sea, la pirámide: base reservada con descuento, picos On-Demand, y lo interrumpible en Spot. ¿El cuarto?"},
+    {"speaker": "ana", "text": "Storage. En S3, lifecycle policies e Intelligent-Tiering, ya las vimos. En E B S: borrar los volúmenes sueltos que quedaron sin instancia, limpiar snapshots viejos, y preferir gp tres sobre gp dos, que es más barato y con performance configurable. En RDS: borrar backups innecesarios y archivar datos fríos a S3. Quinto: network, o sea CloudFront, misma Region, V P C endpoints y compresión, todo lo que ya charlamos."},
+    {"speaker": "carlos", "text": "Van cinco. ¿El seis?"},
+    {"speaker": "ana", "text": "Serverless donde el workload sea variable: Lambda contra EC2, Aurora Serverless contra RDS provisionado, DynamoDB On-Demand contra provisioned, Fargate contra EC2 para contenedores. La idea común: cero capacidad idle, pagás solo el uso real. Y el siete, el más subestimado: borrar lo que no se usa. Y acá va una trampa de examen: una instancia EC2 stopped no es gratis."},
+    {"speaker": "carlos", "text": "¿Cómo que no? Si está stopped no está computando nada, ¿qué te cobran?"},
+    {"speaker": "ana", "text": "Los volúmenes de E B S siguen ahí, y se facturan igual. Lo mismo las Elastic IPs sin asociar, que se cobran justamente por estar sin usar, los snapshots y las A M I viejas, y los load balancers idle. La limpieza se industrializa: AWS Config para encontrar recursos huérfanos, tags para saber de quién es cada cosa, y un Lambda agendado que limpie. Más la revisión regular: budgets semanal, Cost Explorer mensual, right-sizing y commitments cada trimestre."},
+    {"speaker": "carlos", "text": "Cerremos las herramientas que faltan. Mencionaste detección de anomalías en algún momento, ¿no?"},
+    {"speaker": "ana", "text": "AWS Cost Anomaly Detection: machine learning que aprende tu patrón de gasto normal y te alerta cuando algo se desvía. Definís monitors por servicio, por cuenta, por tag o por Cost Category, y las alertas llegan por email o por S N S. Es gratis. Y es la respuesta de examen para detectar un pico de gasto inesperado, como un recurso mal configurado un viernes a la noche."},
+    {"speaker": "carlos", "text": "¿Y en qué se diferencia de un budget? Porque los dos terminan avisando de gastos."},
+    {"speaker": "ana", "text": "El budget compara contra un umbral que vos fijaste: avisame si paso de mil dólares. Anomaly Detection no necesita umbral: aprende lo que es normal y avisa ante lo raro, aunque estés lejos del budget. Umbral conocido, Budgets. Comportamiento inusual, Anomaly Detection. Así lo distingue el examen."},
+    {"speaker": "carlos", "text": "Capté. ¿Y Trusted Advisor? Me suena que ese hace de todo un poco."},
+    {"speaker": "ana", "text": "Es el auditor automático de best practices, y una categoría entera es cost optimization: instancias de EC2 y RDS subutilizadas o idle, Elastic IPs sin asociar, volúmenes de E B S con poco uso, Reserved Instances desaprovechadas. Detalle de examen: los checks completos de costo requieren un Support plan Business o Enterprise. Con el plan básico ves solo un subconjunto."},
+    {"speaker": "carlos", "text": "¿Y el Pricing Calculator que nombraste al principio?"},
+    {"speaker": "ana", "text": "Ese es para antes de deployar: armás tu arquitectura servicio por servicio, elegís los pricing models, agrupás por tier y exportás el estimado para presupuesto o aprobación. Sirve para planning de arquitectura y de migraciones. Y con esto cerramos las herramientas. ¿Repasamos el pilar de Well-Architected antes de los exam tips?"},
+    {"speaker": "carlos", "text": "Dale, que ese marco siempre ordena las ideas."},
+    {"speaker": "ana", "text": "Cost Optimization es uno de los pilares del Well-Architected Framework, con cinco principios de diseño. Uno: implementar Cloud Financial Management, que el costo tenga dueños y revisión regular. Dos: adoptar el modelo de consumo, pagar solo lo que usás, sin sobreaprovisionar. Tres: medir la eficiencia general, costo por transacción o por usuario, no solo el total. Cuatro: dejar de gastar en undifferentiated heavy lifting, o sea usar managed services. Cinco: analizar y atribuir el gasto, con tags y chargeback."},
+    {"speaker": "carlos", "text": "El cuatro conecta con todo lo que venimos viendo en otros módulos: que AWS opere lo que no te diferencia como negocio."},
+    {"speaker": "ana", "text": "Y esos principios bajan a cinco áreas de buenas prácticas: practicar Cloud Financial Management, tener conciencia del gasto y del uso, elegir recursos cost-effective, balancear oferta y demanda de capacidad, y optimizar con el tiempo. Esto último porque AWS baja precios y saca tipos de instancia nuevos todo el tiempo, y tu arquitectura óptima de hace dos años quizás ya no lo es."},
+    {"speaker": "carlos", "text": "O sea que el pilar no es teoría suelta: es literalmente todo lo que venimos viendo hoy, pero ordenado, ¿no?"},
+    {"speaker": "ana", "text": "Exacto. Y ahora sí, exam tips. Lo primero es leer bien el qualifier de la pregunta, porque cambia la respuesta entera. Si dice most cost-effective, buscá la opción más barata que cumpla el requisito. El que cumpla es la clave: la opción más barata que no cumple es el distractor."},
+    {"speaker": "carlos", "text": "¿Y cuál es la trampa clásica con ese qualifier?"},
+    {"speaker": "ana", "text": "La del workload variable. Si el uso es esporádico o impredecible, la gente elige EC2 creyendo que es más barato, pero Lambda o Fargate ganan porque no pagás el idle. Y al revés: si el workload es constante las veinticuatro horas, serverless no es lo más barato, ahí gana EC2 con Reserved Instances o Savings Plans. Tenés que mirar el patrón de uso antes de elegir."},
+    {"speaker": "carlos", "text": "O sea: variable, serverless; constante, commitments. ¿Y si la pregunta dice least operational overhead en vez de most cost-effective?"},
+    {"speaker": "ana", "text": "Cambia el juego: ahí gana lo más managed aunque no sea lo más barato. Son qualifiers distintos y el examen los mezcla a propósito. Después, los mapeos rápidos: workload estable en EC2, Reserved Instances o Savings Plans. Batch con horario flexible, Spot. Mezcla de EC2, Fargate y Lambda, Compute Savings Plans. B Y O L o licencias por core, Dedicated Hosts."},
+    {"speaker": "carlos", "text": "Una que me quedó picando de antes: ¿entre Standard y Convertible cómo decide el examen?"},
+    {"speaker": "ana", "text": "Por las señales del enunciado. Si dice que el workload es estable y conocido y pide maximizar el ahorro: Standard. Si dice que la empresa puede necesitar cambiar de familia de instancia o de sistema operativo durante el plazo: Convertible. Y si el escenario habla de Reserved Instances que ya no se usan, las Standard se pueden vender en el R I Marketplace para recuperar la plata."},
+    {"speaker": "carlos", "text": "Dale, sigo yo con las herramientas a ver si las tengo. Costo por proyecto: cost allocation tags más Cost Explorer. Alerta de umbral mensual: Budgets. Pico de gasto raro: Cost Anomaly Detection. Instancias subutilizadas: Compute Optimizer o el right-sizing de Cost Explorer. Análisis fino con S Q L: C U R más Athena. Muchas cuentas y una sola factura: consolidated billing."},
+    {"speaker": "ana", "text": "Impecable, son exactamente los mapeos. Te agrego dos de storage: datos viejos en S3, lifecycle policy hacia Glacier o Deep Archive; acceso impredecible, Intelligent-Tiering. Y uno de red: para reducir el costo de salida a internet, CloudFront; para tráfico privado hacia S3 o DynamoDB, Gateway endpoint gratis en vez de NAT Gateway."},
+    {"speaker": "carlos", "text": "¿Algún otro escenario que valga la pena dejar fijado antes del recap?"},
+    {"speaker": "ana", "text": "Tres más. Base de datos con carga variable o intermitente: Aurora Serverless, que escala sola y no paga idle. Tabla de DynamoDB con tráfico impredecible: modo On-Demand en vez de provisioned. Y capacidad garantizada para un evento puntual, sin compromiso de años: Capacity Reservation, no Reserved Instance. Y uno de regalo de E B S: migrar volúmenes gp dos a gp tres, misma performance de base, menor costo."},
+    {"speaker": "carlos", "text": "Esos me los anoto, sobre todo el de Aurora Serverless, que pinta a clásico de examen."},
+    {"speaker": "ana", "text": "Es clásico, sí. Y el meta consejo final: en las preguntas de costo, descartá primero las opciones que no cumplen el requisito funcional, y recién entre las que quedan elegí la más barata. El examen siempre pone una opción baratísima que no cumple, esperando que muerdas el anzuelo del precio."},
+    {"speaker": "carlos", "text": "Anotado. ¿Hacemos el recap general del episodio?"},
+    {"speaker": "ana", "text": "Dale, arrancá vos, que es tu trabajo de estudiante."},
+    {"speaker": "carlos", "text": "A ver. AWS cobra pay-as-you-go: compute por tiempo, storage por gigabyte, y el data transfer entra gratis pero sale pagando. Para EC2: On-Demand sin compromiso, Reserved Instances y Savings Plans para lo estable con hasta setenta y dos por ciento de descuento, Spot hasta noventa por ciento para lo interrumpible con aviso de dos minutos, y Dedicated Hosts para licencias y compliance."},
+    {"speaker": "ana", "text": "Perfecto hasta ahí. ¿Y las herramientas?"},
+    {"speaker": "carlos", "text": "Cost Explorer para visualizar y predecir, con recomendaciones de right-sizing. Budgets para alertas, y Budget Actions que frenan el gasto solos. C U R más Athena para el detalle quirúrgico. Tags activados para saber quién gasta qué. Consolidated billing para sumar cuentas y compartir descuentos. Y de estrategia: right-sizing continuo, la pirámide de compra, Auto Scaling, lifecycle en S3, y borrar lo que no se usa, porque stopped no es gratis."},
+    {"speaker": "ana", "text": "Casi completo. ¿Y las herramientas de vigilancia automática, que esas también suman puntos fáciles?"},
+    {"speaker": "carlos", "text": "Cierto. Cost Anomaly Detection para el gasto raro sin umbral fijo. Trusted Advisor para los checks de best practices, y los completos de costo piden Support Business o Enterprise. Compute Optimizer con machine learning para el right-sizing. Y el Pricing Calculator para estimar antes de deployar."},
+    {"speaker": "ana", "text": "No me queda nada para corregirte, eso es un veinte por ciento del examen bien guardado. La idea final para llevarse: en la nube el costo es una variable de diseño más, como la disponibilidad o la seguridad. Se arquitecta desde el día uno, no se arregla cuando llega el susto en la factura."},
+    {"speaker": "carlos", "text": "Me llevo eso, y la alerta forecasted configurada antes del próximo viernes. Gracias, Ana."},
+    {"speaker": "ana", "text": "Gracias a vos, Carlos. Y a ustedes, nos escuchamos en el próximo episodio, donde cerramos la preparación con el módulo de práctica. Hasta la próxima."}
   ]
 }

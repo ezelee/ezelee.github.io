@@ -1,458 +1,197 @@
 {
   "module_title": "Module 12: Architecture Patterns",
-  "estimated_duration_min": 38,
+  "estimated_duration_min": 42,
   "turns": [
-    {
-      "speaker": "ana",
-      "text": "Llegamos al módulo que cierra el ciclo del examen: patrones de arquitectura. Todo lo que vimos hasta ahora — compute, storage, databases, networking, analytics — son piezas sueltas. Este módulo es sobre cómo ensamblarlas. El examen te da un escenario con requisitos — alta disponibilidad, bajo costo, tiempo real, disaster recovery — y vos tenés que elegir el patrón correcto. Hoy aprendemos a pensar como arquitecto."
-    },
-    {
-      "speaker": "carlos",
-      "text": "a ver — o sea, este módulo es más de razonamiento arquitectónico que de memorizar un servicio específico. Pero igual hay patrones canónicos que el examen espera que conozcas, ¿no?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Exacto. Hay patrones que el examen pregunta una y otra vez: la arquitectura de tres capas, serverless, event-driven, microservicios, alta disponibilidad con Multi-A.Z., y disaster recovery con sus cuatro estrategias. Vas a ver que muchos servicios que ya estudiamos aparecen acá combinados en soluciones concretas. El examen te da un problema y vos elegís el patrón."
-    },
-    {
-      "speaker": "carlos",
-      "text": "dale, ¿empezamos por el Well-Architected Framework? Lo vi mencionado muchas veces pero nunca entendí bien qué es exactamente."
-    },
-    {
-      "speaker": "ana",
-      "text": "El Well-Architected Framework es el marco que usa AWS para evaluar si una arquitectura está bien diseñada. Tiene seis pillars: Operational Excellence, Security, Reliability, Performance Efficiency, Cost Optimization, y Sustainability — el más nuevo. Cada pilar tiene principios de diseño y best practices. En el examen, los pilares aparecen en preguntas sobre qué cambio mejoraría la arquitectura."
-    },
-    {
-      "speaker": "carlos",
-      "text": "capté — seis pillars. ¿Cuáles son los que más salen en el examen?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Los más frecuentes son Reliability — diseñar para recuperarse de fallos — y Performance Efficiency — usar recursos eficientemente. También Security aparece mucho. Sustainability es el más nuevo y el que menos entra en detalle. Para el examen lo clave es reconocer a qué pilar corresponde cada recomendación: reducir costos apunta a Cost Optimization, recuperación ante fallos apunta a Reliability."
-    },
-    {
-      "speaker": "carlos",
-      "text": "a ver — Reliability es el pilar de recuperarse de fallos. ¿Y hay principios de diseño específicos del Well-Architected que debo conocer?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Sí, varios importantes. Stop guessing capacity: usá Auto Scaling en vez de provisionar por el pico máximo. Test at production scale: en la nube podés replicar producción para testing. Automate: usá Infrastructure as Code y CI/CD. Drive architectures using data: tomá decisiones basadas en métricas de CloudWatch. E improve through game days: simulá fallos para verificar la resiliencia antes de que ocurran en producción."
-    },
-    {
-      "speaker": "carlos",
-      "text": "uy, game days — eso es lo que llaman chaos engineering. ¿Y Reliability tiene algún principio central sobre cómo diseñar?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Sí, la base de Reliability es asumir que todo puede fallar — y diseñar para eso. Distribuí en múltiples Availability Zones para que la falla de una zona no tumbe el sistema. Usá health checks y reemplazá instancias unhealthy automáticamente con Auto Scaling. Habilitá failover automático en bases de datos con RDS Multi-A.Z.. El diseño para failure es el principio central de Reliability."
-    },
-    {
-      "speaker": "carlos",
-      "text": "dale, ¿cómo es la arquitectura de tres capas clásica en AWS? Esa la escucho mencionada constantemente."
-    },
-    {
-      "speaker": "ana",
-      "text": "La arquitectura de tres capas tiene presentation tier, application tier, y data tier. En AWS: la presentation tier tiene CloudFront como CDN, Route 53 para DNS, y un ALB externo que distribuye tráfico a E.C. 2 o ECS en un Auto Scaling Group. La application tier tiene un ALB interno con E.C. 2 o Lambda para la lógica de negocio. La data tier tiene RDS Multi-A.Z. o Aurora, ElastiCache para cache, y S3 para archivos."
-    },
-    {
-      "speaker": "carlos",
-      "text": "a ver — tres capas separadas. ¿Por qué importa separar presentation de application? ¿No se puede poner todo junto?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Podés, pero separar te da independencia de escalado. Si tenés mucho tráfico de usuarios pero poca carga de procesamiento, escalás la presentation tier sin tocar la application tier. También aísla fallos: un bug en la lógica de negocio no afecta directamente al CDN. Y permite equipos independientes: uno trabaja en el frontend, otro en el backend, deployando sin interferir."
-    },
-    {
-      "speaker": "carlos",
-      "text": "capté — independencia de escalado y de deployment. ¿Y el ALB por qué aparece en ambas capas?"
-    },
-    {
-      "speaker": "ana",
-      "text": "El ALB de la presentation tier recibe el tráfico externo de internet y lo distribuye entre las instancias del frontend. El ALB de la application tier es interno — solo recibe tráfico desde la presentation tier, no es accesible desde internet. Esa separación es parte de la seguridad: los servidores de la application tier están en subnets privadas, no expuestos directamente a internet."
-    },
-    {
-      "speaker": "carlos",
-      "text": "ah, tiene sentido — ALB externo para tráfico de usuarios, ALB interno para comunicación entre capas en subnets privadas. ¿Y ElastiCache qué rol cumple en la data tier?"
-    },
-    {
-      "speaker": "ana",
-      "text": "ElastiCache es una capa de cache en memoria delante de la base de datos. Si el noventa por ciento de las queries leen los mismos datos — un catálogo de productos, una sesión de usuario — cacheas esos resultados. Las lecturas van al cache primero, y solo si no está ahí van a RDS. Eso reduce drásticamente la carga sobre la base de datos y mejora la latencia de respuesta."
-    },
-    {
-      "speaker": "carlos",
-      "text": "o sea, ElastiCache como filtro antes de RDS para evitar queries repetidas. ¿Y cómo sabe la aplicación cuándo el cache está desactualizado?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Eso lo manejás con el TTL — Time to Live — de cada entrada en el cache. Cuando caduca, la próxima request va a la base de datos y actualiza el cache. También podés invalidar explícitamente cuando los datos cambian — ese es el patrón cache-aside. Para el examen, TTL y estrategias de invalidación de cache son conceptos que preguntan seguido."
-    },
-    {
-      "speaker": "carlos",
-      "text": "dale, ¿cómo es el patrón serverless? Antes veíamos cada servicio por separado, ahora ¿cómo se combinan?"
-    },
-    {
-      "speaker": "ana",
-      "text": "El patrón de web application serverless clásico es: S3 hostea el frontend estático — HTML, CSS, JavaScript. CloudFront sirve ese contenido globalmente con baja latencia. API Gateway expone una REST API. Lambda procesa cada request. DynamoDB persiste los datos. Cognito maneja autenticación. Todo managed, sin servidores que administrar, escala automáticamente con la demanda."
-    },
-    {
-      "speaker": "carlos",
-      "text": "yo una vez deployé algo parecido — una SPA con CloudFront y S3 privado para un chatbot interno con Bedrock que armé. El bucket tenía Block Public Access todo en true y el acceso era solo vía OAC. Pero te pregunto — ¿CloudFront siempre necesita un certificado SSL personalizado?"
-    },
-    {
-      "speaker": "ana",
-      "text": "No, y ese es un gotcha importante. Si usás el dominio default de CloudFront — el que termina en cloudfront.net — viene con un certificado SSL wildcard incluido, no necesitás configurar nada en ACM. Solo necesitás un certificado en ACM si querés usar tu propio dominio personalizado. Si no tenés dominio custom, CloudFront funciona con HTTPS sin ninguna configuración extra."
-    },
-    {
-      "speaker": "carlos",
-      "text": "ah, tiene sentido — el cert default cubre cloudfront.net y solo necesito ACM para dominios propios. ¿Y la parte del API Gateway con Lambda cómo funciona exactamente?"
-    },
-    {
-      "speaker": "ana",
-      "text": "API Gateway actúa como el front door de tu API — recibe el request HTTP, aplica throttling, autenticación, y lo enruta a la función Lambda correspondiente. Lambda ejecuta tu código, consulta DynamoDB, procesa la data, y devuelve la respuesta. Lambda escala automáticamente: si llegan mil requests simultáneos, Lambda lanza mil ejecuciones en paralelo."
-    },
-    {
-      "speaker": "carlos",
-      "text": "esperá — ¿Lambda lanza una ejecución por cada request? ¿Y hay algún límite que deba conocer para el examen?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Sí, dos límites importantes. Concurrencia default: mil ejecuciones simultáneas por cuenta y región — configurable. Y duración máxima por ejecución: quince minutos. Para tareas que tarden más de quince minutos, Lambda no es la opción — usás ECS Fargate, o Step Functions para orquestar varias Lambdas en secuencia. El límite de quince minutos lo preguntan mucho en el examen."
-    },
-    {
-      "speaker": "carlos",
-      "text": "uy, eso es importante — quince minutos es el tope de Lambda. ¿Y Step Functions qué hace exactamente?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Step Functions es un orquestador de workflows. Definís una secuencia de pasos — cada paso puede ser una Lambda, un servicio de AWS, o una decisión condicional. Por ejemplo: procesar un pedido implica extraer datos, validar inventario, cobrar, y enviar confirmación. Cada paso es un estado. Si un paso falla, Step Functions puede reintentar o tomar una rama alternativa. Es ideal para procesos de negocio complejos y de larga duración."
-    },
-    {
-      "speaker": "carlos",
-      "text": "dale. ¿Cómo es el patrón event-driven? Escuché el término mucho pero no termino de entender qué lo diferencia de una arquitectura normal."
-    },
-    {
-      "speaker": "ana",
-      "text": "En una arquitectura event-driven los componentes se comunican a través de eventos en vez de llamadas directas. Un componente emite un evento — 'se subió un archivo', 'se completó un pedido' — y otros componentes reaccionan sin saber nada del primero. Los productores y consumidores están desacoplados: no se conocen entre sí. Podés agregar consumidores sin modificar el productor."
-    },
-    {
-      "speaker": "carlos",
-      "text": "a ver — los componentes publican eventos que otros escuchan, sin llamarse directamente. ¿Y qué servicios de AWS son el bus de eventos?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Tres principales. SNS es pub/sub: un publisher manda a un topic y todos los subscribers reciben el mensaje simultáneamente — es el patrón fan-out. SQS es una cola: el producer manda al queue y el consumer lee a su ritmo — permite desacoplar y bufferear. EventBridge es el bus de eventos más completo: recibe eventos de servicios de AWS, aplicaciones SaaS, y custom apps, y los rutea con reglas a múltiples destinos."
-    },
-    {
-      "speaker": "carlos",
-      "text": "capté — SNS para fan-out a múltiples receivers, SQS para desacoplar con buffer, EventBridge para routing complejo. ¿Y cuándo combino SNS con SQS?"
-    },
-    {
-      "speaker": "ana",
-      "text": "El patrón SNS más SQS es muy frecuente en el examen. Cuando un evento que múltiples servicios necesitan procesar a su propio ritmo, usás SNS para fan-out y una SQS por cada servicio suscriptor. Así cada servicio tiene su propia cola y procesa a su ritmo sin bloquear al otro. Si un servicio está caído, los mensajes se acumulan en su queue y los procesa cuando vuelve."
-    },
-    {
-      "speaker": "carlos",
-      "text": "ah, tiene sentido — SNS distribuye a todos y SQS actúa como buffer por si el consumer está lento o caído. ¿Y EventBridge cuándo lo prefiero sobre SNS?"
-    },
-    {
-      "speaker": "ana",
-      "text": "EventBridge entra cuando necesitás routing inteligente basado en el contenido del evento. Podés crear reglas como 'si el evento viene de S3 y el objeto tiene extensión .jpg, mandalo a esta Lambda' o 'si el monto del pedido supera cierto valor, mandalo a esta otra función'. También puede recibir eventos de servicios SaaS como Salesforce directamente. Es más poderoso que SNS para routing condicional."
-    },
-    {
-      "speaker": "carlos",
-      "text": "dale — EventBridge para routing condicional, SNS para fan-out simple. ¿Y DynamoDB Streams cómo encaja en todo esto?"
-    },
-    {
-      "speaker": "ana",
-      "text": "DynamoDB Streams captura cada cambio en una tabla — inserts, updates, deletes — y los publica como un stream ordenado. Podés conectar una Lambda a ese stream para reaccionar a los cambios. Por ejemplo: cuando se modifica un pedido en DynamoDB, el stream dispara una Lambda que actualiza el inventario o envía un email. Es el patrón change data capture — reaccionar a cambios en la DB sin polling."
-    },
-    {
-      "speaker": "carlos",
-      "text": "muy útil. ¿Y microservicios? ¿Cómo se implementan en AWS?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Microservicios en AWS usa los mismos componentes pero organizados por dominio de negocio. Cada microservicio tiene su propio compute — Lambda, ECS, o EKS — su propia base de datos — DynamoDB, RDS, o lo que necesite — y expone su API via API Gateway o ALB. Se comunican entre sí via SQS, SNS, o EventBridge para comunicación asíncrona, o via API directamente para llamadas síncronas."
-    },
-    {
-      "speaker": "carlos",
-      "text": "yo una vez corrí scrapers en ECS Fargate — cada scraper era básicamente un microservicio independiente con su propio task definition y su propio Task Role. ¿Fargate es la opción natural para microservicios con containers sin administrar E.C. 2?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Sí, ECS Fargate es la opción más común para microservicios containerizados cuando no querés administrar instancias E.C. 2. Si el equipo ya usa Kubernetes y necesita sus features específicas, la opción es EKS. Lambda es mejor para microservicios de funciones cortas y stateless. La elección depende del runtime, la duración del workload, y el nivel de control que necesitás sobre el entorno."
-    },
-    {
-      "speaker": "carlos",
-      "text": "capté — Fargate para containers sin administrar E.C. 2, Lambda para funciones cortas stateless, EKS para Kubernetes. ¿Y cómo se descubren los servicios entre sí en microservicios?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Para eso existe AWS Cloud Map — service discovery. Cada servicio registra su endpoint y los demás pueden descubrirlo por nombre sin hardcodear IPs. ECS tiene service discovery integrado. La otra opción es un API Gateway como router central — todos los clientes van al API Gateway y este enruta a cada microservicio. Es el patrón API Gateway unificado, muy común en el examen."
-    },
-    {
-      "speaker": "carlos",
-      "text": "dale. ¿Cómo funciona alta disponibilidad en AWS? ¿Qué significa exactamente Multi-A.Z.?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Multi-A.Z. significa desplegar tu aplicación en múltiples Availability Zones — data centers físicamente separados dentro de la misma región. Si una A.Z. falla, tu aplicación sigue corriendo en la otra. El ALB distribuye tráfico entre A.Z. automáticamente y deja de enviar tráfico a la A.Z. afectada. El Auto Scaling Group también distribuye instancias entre A.Z. para que no queden todas en una sola zona."
-    },
-    {
-      "speaker": "carlos",
-      "text": "a ver — A.Z. como data centers separados dentro de la misma región. ¿Y cuál es la diferencia entre Active-Active y Active-Passive?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Active-Active: todas las A.Z. o regiones manejan tráfico real simultáneamente. Si una falla, las otras absorben su tráfico — hay impacto de carga pero no de disponibilidad. Active-Passive: una instancia es primaria y maneja todo el tráfico, la otra está en standby lista para tomar el control si la primaria falla. Active-Active tiene mejor rendimiento pero es más caro y complejo de operar."
-    },
-    {
-      "speaker": "carlos",
-      "text": "capté. ¿Y Route 53 cómo ayuda con alta disponibilidad? Nunca lo configuré, te pregunto desde cero."
-    },
-    {
-      "speaker": "ana",
-      "text": "Route 53 tiene health checks que monitorean si tus endpoints responden. Si detecta que un endpoint está caído, deja de mandarle tráfico automáticamente — eso es DNS failover. Tiene routing policies: failover routing apunta al primario y si falla redirige al secundario. Weighted routing distribuye tráfico en porcentajes — útil para deployments graduales. Latency routing manda al endpoint más cercano al usuario."
-    },
-    {
-      "speaker": "carlos",
-      "text": "uy, eso no lo sabía — Route 53 con health checks para failover automático. ¿Y RDS Multi-A.Z. cómo funciona? ¿Es diferente a un Read Replica?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Son dos cosas distintas. RDS Multi-A.Z. es para alta disponibilidad: AWS mantiene una copia sincrónica de tu DB en otra A.Z.. Si la primaria falla, el failover es automático en sesenta a ciento veinte segundos. Pero el standby no acepta tráfico de lectura — está solo para failover. Read Replicas son para escalar lecturas: copias asíncronas que sí podés consultar, pero no hacen failover automático."
-    },
-    {
-      "speaker": "carlos",
-      "text": "ah, importante — Multi-A.Z. para HA con failover automático, Read Replicas para escalar lecturas. ¿Y Aurora cómo se diferencia de RDS en alta disponibilidad?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Aurora tiene arquitectura de almacenamiento diferente: los datos se replican automáticamente en seis copias a través de tres A.Z., sin que vos lo configures. El failover de Aurora es más rápido — menos de treinta segundos en muchos casos — porque hay múltiples réplicas listas para tomar el rol de primario. Aurora también tiene Aurora Global Database para replicación entre regiones con menos de un segundo de lag."
-    },
-    {
-      "speaker": "carlos",
-      "text": "dale. Disaster recovery — ¿cuáles son las estrategias? Escuché Pilot Light y Warm Standby pero no sé bien qué son."
-    },
-    {
-      "speaker": "ana",
-      "text": "Hay cuatro estrategias de DR ordenadas de más barata y lenta a más cara y rápida. Backup and Restore: hacés backups en S3 y restaurás cuando hay un desastre. El RPO puede ser horas y el RTO puede ser horas a días. Es la más barata pero la más lenta. Sirve para sistemas no críticos donde tolerás perder horas de data y tardás horas en volver."
-    },
-    {
-      "speaker": "carlos",
-      "text": "esperá — RPO y RTO, esos términos los escucho en el examen pero no los tengo del todo claros."
-    },
-    {
-      "speaker": "ana",
-      "text": "RPO es Recovery Point Objective — cuánta data podés perder. Si el RPO es una hora, perdés como máximo una hora de transacciones. RTO es Recovery Time Objective — cuánto tardás en volver a operar. Si el RTO es dos horas, en dos horas como máximo el sistema está funcionando de nuevo. El examen te da requisitos de RPO y RTO y vos elegís la estrategia correspondiente."
-    },
-    {
-      "speaker": "carlos",
-      "text": "ah, RPO es pérdida de datos aceptable y RTO es tiempo de recuperación aceptable. ¿Y Pilot Light qué es?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Pilot Light es mantener una versión mínima del sistema siempre corriendo en la región de DR — como la llama piloto de un calentador que está siempre prendida. Lo que mantenés es lo más crítico: la replicación de la base de datos. El compute está apagado o mínimo. Cuando ocurre el desastre, encendés el compute, escalás, y el sistema vuelve en horas. RPO en minutos porque la DB replica continuamente."
-    },
-    {
-      "speaker": "carlos",
-      "text": "a ver — Pilot Light mantiene la DB replicando pero el compute apagado. ¿Y Warm Standby?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Warm Standby es una versión funcional pero reducida del sistema corriendo en la región de DR — no solo la DB, también el compute, pero con menor capacidad. Puede manejar algo de tráfico. Cuando ocurre el desastre, escalás el compute al tamaño de producción. RPO en segundos porque todo replica. RTO en minutos porque ya está corriendo. Más caro que Pilot Light pero significativamente más rápido."
-    },
-    {
-      "speaker": "carlos",
-      "text": "capté — Warm Standby es como Pilot Light pero con compute también prendido aunque reducido. ¿Y Multi-Site Active-Active?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Multi-Site Active-Active es la más cara pero la más rápida: dos regiones corriendo a capacidad completa simultáneamente, manejando tráfico real las dos. Route 53 distribuye el tráfico entre ambas. Si una región falla, la otra absorbe todo sin downtime apreciable. RPO y RTO prácticamente cero. El costo es casi el doble porque pagás dos entornos productivos completos."
-    },
-    {
-      "speaker": "carlos",
-      "text": "uy — cuatro estrategias: Backup and Restore para lo menos crítico, Pilot Light con DB replicando y compute apagado, Warm Standby con todo prendido pero chico, Multi-Site Active-Active para cero downtime. ¿Qué herramientas usa AWS para DR?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Para backups centralizados, AWS Backup. Para replicar datos entre regiones, S3 Cross-Region Replication. Para bases de datos, Aurora Global Database con menos de un segundo de lag, y DynamoDB Global Tables para multi-region active-active. CloudFormation para desplegar infraestructura desde código rápidamente en la región de DR. Y Route 53 para el failover de DNS automático."
-    },
-    {
-      "speaker": "carlos",
-      "text": "a ver — Aurora Global Database para menos de un segundo de lag en DR cross-region. ¿Y cuándo promuevo un Read Replica a primary durante un DR?"
-    },
-    {
-      "speaker": "ana",
-      "text": "En un escenario de DR donde la región primaria falló completamente, podés promover un Read Replica en otra región a convertirse en la nueva primaria. El proceso es manual — no es automático como el failover Multi-A.Z.. Por eso para DR crítico Aurora Global Database o DynamoDB Global Tables son mejores opciones: tienen failover más automatizado y más rápido. Para el examen, promover un Read Replica implica RTO de minutos a horas."
-    },
-    {
-      "speaker": "carlos",
-      "text": "dale. Hablemos de caching — ¿cuáles son las capas de cache en AWS?"
-    },
-    {
-      "speaker": "ana",
-      "text": "El caching tiene múltiples capas. CloudFront cachea contenido estático y dinámico en edge locations cerca del usuario. API Gateway tiene su propio cache para responses de la API — útil para reducir llamadas a Lambda. A nivel de aplicación usás ElastiCache — Redis o Memcached — para cachear data. Y para DynamoDB específicamente existe DAX — DynamoDB Accelerator — un cache in-memory gestionado que reduce latencia a microsegundos."
-    },
-    {
-      "speaker": "carlos",
-      "text": "a ver — CloudFront en el edge, API Gateway para responses, ElastiCache para la aplicación, DAX específico para DynamoDB. ¿Cuándo uso Redis versus Memcached en ElastiCache?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Redis es más completo: soporta estructuras de datos avanzadas como listas y sets, permite persistencia de datos, tiene pub/sub, y soporta clustering con failover automático Multi-A.Z.. Memcached es más simple: solo key-value, sin persistencia, sin failover. Para el examen la regla es simple: si el escenario necesita alta disponibilidad, persistencia, o estructuras de datos complejas, es Redis. Si necesitás algo simple y horizontal, puede ser Memcached."
-    },
-    {
-      "speaker": "carlos",
-      "text": "capté — Redis para features completas con HA, Memcached para simplicidad. ¿Y el patrón de seguridad se llama Defense in Depth, ¿no?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Exacto. Defense in Depth es tener múltiples capas de seguridad — si una falla, las otras siguen protegiendo. En AWS: en el edge, WAF filtra tráfico malicioso y Shield protege contra ataques DDoS. En la red, NACLs y Security Groups controlan el tráfico. A nivel de aplicación, IAM controla permisos y Cognito maneja autenticación. Y a nivel de datos, KMS encripta en reposo y TLS encripta en tránsito."
-    },
-    {
-      "speaker": "carlos",
-      "text": "a ver — WAF y Shield en el edge, NACLs y Security Groups en la red, IAM y Cognito en la aplicación, KMS y TLS en los datos. ¿Y CloudTrail y GuardDuty dónde encajan?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Son la capa de monitoring y detección. CloudTrail registra todas las llamadas a la API de AWS — quién hizo qué, cuándo, desde dónde. Es el audit log de tu cuenta. GuardDuty analiza esos logs con machine learning para detectar actividad sospechosa — accesos desde IPs maliciosas, comportamiento anómalo de credenciales. Podés conectar GuardDuty con EventBridge para respuesta automática: detecta amenaza y dispara una Lambda que toma acción."
-    },
-    {
-      "speaker": "carlos",
-      "text": "uy, GuardDuty con EventBridge para respuesta automática. ¿Y cómo decido qué compute usar en una arquitectura? Hay muchas opciones..."
-    },
-    {
-      "speaker": "ana",
-      "text": "Para el examen, hay señales claras. E.C. 2: necesitás control total del OS, drivers específicos, o workloads que no encajan en contenedores. Lambda: función corta, stateless, event-driven, menos de quince minutos — serverless puro. ECS con Fargate: container, no querés administrar E.C. 2. EKS: equipos que ya saben Kubernetes. La palabra clave en el escenario te dice qué elegir."
-    },
-    {
-      "speaker": "carlos",
-      "text": "capté — E.C. 2 para control total, Lambda para funciones cortas serverless, Fargate para containers, EKS para Kubernetes. ¿Y la elección de base de datos?"
-    },
-    {
-      "speaker": "ana",
-      "text": "La elección de base de datos también tiene señales. RDS o Aurora: datos relacionales con ACID transactions, SQL, esquema fijo. DynamoDB: NoSQL, alta performance, esquema flexible, escalado automático. ElastiCache: cache in-memory para reducir latencia. Redshift: analytics y data warehousing, queries sobre terabytes de datos históricos. El examen te da el caso de uso y vos identificás la DB correcta."
-    },
-    {
-      "speaker": "carlos",
-      "text": "dale, ¿y la elección de storage?"
-    },
-    {
-      "speaker": "ana",
-      "text": "S3: object storage para archivos, backups, data lake, hosting estático — durabilidad de once nueves. EBS: block storage para E.C. 2, como un disco duro en la nube, solo una instancia a la vez. EFS: file system compartido entre múltiples instancias E.C. 2 simultáneamente — ideal para aplicaciones que necesitan acceso concurrente a los mismos archivos. FSx: file systems especializados — FSx for Windows o FSx for Lustre para HPC."
-    },
-    {
-      "speaker": "carlos",
-      "text": "a ver — S3 para objetos, EBS para disco de E.C. 2, EFS para file system compartido entre múltiples instancias. ¿Y cómo elijo entre comunicación síncrona y asíncrona?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Síncrona — API Gateway o ALB — para cuando el llamante necesita la respuesta inmediata para continuar. Asíncrona — SQS, SNS, EventBridge — cuando podés desacoplar el procesamiento: el usuario envía el pedido y el backend lo procesa a su ritmo. Streaming — Kinesis o MSK — cuando los datos fluyen continuamente y necesitás procesarlos en tiempo real. La clave es si el caller necesita esperar o no."
-    },
-    {
-      "speaker": "carlos",
-      "text": "perfecto. ¿Cómo abordo un scenario question del examen? Hay tantos servicios que a veces me pierdo."
-    },
-    {
-      "speaker": "ana",
-      "text": "Fijate en las palabras clave del escenario. Alta disponibilidad y failover automático: Multi-A.Z., ALB, Auto Scaling, RDS Multi-A.Z.. Disaster recovery con cero pérdida de datos: Multi-Site Active-Active o Aurora Global Database. Desacoplar componentes y manejar picos: SQS. Notificar múltiples sistemas simultáneamente: SNS fan-out. Escalar sin manejar servidores: Lambda, Fargate, DynamoDB. Cada requisito mapea a un servicio."
-    },
-    {
-      "speaker": "carlos",
-      "text": "a ver — las palabras clave mapean a servicios. ¿Me das un ejemplo de scenario complejo?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Mirá este: una aplicación de e-commerce necesita procesar millones de pedidos por día, no puede perder ningún pedido aunque el servicio de procesamiento esté caído, y necesita escalar automáticamente en los picos de Black Friday. ¿Qué usarías?"
-    },
-    {
-      "speaker": "carlos",
-      "text": "hmm — no puede perder pedidos aunque el procesador esté caído, eso suena a queue. ¿SQS para guardar los pedidos y el procesador los lee a su ritmo?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Exacto. Los pedidos van a SQS, que los guarda de forma durable hasta que el procesador pueda leerlos. Si el procesador está caído, los mensajes se acumulan en la queue. Cuando vuelve, los procesa. Esto es desacoplamiento: el frontend sigue aceptando pedidos aunque el backend esté temporalmente caído. Auto Scaling ajusta la capacidad del procesador según el largo de la queue — eso es target tracking scaling."
-    },
-    {
-      "speaker": "carlos",
-      "text": "capté — SQS como buffer durable, Auto Scaling ajusta el procesador según el largo de la queue. ¿Y un scenario de disaster recovery?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Clásico: un banco necesita que la base de datos siga disponible en menos de un minuto aunque falle una región entera, con pérdida de datos cero. ¿Qué elegís?"
-    },
-    {
-      "speaker": "carlos",
-      "text": "menos de un minuto y cero pérdida de datos — eso es lo más rápido y estricto. ¿Aurora Global Database con failover automático?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Exacto. Aurora Global Database replica con menos de un segundo de lag entre regiones. Si la región primaria falla, podés promover la réplica en la región secundaria en menos de un minuto. Route 53 con health check actualiza el DNS al nuevo endpoint. Para el examen: Aurora Global Database aparece siempre en escenarios de DR de bases de datos relacionales con RTO y RPO muy estrictos."
-    },
-    {
-      "speaker": "carlos",
-      "text": "perfecto. ¿Y cuáles son los anti-patrones de diseño que el examen menciona explícitamente?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Los más frecuentes: Single Point of Failure — no desplegar en múltiples A.Z.. Tight coupling — que un servicio llame directamente a otro de forma síncrona cuando podría ser asíncrono con SQS. Manual scaling — no usar Auto Scaling y tener capacidad fija. Over-provisioning — pagar por recursos que no usás. Y no tener monitoring — sin CloudWatch alarmas ni logs, no sabés cuándo algo falla hasta que el usuario se queja."
-    },
-    {
-      "speaker": "carlos",
-      "text": "a ver — SPOF, tight coupling, manual scaling, over-provisioning, falta de monitoring. ¿Y hay algún gotcha de arquitectura que el examen use para confundir?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Sí. El más clásico: RDS Multi-A.Z. versus Read Replicas. El examen te puede poner ambas opciones. Multi-A.Z. es para HA con failover automático — el standby no sirve para lecturas. Read Replica es para escalar lecturas — no hace failover automático. Si el escenario dice 'la aplicación tiene muchas lecturas y querés distribuirlas', es Read Replica. Si dice 'la DB tiene que estar disponible si falla la A.Z.', es Multi-A.Z.."
-    },
-    {
-      "speaker": "carlos",
-      "text": "ah, ese es un gotcha clásico — los dos escalan la DB pero de formas distintas. ¿Otro?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Otro frecuente: S3 versus EFS para storage compartido. Si te preguntan cómo compartir archivos entre múltiples instancias E.C. 2 que necesitan acceso simultáneo al file system, es EFS — no S3. EFS se monta como un NFS compartido entre instancias. S3 es object storage, no un file system montable con acceso concurrente de la misma manera. El examen usa 'shared file system' como señal de EFS."
-    },
-    {
-      "speaker": "carlos",
-      "text": "capté — EFS para file system compartido entre EC2s, S3 para object storage. ¿Y hay algún gotcha sobre SQS?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Sí. SQS Standard versus SQS FIFO. Standard garantiza al menos una entrega, pero puede haber mensajes duplicados y no garantiza orden. FIFO garantiza exactamente una entrega y orden estricto, pero tiene menor throughput. El examen te da el escenario: 'un sistema financiero procesa transacciones y no puede tener duplicados ni mensajes fuera de orden' — eso es FIFO. Si el orden no importa y necesitás alto throughput — Standard."
-    },
-    {
-      "speaker": "carlos",
-      "text": "perfecto, eso es muy claro. Bueno Ana, hacé que te haga el recap del módulo. El Well-Architected Framework tiene seis pillars: Operational Excellence, Security, Reliability, Performance Efficiency, Cost Optimization, y Sustainability. El principio central de Reliability es diseñar asumiendo que todo puede fallar."
-    },
-    {
-      "speaker": "ana",
-      "text": "Muy bien. Los patrones: multi-tier con presentation, application, y data tier separadas para escalar independientemente. Serverless con S3, CloudFront, API Gateway, Lambda, y DynamoDB — sin servidores. Event-driven con SNS para fan-out, SQS para buffer y desacoplamiento, EventBridge para routing condicional. Microservicios con ECS Fargate, Lambda, o EKS según el requisito."
-    },
-    {
-      "speaker": "carlos",
-      "text": "y en alta disponibilidad: Multi-A.Z. con ALB y Auto Scaling. Active-Active para absorber fallos sin downtime, Active-Passive para failover con algo de impacto. RDS Multi-A.Z. para HA de base de datos con failover automático, Read Replicas para escalar lecturas. Y disaster recovery con cuatro estrategias: Backup and Restore, Pilot Light, Warm Standby, y Multi-Site Active-Active — de más barato y lento a más caro y rápido."
-    },
-    {
-      "speaker": "ana",
-      "text": "Exacto. Y las decisiones clave de arquitectura: compute según el control y duración — E.C. 2, Lambda, Fargate, o EKS. Base de datos según el tipo de dato — RDS para relacional, DynamoDB para NoSQL, ElastiCache para cache, Redshift para analytics. Storage según el acceso — S3 para objetos, EBS para disco de E.C. 2, EFS para file system compartido. Y comunicación síncrona para respuesta inmediata, asíncrona para desacoplar."
-    },
-    {
-      "speaker": "carlos",
-      "text": "y los gotchas: RDS Multi-A.Z. para HA no para lecturas, Read Replicas para lecturas no para HA. SQS FIFO para orden y sin duplicados, Standard para throughput. EFS para file system compartido, S3 para objetos. Aurora Global Database para DR cross-region con RPO cercano a cero. ¿Me faltó algo importante?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Un punto final: las palabras clave del escenario son tu mapa. 'Desacoplar' apunta a SQS o EventBridge. 'Fan-out' apunta a SNS. 'Serverless' apunta a Lambda, Fargate, DynamoDB. 'HA en múltiples A.Z.' apunta a Multi-A.Z. más ALB más Auto Scaling. 'DR cross-region' apunta a Aurora Global Database o DynamoDB Global Tables. 'Tiempo real' apunta a Kinesis. Aprenderte estas señales es la clave para dominar el examen."
-    },
-    {
-      "speaker": "carlos",
-      "text": "capté — las palabras clave son el mapa al servicio correcto. Tengo todo claro."
-    },
-    {
-      "speaker": "ana",
-      "text": "Exacto. Hoy cubriste los patrones que sintetizan todo el examen: Well-Architected Framework, multi-tier, serverless, event-driven, microservicios, alta disponibilidad, disaster recovery con sus cuatro estrategias, caching en múltiples capas, y seguridad en profundidad. Son el lenguaje que usa el examen para plantear sus scenarios. En el próximo módulo vemos Cost Optimization, que cierra el ciclo con estrategias concretas para reducir costos en AWS. Hasta la próxima."
-    }
+    {"speaker": "ana", "text": "Carlos, arrancamos con un escenario bien de examen. Una startup tiene una aplicación web con tráfico impredecible: días tranquilos y picos de diez veces más usuarios. Piden alta disponibilidad, que escale sola y el menor costo posible. Te dan cuatro arquitecturas completas y tenés que elegir una. ¿Cómo encarás eso?"},
+    {"speaker": "carlos", "text": "Uf, a ver… si me das cuatro arquitecturas enteras, con cinco o seis servicios cada una, me mareo. Yo más o menos sé qué hace cada servicio por separado, pero compararlos combinados es otro nivel. Supongo que de eso va el módulo de hoy, ¿no?"},
+    {"speaker": "ana", "text": "Exacto. Hoy es Architecture Patterns, el módulo doce, y es un módulo de síntesis: agarra todo lo que vimos en los módulos anteriores y lo arma en los patrones que el examen evalúa de verdad. Porque el SAA-C03 casi nunca te pregunta qué hace un servicio: te pregunta cómo combinarlos para cumplir un requisito."},
+    {"speaker": "carlos", "text": "Dale, me interesa. ¿Y cómo pesa esto en el examen? Porque si es síntesis, me imagino que toca todos los dominios."},
+    {"speaker": "ana", "text": "Tal cual, los cuatro. Domain one, Secure Architectures, treinta por ciento. Domain two, Resilient Architectures, veintiséis. Domain three, High-Performing Architectures, veinticuatro. Y Domain four, Cost-Optimized Architectures, veinte por ciento. Cada patrón de hoy cae en uno o varios de esos dominios. Este módulo es transversal al examen entero."},
+    {"speaker": "carlos", "text": "¿Y qué patrones vamos a ver puntualmente?"},
+    {"speaker": "ana", "text": "El menú: Well-Architected Framework como marco general, la arquitectura multi-tier clásica, serverless, event-driven, microservicios, alta disponibilidad, disaster recovery, caching en capas, optimización de costos y seguridad en profundidad. Y cerramos con los qualifiers: esas palabritas del enunciado que te dicen la respuesta antes de leer las opciones."},
+    {"speaker": "carlos", "text": "Me encanta eso de los qualifiers, lo venís prometiendo hace varios episodios. Dale, arranquemos por el framework."},
+    {"speaker": "ana", "text": "El Well-Architected Framework es la guía oficial de AWS para diseñar bien. Son seis pilares: Operational Excellence, Security, Reliability, Performance Efficiency, Cost Optimization y Sustainability. El examen no te pide recitarlos, pero fíjate que las preguntas están escritas con esa lógica: cada qualifier del enunciado apunta a un pilar."},
+    {"speaker": "carlos", "text": "A ver si los conecto: si la pregunta dice most cost-effective, me está apuntando al pilar de Cost Optimization. Y si dice highly available, a Reliability. ¿Va por ahí?"},
+    {"speaker": "ana", "text": "Exacto, esa es la lectura correcta. Repasemos rápido qué cubre cada uno. Operational Excellence: correr y monitorear sistemas. Security: proteger datos y sistemas. Reliability: recuperarse de fallas y cubrir la demanda. Performance Efficiency: usar recursos de forma eficiente. Cost Optimization: evitar gastos innecesarios. Y Sustainability: minimizar el impacto ambiental."},
+    {"speaker": "carlos", "text": "Sustainability es el más nuevo, ¿no? ¿Cae mucho en el examen?"},
+    {"speaker": "ana", "text": "Es el sexto, se agregó después. Cae poco, pero existe. Lo que sí cae son los design principles que cruzan todos los pilares. El primero: stop guessing capacity. No adivines cuánta capacidad necesitás: poné auto scaling y que la infraestructura siga a la demanda."},
+    {"speaker": "carlos", "text": "Ese principio me hace ruido en el buen sentido. En el mundo on-premises comprás los fierros para el pico de diciembre y duermen el resto del año."},
+    {"speaker": "ana", "text": "Exactamente ese es el problema que ataca. Segundo principio: test at production scale. En la nube podés clonar el ambiente productivo entero, probar y apagarlo: pagás solo esas horas. Tercero: automatizar todo, con Infrastructure as Code y pipelines de deployment. Cuarto: arquitecturas evolutivas — diseñá para cambiar, no para quedar congelado."},
+    {"speaker": "carlos", "text": "¿Y los últimos dos principios?"},
+    {"speaker": "ana", "text": "Quinto: decisiones basadas en datos — métricas de CloudWatch, no intuición. Y sexto, mi favorito: game days. Simulás fallas en producción controlada para ver si la arquitectura aguanta. Si nunca probaste el failover, no tenés failover: tenés esperanza."},
+    {"speaker": "carlos", "text": "Ja, esa frase me la anoto. Dale, vamos al primer patrón grande."},
+    {"speaker": "ana", "text": "Patrón número uno: la arquitectura de tres capas, el three-tier clásico. Es el patrón estándar para una aplicación web escalable y productiva en AWS, y el examen lo ama. Tres capas aisladas: presentación, lógica y datos. El tráfico fluye de arriba hacia abajo, y cada capa escala y falla por separado."},
+    {"speaker": "carlos", "text": "Te freno acá porque acá entran load balancers y Auto Scaling, ¿no? Y esto no lo toqué nunca, te pregunto desde cero."},
+    {"speaker": "ana", "text": "Perfecto, de cero entonces. Capa de presentación: el usuario entra desde internet, primero pega en CloudFront, el CDN de AWS, que cachea contenido en el edge. Route 53 maneja el D N S, la resolución de nombres. Y de ahí el request pasa a un Application Load Balancer, o sea un ALB, que lo reparte entre una flota de instancias EC2 o contenedores."},
+    {"speaker": "carlos", "text": "¿Y el ALB en qué se diferencia de otros load balancers? Me suena que había varios tipos."},
+    {"speaker": "ana", "text": "Muy buena pregunta. El ALB trabaja en Layer seven, a nivel HTTP: entiende rutas, headers, puede mandar cada request a distintos targets según el path. El Network Load Balancer, el NLB, trabaja en Layer four, T C P y U D P, para latencia ultra baja. Para una aplicación web, ALB casi siempre."},
+    {"speaker": "carlos", "text": "Capté. ¿Y el Auto Scaling Group dónde encaja en esto?"},
+    {"speaker": "ana", "text": "Detrás del balancer. El Auto Scaling Group agranda y achica la flota automáticamente según la demanda: más tráfico, lanza más instancias; baja el tráfico, las elimina. Y si una instancia muere o falla el health check, la reemplaza sola. Elasticidad y auto-reparación en un solo componente."},
+    {"speaker": "carlos", "text": "O sea que el load balancer reparte, y el Auto Scaling Group decide cuántas instancias hay para repartir. Dos roles distintos que trabajan juntos."},
+    {"speaker": "ana", "text": "Exacto. Segunda capa: la de aplicación, donde vive la lógica de negocio. Y ojo con esto: la capa web nunca habla directo con la base de datos. Manda los requests a un segundo ALB interno, que rutea a otro Auto Scaling Group con instancias EC2, contenedores de ECS, el Elastic Container Service, o funciones Lambda."},
+    {"speaker": "carlos", "text": "Esperá, ¿para qué dos load balancers? ¿No alcanza con el de adelante?"},
+    {"speaker": "ana", "text": "El segundo te da dos cosas. Una: escalás la lógica independiente del front — capaz necesitás diez servidores de lógica y solo tres de presentación. Y dos: nunca exponés tus application servers a internet. Quedan en subnets privadas, accesibles únicamente desde la capa de arriba."},
+    {"speaker": "carlos", "text": "Ah, tiene sentido. ¿Y la capa de datos?"},
+    {"speaker": "ana", "text": "La más protegida, abajo de todo. RDS, el Relational Database Service, corriendo en Multi-A Z para failover automático. O Aurora o DynamoDB según el workload. Y un detalle que el examen premia: ElastiCache adelante de la base, absorbiendo las lecturas repetidas para bajar latencia y carga. S3 cubre lo que sea archivos y objetos."},
+    {"speaker": "carlos", "text": "Esperá, ¿qué es exactamente Multi-A Z? Lo escucho nombrar en todos lados."},
+    {"speaker": "ana", "text": "Lo desarmamos en detalle cuando lleguemos a alta disponibilidad, pero el resumen: RDS mantiene una copia sincrónica de tu base en otra Availability Zone, y si la principal muere, el failover es automático. Por ahora quedate con esto: Multi-A Z es para disponibilidad, no para escalar lecturas."},
+    {"speaker": "carlos", "text": "¿Y para escalar lecturas entonces?"},
+    {"speaker": "ana", "text": "Read Replicas: copias asincrónicas que sí sirven tráfico de lectura. Multi-A Z protege, Read Replica escala. El examen cruza estas dos en una de sus trampas favoritas — la retomamos en los qualifiers. Una imagen que ayuda: el three-tier es un restaurante. El salón atiende, la cocina prepara, el depósito guarda. Nadie del salón entra al depósito."},
+    {"speaker": "carlos", "text": "Buena esa: el mozo no va a la heladera, le pide a la cocina. Y como best practices, imagino: varias Availability Zones siempre, auto scaling, caching, y servicios managed donde se pueda."},
+    {"speaker": "ana", "text": "Las cinco: esas cuatro más mantener las capas separadas. La frase resumen del patrón: tres capas aisladas — web, lógica, datos — cada una con su load balancer y su Auto Scaling Group, escalando y fallando por separado. Y ahora el salto: ¿qué pasa si te digo que podés armar lo mismo sin un solo servidor?"},
+    {"speaker": "carlos", "text": "Me intriga. ¿Sin EC2, sin Auto Scaling Groups, sin nada que parchear?"},
+    {"speaker": "ana", "text": "Nada de eso. El patrón serverless reemplaza cada servidor del modelo de tres capas por un servicio managed. Arranquemos por el frontend: los archivos estáticos — HTML, C S S, JavaScript — viven en un bucket de S3, y CloudFront los sirve desde edge locations en todo el mundo. No hay web server."},
+    {"speaker": "carlos", "text": "Ah, esto sí lo viví. Una vez deployé una single page application, una S P A, con CloudFront y el bucket de S3 totalmente privado, con Block Public Access todo en true. Me costó entender por qué funcionaba igual siendo privado. Era por el O A I ese, ¿no? ¿El moderno?"},
+    {"speaker": "ana", "text": "Casi: lo tenés al revés. El moderno es OAC, Origin Access Control, que firma los requests con Signature versión cuatro. O A I, Origin Access Identity, es el mecanismo legacy. La idea es la misma: el bucket queda privado y solo CloudFront puede leerlo, vía la bucket policy. Para el examen, OAC es la respuesta recomendada hoy."},
+    {"speaker": "carlos", "text": "OAC moderno, O A I legacy. Anotado. ¿Y cuando el frontend necesita hablar con un backend?"},
+    {"speaker": "ana", "text": "Llama a A P I Gateway, la puerta de entrada del backend serverless. Hace el ruteo, la autenticación, el throttling y la terminación T L S. Soporta A P Is REST y también conexiones WebSocket para tiempo real. Y detrás, cada ruta dispara una función Lambda."},
+    {"speaker": "carlos", "text": "Lambda… no, esto nunca lo configuré — explicámelo de cero. Sé que existe y poco más."},
+    {"speaker": "ana", "text": "Es tu lógica de negocio empaquetada en una función que AWS ejecuta on demand. No administrás servidores: subís el código, Lambda lo corre cuando llega un evento, escala solo de cero a miles de ejecuciones en paralelo, y pagás por milisegundo de ejecución. Sin tráfico, no pagás nada. Único límite famoso: quince minutos máximo por ejecución."},
+    {"speaker": "carlos", "text": "¿Y los datos dónde van, si no hay servidores de base de datos?"},
+    {"speaker": "ana", "text": "Dos backends naturales. DynamoDB, la base NoSQL serverless de AWS: escala automático, latencia de milisegundos de un solo dígito, y combina perfecto con Lambda. Y S3 para archivos y objetos: uploads, documentos, media. Completan el cuadro Cognito para autenticación de usuarios y Step Functions si necesitás orquestar flujos de varios pasos."},
+    {"speaker": "carlos", "text": "A ver, la frase resumen sería: S3 y CloudFront sirven el frontend, A P I Gateway rutea los requests, Lambda ejecuta la lógica, y DynamoDB más S3 guardan los datos. Cero servidores administrados de punta a punta."},
+    {"speaker": "ana", "text": "Perfecta. Y los beneficios que el examen premia: sin administración de servidores, escala automática, pay per use, alta disponibilidad incorporada y mínimo operational overhead. Esa última frase, grabátela, es un qualifier estrella: cuando la veas en un enunciado, pensá serverless."},
+    {"speaker": "carlos", "text": "¿Y cuándo conviene este patrón? ¿Sirve para todo?"},
+    {"speaker": "ana", "text": "Casos de uso típicos: aplicaciones web, backends de mobile, A P Is, procesamiento de archivos en tiempo real, stream processing. ¿Cuándo no? Cómputo constante veinticuatro siete: ahí el pay per use puede salir más caro que capacidad reservada. Lo retomamos en la sección de costos, que ahí hay una historia tuya esperando."},
+    {"speaker": "carlos", "text": "Ja, ya sé cuál. Dale, sigamos con event-driven, que ese nombre lo escucho todo el tiempo y nunca me quedó del todo claro."},
+    {"speaker": "ana", "text": "Es el patrón que desacopla todo. La idea central: nada habla directo con nada. Los componentes emiten eventos, y otros componentes reaccionan a esos eventos de forma independiente. Tres piezas: producers, un middle layer que amortigua o rutea, y consumers."},
+    {"speaker": "carlos", "text": "¿Producers serían… cualquier cosa que genere un evento?"},
+    {"speaker": "ana", "text": "Exacto: un upload a S3, un cambio en una tabla de DynamoDB, un sensor I o T, tu propia aplicación. Y acá viene lo importante: el producer no sabe ni le importa quién escucha. Tira el evento y sigue con su vida. Ese desconocimiento mutuo es la esencia del desacople."},
+    {"speaker": "carlos", "text": "¿Y en el medio qué hay?"},
+    {"speaker": "ana", "text": "El corazón del patrón, con cuatro opciones según el caso. EventBridge: rutea eventos entre servicios AWS y aplicaciones SaaS según reglas. S N S, Simple Notification Service: fan-out, un evento notifica a muchos suscriptores a la vez. S Q S, Simple Queue Service: buffering, una cola que guarda mensajes para que el consumer procese a su ritmo. Y Kinesis: streams de datos de alto volumen en tiempo real."},
+    {"speaker": "carlos", "text": "EventBridge me toca de cerca: yo el cron de un scraper lo puse con EventBridge… aunque ahora no me acuerdo si era Rules o Scheduler, siempre los confundo. ¿Son la misma cosa?"},
+    {"speaker": "ana", "text": "No, son dos cosas distintas, y confundirlas es clasiquísimo. EventBridge Rules reacciona a patrones de eventos — cuando pase tal cosa, hacé tal otra — y de paso soporta cron, que es el uso histórico. EventBridge Scheduler es un servicio dedicado de scheduling, más nuevo, pensado específicamente para tareas programadas, con timezones y ventanas flexibles. Para crons nuevos, AWS recomienda Scheduler."},
+    {"speaker": "carlos", "text": "Ah, mirá, con razón los mezclaba: seguro usé uno en cada scraper. Sigo con los otros dos: ¿S Q S y S N S? Yo esto no lo toqué, así que te pregunto desde cero."},
+    {"speaker": "ana", "text": "Empecemos por S N S y el patrón pub sub. Tenés un topic. Un publisher manda un mensaje al topic, y todos los suscriptores lo reciben a la vez: funciones Lambda, colas de S Q S, emails, endpoints HTTP. Eso es fan-out: un solo evento, muchos destinos simultáneos."},
+    {"speaker": "carlos", "text": "O sea S N S empuja a todos al mismo tiempo. ¿Y la cola qué hace distinto?"},
+    {"speaker": "ana", "text": "S Q S es lo contrario en un sentido: no empuja, espera. El producer deja mensajes en la queue, y el consumer hace polling y los procesa a su propio ritmo. Si el consumer se cae, los mensajes esperan. Si llega un pico, la cola lo amortigua. Eso tiene nombre: queue-based load leveling, la cola como amortiguador."},
+    {"speaker": "carlos", "text": "Esperá, dame un ejemplo concreto de eso así lo fijo bien."},
+    {"speaker": "ana", "text": "Un e-commerce en Black Friday. Los pedidos entran de a miles por segundo, pero tu sistema de facturación procesa cien por segundo. Sin cola, se cae todo. Con S Q S en el medio, los pedidos se encolan y facturación los va sacando a su ritmo. Nadie pierde un pedido, nada explota. La cola desacopla la velocidad de entrada de la velocidad de procesamiento."},
+    {"speaker": "carlos", "text": "Capté, quedó clarísimo. ¿Y Kinesis? Que ya lo vimos a fondo en el módulo de Analytics."},
+    {"speaker": "ana", "text": "Exacto, módulo once. Acá su rol es el streaming: datos de alto volumen en tiempo real donde importan el orden y poder re-leer el stream. Varios consumers pueden leer el mismo stream a la vez, y el orden se mantiene por partición. Clickstreams, telemetría, logs en tiempo real."},
+    {"speaker": "carlos", "text": "¿Y cómo decido entre los cuatro en una pregunta de examen? Porque de entrada suenan parecidos."},
+    {"speaker": "ana", "text": "Regla mental de cuatro preguntas. ¿Necesitás amortiguar y que cada mensaje lo procese un consumer? S Q S. ¿Notificar a varios a la vez? S N S. ¿Rutear eventos entre servicios AWS y SaaS con reglas? EventBridge. ¿Stream masivo en tiempo real con orden y replay? Kinesis. Y del otro lado, los consumers: Lambda, contenedores, o incluso otra cola para desacoplar más."},
+    {"speaker": "carlos", "text": "Y el beneficio general es que todo queda débilmente acoplado, ¿no? Si un consumer explota, el resto sigue andando como si nada."},
+    {"speaker": "ana", "text": "Exacto: loose coupling, escalabilidad, resiliencia, flexibilidad y procesamiento en tiempo real. Frase resumen: los producers disparan eventos a un middle layer que amortigua, rutea o hace fan-out, y los consumers reaccionan a su propio ritmo, sin conexión directa con la fuente."},
+    {"speaker": "carlos", "text": "Dale, microservicios. Esto en el trabajo se nombra todo el tiempo, pero quiero la versión AWS bien concreta."},
+    {"speaker": "ana", "text": "La idea base: en vez de un monolito gigante, partís la aplicación en servicios chicos e independientes, cada uno dueño de su propia lógica y, acá viene lo importante, de su propia base de datos. Ningún servicio comparte base con otro."},
+    {"speaker": "carlos", "text": "¿Ninguno? ¿Ni siquiera para datos comunes, tipo usuarios?"},
+    {"speaker": "ana", "text": "Ninguno: ese es el punto duro del patrón. Si el servicio de pedidos necesita datos de usuarios, se los pide al servicio de usuarios por A P I, no entra a su base. ¿Por qué? Porque compartir base te acopla: un cambio de schema en un servicio rompe al otro, y volviste al monolito disfrazado."},
+    {"speaker": "carlos", "text": "¿Y el cliente cómo entra a todo esto?"},
+    {"speaker": "ana", "text": "Por un único punto de entrada: A P I Gateway. Rutea cada request al servicio correcto según el path. Ningún cliente habla directo con un servicio. Detrás, imaginate cinco servicios independientes: User, Order, Payment, Inventory y Shipping. Algunos corren en Lambda para cargas livianas, otros en ECS si necesitan más control o ejecuciones largas."},
+    {"speaker": "carlos", "text": "¿Y cada servicio elige su base de datos según lo que necesita?"},
+    {"speaker": "ana", "text": "Exacto. User y Payment usan DynamoDB para acceso NoSQL rápido y flexible. Order e Inventory usan Aurora porque necesitan transacciones relacionales. Shipping guarda documentos en S3. Cada servicio, la herramienta justa para su problema. Deployás, escalás y actualizás cualquiera sin tocar el resto."},
+    {"speaker": "carlos", "text": "¿Y entre ellos se comunican con lo que vimos recién, lo event-driven?"},
+    {"speaker": "ana", "text": "Tal cual: S Q S, S N S y EventBridge para la comunicación asincrónica — el patrón event-driven aplicado dentro de microservicios. Step Functions si hay que orquestar flujos de varios pasos. Para encontrarse entre ellos, ECS Service Discovery o D N S privado con Route 53. Y para observabilidad, CloudWatch y X-Ray, que te muestra el viaje completo de un request entre servicios."},
+    {"speaker": "carlos", "text": "¿Y el beneficio que el examen busca acá? ¿El deploy independiente?"},
+    {"speaker": "ana", "text": "Deploy independiente, escala por servicio, aislamiento de fallas — si Shipping se cae, Payment sigue cobrando —, libertad de tecnología por servicio y autonomía de equipos. Frase resumen: A P I Gateway rutea a servicios independientes, cada uno con su cómputo y su propia base; cambiás, escalás o redeployás cualquiera sin afectar el resto."},
+    {"speaker": "carlos", "text": "Vamos a alta disponibilidad, que me dijiste que era de lo más pesado del examen."},
+    {"speaker": "ana", "text": "Lo más pesado junto con disaster recovery: Domain two, veintiséis por ciento. Hay dos patrones para distinguir sin dudar. Primero: active-active entre Availability Zones, dentro de una misma Region. Todo duplicado en dos zonas: si una zona entera se cae, la aplicación sigue andando."},
+    {"speaker": "carlos", "text": "Esto también es territorio nuevo para mí: Route 53, failover, RDS Multi-A Z… nada de eso toqué. Dale despacio."},
+    {"speaker": "ana", "text": "Despacio entonces. Arriba de todo está Route 53, el D N S de AWS, repartiendo el tráfico entre las dos zonas con weighted routing: por defecto mitad y mitad, con pesos ajustables. Y corre health checks: si una zona deja de responder, Route 53 deja de mandarle tráfico automáticamente."},
+    {"speaker": "carlos", "text": "¿Y adentro de cada zona qué hay?"},
+    {"speaker": "ana", "text": "Cada Availability Zone tiene su ALB y su propia flota de instancias EC2. Y la palabra clave: ambas flotas están activas sirviendo tráfico al mismo tiempo. No hay un lado dormido esperando: los dos trabajan siempre. Como dos cajas abiertas en el supermercado, no una abierta y otra por las dudas."},
+    {"speaker": "carlos", "text": "¿Y la base de datos? Porque no pueden estar las dos zonas escribiendo a la vez, ¿o sí?"},
+    {"speaker": "ana", "text": "Muy buena pregunta, y no: acá el patrón cambia. RDS corre en Multi-A Z. La instancia Primary vive en la zona A y maneja todas las lecturas y escrituras. La Standby vive en la zona B y recibe replicación sincrónica: cada escritura se confirma en las dos antes de responder. Cero pérdida de datos."},
+    {"speaker": "carlos", "text": "¿Y la Standby mientras tanto sirve tráfico de lectura, al menos?"},
+    {"speaker": "ana", "text": "No, y esto es trampa repetida de examen: la Standby no sirve tráfico nunca. Existe pura y exclusivamente para el failover. Si la Primary falla, RDS promueve la Standby automáticamente, típicamente en menos de dos minutos, sin intervención manual. ¿Querés servir lecturas? Eso es Read Replica, que es otra cosa."},
+    {"speaker": "carlos", "text": "O sea que el cómputo es active-active entre zonas, pero la base es active-standby. Conviven los dos enfoques en el mismo patrón."},
+    {"speaker": "ana", "text": "Exacto, esa es la frase resumen del patrón Multi-A Z. Segundo patrón: active-passive entre Regions. Acá protegemos contra algo más grueso: que se caiga una Region entera de AWS. Dos Regions geográficamente separadas: digamos us-east-one en Virginia como primaria y us-west-two en Oregón como standby."},
+    {"speaker": "carlos", "text": "¿Y quién decide cuándo cambiar de Region?"},
+    {"speaker": "ana", "text": "Route 53 otra vez, pero ahora con failover routing: corre health checks contra la Region primaria y, si la ve unhealthy, flipea el D N S hacia la secundaria automáticamente. Diferencia clave con el patrón anterior: acá una sola Region sirve tráfico a la vez."},
+    {"speaker": "carlos", "text": "¿Y la Region standby qué tiene corriendo? ¿Una copia completa de todo?"},
+    {"speaker": "ana", "text": "Espeja la infraestructura — su ALB, su flota — y una Read Replica de RDS que recibe replicación continua desde la Primary. Pero está idle, gastando lo mínimo, lista para ser promovida. Es como el generador del hospital: no ilumina nada hasta que se corta la luz. Según cuánto esté prendido, eso se llama Pilot Light o Warm Standby — lo desarmamos en un minuto."},
+    {"speaker": "carlos", "text": "Antes de eso: ¿qué otras piezas dan alta disponibilidad? Así me armo la caja de herramientas completa."},
+    {"speaker": "ana", "text": "La lista: múltiples Availability Zones siempre. Auto Scaling reemplazando instancias enfermas. Load balancers repartiendo tráfico. Route 53 con sus routing policies. RDS Multi-A Z. S3 con sus once nueves de durabilidad. CloudWatch Alarms para recovery automático. Y una que brilla en el examen: Global Accelerator — dos I Ps estáticas anycast con failover regional rapidísimo."},
+    {"speaker": "carlos", "text": "Uy, eso no lo sabía. ¿Global Accelerator no es como CloudFront? ¿En qué se diferencian?"},
+    {"speaker": "ana", "text": "Se confunden seguido, pero no. CloudFront cachea contenido HTTP en el edge. Global Accelerator no cachea nada: optimiza el camino de red hacia tu aplicación y te da I Ps estáticas. Si el enunciado dice T C P o U D P, gaming, VoIP o I Ps fijas: Global Accelerator. Si dice contenido, caching, HTTP: CloudFront."},
+    {"speaker": "carlos", "text": "Anotado. Dale, disaster recovery, que me dejaste con Pilot Light y Warm Standby en el aire."},
+    {"speaker": "ana", "text": "Antes, dos métricas que definen todo. R P O, Recovery Point Objective: cuántos datos podés perder, medido en tiempo. R T O, Recovery Time Objective: cuánto tiempo podés estar caído. Cada estrategia de disaster recovery es un trade-off entre esas dos métricas y el costo."},
+    {"speaker": "carlos", "text": "A ver si lo digo con mis palabras: R P O es hasta cuánto pasado pierdo, y R T O es cuánto tardo en volver a estar online. ¿Va?"},
+    {"speaker": "ana", "text": "Perfecto. Con eso, las cuatro estrategias de menor a mayor costo. Uno: Backup and Restore. Backups a S3, y si pasa el desastre, restaurás todo desde cero. R P O de horas, R T O de horas a días. Lo más barato, lo más lento. Para aplicaciones no críticas."},
+    {"speaker": "carlos", "text": "¿La dos?"},
+    {"speaker": "ana", "text": "Pilot Light, la llama piloto: como el calefón, una llamita mínima siempre prendida. Mantenés corriendo solo lo esencial — típicamente la base de datos replicando — y el resto apagado pero pre-configurado. Ante el desastre, encendés todo y escalás. R P O de minutos, R T O de horas."},
+    {"speaker": "carlos", "text": "Ah, buenísima la analogía del calefón. ¿La tres?"},
+    {"speaker": "ana", "text": "Warm Standby: una versión completa de la aplicación corriendo en la otra Region, pero en miniatura. Todo funciona, todo está prendido, solo que con capacidad mínima. Ante el desastre, escalás a tamaño completo. R P O de segundos, R T O de minutos."},
+    {"speaker": "carlos", "text": "Esperá, ¿y la diferencia fina entre Pilot Light y Warm Standby? Porque suenan parecidas y seguro el examen las cruza."},
+    {"speaker": "ana", "text": "La pregunta del millón, literal cae en el examen. Pilot Light: solo el núcleo prendido, la aplicación no puede servir tráfico hasta que enciendas el resto. Warm Standby: la aplicación entera prendida y funcional, pero chiquita — puede servir tráfico ya mismo, poquito, mientras escala. Esa es la línea divisoria: ¿puede atender requests hoy o no?"},
+    {"speaker": "carlos", "text": "Clarísimo. ¿Y la cuarta estrategia?"},
+    {"speaker": "ana", "text": "Multi-Site Active-Active: producción completa en dos o más Regions, todas sirviendo tráfico a la vez, con Route 53 repartiendo. R P O y R T O cercanos a cero. Lo más caro por lejos. Para workloads donde un minuto caído cuesta millones: pagos, trading, salud."},
+    {"speaker": "carlos", "text": "¿Y con qué herramientas implemento todo esto?"},
+    {"speaker": "ana", "text": "AWS Backup para backups centralizados. S3 Cross-Region Replication para replicar objetos entre Regions. RDS Read Replicas que se pueden promover a Primary. Aurora Global Database, con menos de un segundo de lag entre Regions. DynamoDB Global Tables, que es multi-Region active-active de fábrica. Route 53 o Global Accelerator para el failover. Y CloudFormation: la infraestructura como código, lista para redeployar rápido."},
+    {"speaker": "carlos", "text": "Esa última me cierra mucho: si la infraestructura es código, levantar la Region de respaldo es ejecutar un template, no reconstruir de memoria a las apuradas."},
+    {"speaker": "ana", "text": "Exacto: sin Infrastructure as Code, Pilot Light es casi imposible de hacer bien. Y la regla de oro para el examen: el enunciado te da pistas de R P O y R T O — puede tolerar cuatro horas de caída, no puede perder más de cinco minutos de datos — y con esas dos pistas elegís la estrategia más barata que cumpla."},
+    {"speaker": "carlos", "text": "Dale, caching, que ya nombraste ElastiCache varias veces y me quedó picando. No lo toqué nunca, así que arrancá desde cero: ¿por qué en capas?"},
+    {"speaker": "ana", "text": "Porque cada capa actúa como un filtro: si el dato está ahí, el request frena y nunca viaja más profundo. Resultado: menos latencia para el usuario y la base de datos protegida de requests repetidos e idénticos. Pensalo como la heladera de tu casa: si hay leche, no vas al supermercado."},
+    {"speaker": "carlos", "text": "Ja, perfecta esa. ¿Y cuáles son las capas, de afuera hacia adentro?"},
+    {"speaker": "ana", "text": "Primera: CloudFront en el edge, lo más cerca del usuario. Cachea assets estáticos y respuestas HTTP en las edge locations del mundo entero. Si CloudFront tiene la respuesta, el request ni siquiera llega a tu infraestructura. Segunda: A P I Gateway, que tiene su propio response cache integrado — la misma llamada repetida se responde sin invocar Lambda."},
+    {"speaker": "carlos", "text": "¿Y la tercera capa es la aplicación misma?"},
+    {"speaker": "ana", "text": "Sí: cache en memoria dentro de la aplicación, con variables locales o frameworks, para datos caros de calcular y de vida corta. Y la cuarta, la famosa: ElastiCache o DAX, directo adelante de la base de datos."},
+    {"speaker": "carlos", "text": "Ahí va. ¿Y qué diferencia hay entre ElastiCache y ese DAX?"},
+    {"speaker": "ana", "text": "ElastiCache es cache de propósito general para cualquier base, con dos motores: Redis o Memcached. Todo en memoria, latencia de microsegundos. DAX, el DynamoDB Accelerator, es exclusivo para DynamoDB: le agrega lecturas en microsegundos sin que cambies el código de tu aplicación. ¿La base es DynamoDB? DAX. ¿Cualquier otra, o cache general, sesiones, leaderboards? ElastiCache."},
+    {"speaker": "carlos", "text": "¿Y si el enunciado pide sub-millisecond o microsecond latency?"},
+    {"speaker": "ana", "text": "Ahí la respuesta es uno de estos dos, siempre. Nunca una Read Replica: la réplica escala lecturas pero sigue siendo disco, milisegundos. Sub-millisecond es sinónimo de in-memory: ElastiCache o DAX. Trampa repetidísima del examen. Y la base de datos queda como último recurso: solo la tocás cuando ninguna capa de arriba tenía el dato."},
+    {"speaker": "carlos", "text": "¿Y las best practices? Porque cachear también puede salir mal, ¿no? Datos viejos servidos como nuevos, por ejemplo."},
+    {"speaker": "ana", "text": "Ese es el riesgo clásico. Por eso: T T L apropiados — time to live, cuánto vive cada dato en el cache —, invalidación cuando los datos cambian, y monitorear el hit rate para saber si el cache sirve. Y el patrón de carga recomendado: cache-aside, también llamado lazy loading."},
+    {"speaker": "carlos", "text": "¿Cómo funciona ese cache-aside exactamente?"},
+    {"speaker": "ana", "text": "La aplicación busca primero en el cache. Si está, listo: cache hit. Si no está, va a la base, lee el dato y lo guarda en el cache para la próxima. Así el cache se llena solo con lo que de verdad se usa. Frase resumen del patrón: cada capa filtra repetidos antes de que bajen — CloudFront en el edge, A P I Gateway en la A P I, ElastiCache o DAX pegados a la base."},
+    {"speaker": "carlos", "text": "Vamos a costos entonces, el Domain four."},
+    {"speaker": "ana", "text": "Veinte por ciento del examen, seis estrategias. Uno: right sizing — elegir el tamaño justo mirando métricas de CloudWatch, no a ojo; AWS Compute Optimizer te recomienda tamaños analizando el uso real. Dos: capacidad reservada — Reserved Instances o Savings Plans, compromiso de uno a tres años a cambio de descuentos grandes, para workloads estables."},
+    {"speaker": "carlos", "text": "¿Las reservas aplican solo a EC2?"},
+    {"speaker": "ana", "text": "No, también hay capacidad reservada para RDS, ElastiCache y otros servicios. Tres: Spot Instances — capacidad ociosa de AWS con hasta noventa por ciento de descuento, con la condición de que te la pueden quitar con dos minutos de aviso. Solo para workloads tolerantes a fallas: batch, big data, procesamiento que puede reintentarse."},
+    {"speaker": "carlos", "text": "O sea, jamás Spot para una base de datos o para algo que no puede morirse de golpe."},
+    {"speaker": "ana", "text": "Jamás. Cuatro: Auto Scaling como herramienta de costo — escalar hacia abajo fuera de hora pico, scheduled scaling para patrones conocidos, target tracking para el resto. Cinco: storage — lifecycle policies de S3 e Intelligent-Tiering para mover datos fríos a clases más baratas, optimizar volúmenes EBS y borrar snapshots viejos."},
+    {"speaker": "carlos", "text": "¿Y la sexta es serverless, me imagino?"},
+    {"speaker": "ana", "text": "Serverless: pay per use, cero capacidad idle. Lambda, DynamoDB On-Demand, Fargate. Si el workload es intermitente o impredecible, serverless gana casi siempre en costo."},
+    {"speaker": "carlos", "text": "Ahí te valido una decisión mía, que es la historia que anticipaste: yo para un scraper que corría un par de horas por día elegí Fargate, en parte porque Lambda tenía ese límite de quince minutos que mencionaste. ¿Estuvo bien, o había algo más barato?"},
+    {"speaker": "ana", "text": "Estuvo muy bien, por las dos puntas. Lambda quedaba descartado por el límite de quince minutos, correcto. ¿Y EC2? Hubieras pagado la instancia veinticuatro siete para usarla un par de horas: con Fargate pagaste solo la ejecución. Esa es la lógica exacta del examen: workload intermitente, serverless gana. Workload constante veinticuatro siete, al revés: EC2 con Reserved o Savings Plans le gana a Fargate."},
+    {"speaker": "carlos", "text": "Buenísimo, me quedo tranquilo. ¿Y cómo monitoreo que no se me dispare la factura?"},
+    {"speaker": "ana", "text": "Cuatro herramientas. Cost Explorer para visualizar y analizar el gasto histórico. AWS Budgets para alertas cuando te acercás o pasás del presupuesto. Cost Allocation Tags para saber qué proyecto o equipo gasta qué. Y los chequeos de costo de Trusted Advisor, que detectan recursos ociosos o sub-utilizados."},
+    {"speaker": "carlos", "text": "Listo costos. Último patrón grande: seguridad. ¿Defense in depth le decías?"},
+    {"speaker": "ana", "text": "Defensa en profundidad: seguridad en múltiples capas independientes. Un atacante tiene que romper todas las capas para llegar a los datos; nunca confiás en un solo control. Pensalo como un castillo medieval: foso, muralla, guardias y bóveda. Son cuatro anillos concéntricos: edge, red, aplicación y datos."},
+    {"speaker": "carlos", "text": "Dale, de afuera hacia adentro. ¿El foso?"},
+    {"speaker": "ana", "text": "La capa edge, el perímetro: lo primero que toca el tráfico antes de entrar a tu infraestructura. WAF, el Web Application Firewall, filtra requests HTTP maliciosos: S Q L injection, cross-site scripting, exploits de Layer seven. Shield absorbe los ataques distribuidos de denegación de servicio, los D D o S. Y CloudFront adelante de todo, escondiendo tu origin de la exposición directa a internet."},
+    {"speaker": "carlos", "text": "¿Shield viene solo o hay que activarlo y pagarlo?"},
+    {"speaker": "ana", "text": "Shield Standard viene gratis y automático para todos. Shield Advanced es pago, con protecciones extra y equipo de respuesta. Para el examen: D D o S es Shield, filtrado de requests HTTP es WAF. Segunda capa, la red: las Network Access Control Lists, las N A C L, reglas stateless a nivel de subnet que filtran antes de llegar a la instancia. Y los Security Groups, firewalls stateful pegados a cada recurso."},
+    {"speaker": "carlos", "text": "Stateless versus stateful, eso lo vimos en Networking: a la N A C L tenés que escribirle reglas de ida y de vuelta; el security group, con permitir la ida, ya deja volver la respuesta solo."},
+    {"speaker": "ana", "text": "Perfecto resumen. Tercera capa: la aplicación, que controla quién puede hacer qué. I A M, Identity and Access Management, con least privilege: cada servicio, usuario y rol recibe solo los permisos que necesita y nada más. Y Cognito maneja la autenticación de los usuarios finales de tu aplicación, así el manejo de identidad no vive en tu código."},
+    {"speaker": "carlos", "text": "¿Y el anillo de adentro, la bóveda?"},
+    {"speaker": "ana", "text": "La capa de datos, la última línea de defensa: encryption. En reposo, K M S, el Key Management Service: encripta bases de datos, objetos de S3, volúmenes EBS. En tránsito, T L S con certificados de A C M, el Certificate Manager: los datos nunca viajan legibles por el cable. Grabate la dupla: at rest es K M S, in transit es A C M con T L S."},
+    {"speaker": "carlos", "text": "Frase resumen entonces: cuatro anillos — el edge bloquea ataques, la red filtra tráfico, la aplicación controla identidad, y los datos van encriptados. Si me rompen una capa, quedan tres en pie."},
+    {"speaker": "ana", "text": "Excelente. Y los principios que completan el cuadro: least privilege siempre, encryption en reposo y en tránsito, aislamiento de red con subnets privadas, monitoreo con CloudTrail, GuardDuty y Config, y respuesta automatizada: EventBridge detecta el evento de seguridad y dispara una Lambda que remedia sola, sin esperar a un humano."},
+    {"speaker": "carlos", "text": "¿Hacemos los escenarios de práctica? Que ahí es donde se junta todo y quiero ver si ya me sale."},
+    {"speaker": "ana", "text": "Dale, cuatro rapiditos y proponés vos. Primero: aplicación web con millones de usuarios globales y latencia menor a cien milisegundos. ¿Qué armás?"},
+    {"speaker": "carlos", "text": "A ver… global y baja latencia: CloudFront para todo el contenido cacheable, Route 53 con latency-based routing, deployment multi-Region con ALB en cada una. Para la base… ¿Aurora Global Database? Más ElastiCache para el caching y Auto Scaling en el cómputo."},
+    {"speaker": "ana", "text": "Impecable, diez puntos. Y podés sumar Global Accelerator si piden I Ps estáticas o failover más rápido que el D N S. Segundo escenario: procesamiento batch nocturno de datasets grandes, muy sensible al costo."},
+    {"speaker": "carlos", "text": "Batch tolerante a fallas y barato… ¡Spot Instances! Con los datos en S3 y lifecycle a Glacier para lo viejo. Para orquestar, ¿Step Functions con Lambda? Y el disparador nocturno con EventBridge Scheduler — ahora sí me acuerdo cuál es cuál."},
+    {"speaker": "ana", "text": "Ja, lección aprendida entonces. Perfecto. Tercero: base de datos de alta disponibilidad, pérdida mínima de datos y R T O menor a un minuto."},
+    {"speaker": "carlos", "text": "Aurora con Multi-A Z y Read Replicas, ¿cross-Region también? Route 53 con failover routing, backups automáticos con point-in-time recovery. Y para el disaster recovery, promover la réplica cross-Region si se cae la Region primaria."},
+    {"speaker": "ana", "text": "Muy bien. Y el cuarto: una A P I con tráfico totalmente impredecible y que pague solo por uso."},
+    {"speaker": "carlos", "text": "Ese es el patrón serverless calcado: A P I Gateway adelante, Lambda para el cómputo, DynamoDB de base, Cognito para autenticación, CloudWatch para monitoreo… ¿y X-Ray para el tracing?"},
+    {"speaker": "ana", "text": "Completo. ¿Viste? Ya estás pensando en patrones, no en servicios sueltos. Cerremos esta parte con los anti-patterns, lo que el examen castiga: single point of failure — siempre múltiples Availability Zones. Escalado manual — siempre Auto Scaling. Acoplamiento fuerte — colas y eventos. Sobre-provisionar, ignorar seguridad, no monitorear, no tener disaster recovery. Si una opción de respuesta huele a alguno de estos, descartala."},
+    {"speaker": "carlos", "text": "Buen filtro ese. Antes de los qualifiers, un pedido: un machete de decisiones rápidas. Tipo: ¿qué cómputo elijo, qué base de datos, qué storage?"},
+    {"speaker": "ana", "text": "Va el machete. Cómputo: EC2 si necesitás control total o un sistema operativo específico. Lambda para event-driven, con el límite de quince minutos. ECS o EKS para contenedores y microservicios. Fargate para contenedores sin administrar servidores. Base de datos: RDS o Aurora para relacional con transacciones, DynamoDB para NoSQL serverless de alto rendimiento, ElastiCache para in-memory, y Redshift para data warehousing y analytics."},
+    {"speaker": "carlos", "text": "¿Y para storage e integración?"},
+    {"speaker": "ana", "text": "Storage: S3 para objetos y contenido estático. EBS como block storage de una instancia EC2, atado a una Availability Zone. E F S como file system compartido entre instancias Linux. Y FSx para file systems especializados, como Windows o Lustre. Integración: sincrónico es A P I Gateway o ALB; asincrónico es S Q S, S N S o EventBridge; streaming es Kinesis o M S K, el Kafka managed."},
+    {"speaker": "carlos", "text": "Ese machete me lo llevo impreso. Ahora sí, dale: la sección de qualifiers que me venís prometiendo."},
+    {"speaker": "ana", "text": "La guía de supervivencia del SAA-C03. Qualifier uno: least operational overhead, fully managed, no servers to manage. Respuesta: lo más managed y serverless que cumpla — Lambda, Fargate, Aurora Serverless, DynamoDB, S3. La trampa: elegir EC2 porque lo controlás todo. El examen premia que AWS opere por vos; el EC2 self-managed casi siempre es el distractor."},
+    {"speaker": "carlos", "text": "Dos era most cost-effective, ¿no? Lo que validamos con mi scraper."},
+    {"speaker": "ana", "text": "Exacto: la opción más barata que cumpla el requisito. Workload variable o intermitente: serverless gana porque no pagás idle. Workload constante veinticuatro siete: EC2 con Reserved o Savings Plans gana. Leé el patrón de tráfico antes de contestar. Tres: most highly available o fault-tolerant: Multi-A Z, sin single points of failure. Y la trampa ya la conocés…"},
+    {"speaker": "carlos", "text": "¡Que Read Replica no es alta disponibilidad! Multi-A Z es el failover automático; la réplica escala lecturas. Si piden high availability en RDS, la respuesta es Multi-A Z."},
+    {"speaker": "ana", "text": "Diez puntos. Cuatro: most secure o least privilege: roles de I A M, encryption, subnets privadas. La trampa: un I A M user con access keys metidas en una instancia EC2. Credenciales hardcodeadas es siempre la opción incorrecta: lo correcto es un I A M role asignado a la instancia."},
+    {"speaker": "carlos", "text": "Cinco era real-time y sub-millisecond: ElastiCache o DAX, nunca Read Replica. Ese ya lo fijamos en caching."},
+    {"speaker": "ana", "text": "Exacto, con un matiz extra: global low latency para tráfico que no es HTTP es Global Accelerator, no CloudFront. Seis: decouple o loosely coupled: S Q S, S N S, EventBridge. La trampa: meter un ALB pensando que repartir carga es desacoplar. No: load balancing no es decoupling. ¿Buffer de mensajes? S Q S."},
+    {"speaker": "carlos", "text": "Siete: durable, once nueves, cannot lose data… S3 seguro. ¿Y la trampa ahí sería EBS?"},
+    {"speaker": "ana", "text": "Esa misma: EBS es block storage atado a una sola Availability Zone. Durabilidad de objetos: S3 y sus once nueves. Ocho: scalable, unpredictable spikes, elastic: Auto Scaling, serverless, DynamoDB On-Demand. La trampa: elegir una instancia más grande — escalado vertical — cuando piden elasticidad. La respuesta del examen es horizontal."},
+    {"speaker": "carlos", "text": "Nueve me imagino que es lo multi-Region: si el enunciado dice Region failure o global, Multi-A Z no me alcanza."},
+    {"speaker": "ana", "text": "Correcto: Multi-A Z vive dentro de una sola Region. Region failure o global pide Route 53 failover, DynamoDB Global Tables, S3 Cross-Region Replication o Aurora Global Database. Y diez, la dupla de encryption: at rest es K M S, in transit es A C M con T L S. Si piden in transit y elegís K M S, caíste. Esos diez qualifiers son tu mapa: buscalos en el enunciado antes de mirar las opciones."},
+    {"speaker": "carlos", "text": "Dale, recap final. ¿Arranco yo? Well-Architected: seis pilares, y los principios — no adivinar capacidad, automatizar, probar fallas con game days. Three-tier: presentación, lógica y datos, cada capa con su ALB y su Auto Scaling Group, base Multi-A Z con ElastiCache adelante."},
+    {"speaker": "ana", "text": "Perfecto. Seguí, vas muy bien."},
+    {"speaker": "carlos", "text": "Serverless: S3 y CloudFront sirven el front, A P I Gateway rutea, Lambda ejecuta, DynamoDB y S3 guardan. Event-driven: producers, middle layer y consumers — S Q S amortigua, S N S hace fan-out, EventBridge rutea, Kinesis streamea. Microservicios: servicios independientes, cada uno con su propia base, A P I Gateway como entrada única."},
+    {"speaker": "ana", "text": "Impecable. ¿Disponibilidad y disaster recovery?"},
+    {"speaker": "carlos", "text": "Active-active entre Availability Zones con Route 53 y RDS Multi-A Z; active-passive entre Regions con failover de D N S. Las cuatro estrategias de barata a cara: Backup and Restore, Pilot Light, Warm Standby y Multi-Site Active-Active, eligiendo por R P O y R T O. Caching en capas hasta ElastiCache o DAX. Costos: right sizing, Reserved, Spot, serverless. Y defense in depth: edge, red, aplicación, datos."},
+    {"speaker": "ana", "text": "Cerraste el módulo entero en tres turnos, Carlos. Llevate la idea madre: el examen no evalúa servicios sueltos, evalúa patrones. Leé el qualifier, identificá el patrón, eliminá los anti-patterns, y la respuesta correcta queda sola."},
+    {"speaker": "carlos", "text": "Me voy con el mapa completo. La verdad, este módulo ata todos los anteriores: ahora las preguntas largas me dan menos miedo. Gracias, Ana."},
+    {"speaker": "ana", "text": "De nada, Carlos, lo hiciste muy bien. Repasá los diez qualifiers una vez más antes del examen, que son oro puro. Y nos vemos en el próximo episodio con el módulo trece, Cost Optimization, donde profundizamos cómo pagar menos sin sacrificar arquitectura. ¡Éxitos con el estudio!"}
   ]
 }

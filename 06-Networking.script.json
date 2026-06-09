@@ -1,402 +1,289 @@
 {
   "module_title": "Module 06: Networking & Content Delivery",
-  "estimated_duration_min": 46,
+  "estimated_duration_min": 38,
   "turns": [
-    {
-      "speaker": "ana",
-      "text": "Imaginate este escenario del examen: tenés una aplicación con una capa web pública y una capa de base de datos que no debería ser accesible desde internet. ¿Cómo la diseñás en AWS? La respuesta correcta implica subnets públicas y privadas, Internet Gateway, NAT Gateway, y security groups bien configurados. Networking es uno de los temas más ricos del examen y también donde más gente pierde puntos por confundir conceptos similares."
-    },
-    {
-      "speaker": "carlos",
-      "text": "Yo usé algunas cosas de networking — configué VPCs con subnets públicas para los scrapers y también CloudFront para el chatbot — pero hay mucho de lo que no toqué, como Route 53 o Transit Gateway."
-    },
-    {
-      "speaker": "ana",
-      "text": "Perfecto, ese background nos va a servir para anclar los conceptos. Este módulo cubre tres grandes áreas. Primero VPC: cómo construís tu red privada en AWS. Segundo Route 53: DNS y políticas de routing. Tercero CloudFront y Global Accelerator: cómo distribuís contenido y acelerás aplicaciones globalmente. Juntos representan entre quince y veinte por ciento del examen."
-    },
-    {
-      "speaker": "carlos",
-      "text": "Dale. Empecemos por VPC, que algo conozco pero no lo tengo completamente ordenado."
-    },
-    {
-      "speaker": "ana",
-      "text": "Un VPC, Virtual Private Cloud, es una red lógicamente aislada dentro de AWS. Lo importante es que VPC es un recurso regional — abarca todas las A.Z. de una región. Dentro del VPC creás subnets, que sí son A.Z.-specific. La analogía: el VPC es tu edificio de oficinas, las subnets son los pisos, y cada piso está en una ubicación física distinta — una A.Z. diferente."
-    },
-    {
-      "speaker": "carlos",
-      "text": "¿Y cómo defino el espacio de IPs del VPC?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Con un bloque CIDR. El formato es cuatro octetos más una máscara, como 10.0.0.0 barra 16. El rango permitido para VPCs es de barra 16 hasta barra 28. Barra 16 te da sesenta y cinco mil IPs. Barra 28 te da solo dieciséis IPs. Las IPs privadas recomendadas son los rangos RFC 1918: diez punto cero, ciento setenta y dos dieciséis, y ciento noventa y dos punto ciento sesenta y ocho."
-    },
-    {
-      "speaker": "carlos",
-      "text": "¿Y por qué importa el tamaño del CIDR al momento de diseñar?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Porque no lo podés cambiar fácilmente después. Si empezás con un CIDR chico y tu aplicación crece, quedás sin IPs. Y si querés hacer VPC Peering después, los CIDRs de los dos VPCs no pueden superponerse. La recomendación general: arrancás con algo amplio como barra 16, y dividís en subnets más chicas. Acordate también que AWS reserva cinco IPs por subnet — las primeras cuatro y la última."
-    },
-    {
-      "speaker": "carlos",
-      "text": "¿Qué son esas cinco IPs reservadas?"
-    },
-    {
-      "speaker": "ana",
-      "text": "En una subnet 10.0.0.0 barra 24, la primera IP es la dirección de red, la segunda la usa el router del VPC, la tercera es el servidor DNS de AWS, la cuarta está reservada para uso futuro, y la última es la dirección de broadcast que no se usa en AWS pero sí se reserva. Esto es importante para el examen: si te dan una subnet barra 28 y te preguntan cuántos hosts disponibles hay, son dieciséis menos cinco, es decir once."
-    },
-    {
-      "speaker": "carlos",
-      "text": "Ah, capté. ¿Y cómo una subnet se vuelve pública?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Una subnet es pública cuando su route table tiene una ruta que envía el tráfico de internet — 0.0.0.0 barra 0 — hacia un Internet Gateway. La subnet no tiene ninguna propiedad intrínseca que la haga pública. Es la route table asociada la que define si puede salir a internet o no. Y el Internet Gateway tiene que estar adjunto al VPC — solo puede haber uno por VPC."
-    },
-    {
-      "speaker": "carlos",
-      "text": "¿Y para que las instancias en subnets privadas puedan salir a internet, se usa el NAT Gateway?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Exacto. El NAT Gateway vive en la subnet pública con una Elastic IP. La route table de la subnet privada envía el tráfico de internet al NAT Gateway, que lo traduce y lo envía hacia afuera por el Internet Gateway. La clave: el NAT Gateway permite tráfico saliente desde instancias privadas, pero no permite que nadie de internet inicie una conexión entrante. Eso es lo que protege las instancias privadas."
-    },
-    {
-      "speaker": "carlos",
-      "text": "Justamente — yo para los scrapers usé subnet pública con assignPublicIp en vez de NAT Gateway. ¿Estuvo bien eso o debería haber usado subnets privadas?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Para scrapers que solo hacen tráfico saliente y no manejan datos sensibles, es un trade-off de costo válido. Un NAT Gateway cuesta por hora más por datos procesados — puede ser significativo si el scraper transfiere mucho. Pero para cargas de producción con datos sensibles, la subnet privada es la respuesta correcta: las instancias no son directamente alcanzables desde internet aunque tengan bugs o configuraciones erróneas."
-    },
-    {
-      "speaker": "carlos",
-      "text": "Capté — para workloads sensibles la subnet privada es la opción correcta aunque tenga costo extra. ¿Y cuántos NAT Gateways debería tener?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Uno por A.Z. si querés alta disponibilidad. El NAT Gateway está en una A.Z. específica — si esa A.Z. cae, las instancias privadas de otras A.Z. que ruteen por ese NAT pierden conectividad. El patrón robusto es un NAT Gateway en cada A.Z. con su propia Elastic IP, y cada subnet privada rutea al NAT de su propia A.Z.."
-    },
-    {
-      "speaker": "carlos",
-      "text": "Ah, no lo sabía. Dale, hablemos de Security Groups, que ahí tengo más experiencia."
-    },
-    {
-      "speaker": "ana",
-      "text": "Los Security Groups son firewalls stateful a nivel de instancia. Stateful significa que si permitís tráfico entrante en el puerto ochenta, el tráfico de retorno sale automáticamente sin que tengas que agregar una regla de egress. Solo tienen reglas de allow — no podés agregar reglas de deny. Y todo el tráfico entrante está denegado por default. El tráfico saliente está permitido por default."
-    },
-    {
-      "speaker": "carlos",
-      "text": "Yo armé el security group del scraper en Fargate solo con egress al puerto cuatrocientos cuarenta y tres, y lo compartí entre todas las tasks. ¿Eso estuvo bien?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Perfectamente bien. Egress solo al puerto cuatrocientos cuarenta y tres es least privilege para un scraper que hace HTTPS outbound. Compartir un SG entre múltiples tasks es exactamente el patrón correcto — no creás un SG por task, lo reutilizás. La otra ventaja: podés referenciar un SG como source en otro SG, en vez de hardcodear IPs. Eso es mucho más robusto en ambientes dinámicos."
-    },
-    {
-      "speaker": "carlos",
-      "text": "Dale. ¿Y los NACLs qué son? Los veo mencionados pero nunca los usé."
-    },
-    {
-      "speaker": "ana",
-      "text": "Los Network Access Control Lists, o NACLs, son firewalls stateless a nivel de subnet. Stateless significa que el tráfico de retorno no es automático — tenés que explícitamente permitir tanto el tráfico entrante como el saliente. A diferencia de los Security Groups, los NACLs pueden tener reglas de allow Y de deny. Las reglas se evalúan en orden numérico de menor a mayor hasta encontrar un match."
-    },
-    {
-      "speaker": "carlos",
-      "text": "¿Y por qué necesito NACLs si ya tengo Security Groups?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Son capas complementarias. El NACL es la primera línea de defensa a nivel de subnet — podés bloquear una IP específica con una regla de deny antes de que llegue a cualquier instancia. Los Security Groups son la segunda capa a nivel de instancia. El caso de uso típico del NACL en producción: bloquear una IP maliciosa o un rango de IPs problemático a nivel de red, sin tocar los Security Groups de cada instancia."
-    },
-    {
-      "speaker": "carlos",
-      "text": "Capté. ¿Y el gotcha de stateless con los puertos efímeros?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Acá viene lo importante. Si un cliente hace una request HTTP al puerto ochenta, tu servidor responde en el puerto efímero del cliente, que puede ser cualquier número entre mil veinticuatro y sesenta y cinco mil quinientos treinta y cinco. En los NACLs, tenés que agregar explícitamente una regla de outbound que permita ese rango de puertos efímeros. Si no lo hacés, la respuesta no sale aunque la request entrante esté permitida."
-    },
-    {
-      "speaker": "carlos",
-      "text": "Ah, eso es lo que hace que los NACLs sean más complicados de configurar que los Security Groups. Dale, conectividad entre VPCs."
-    },
-    {
-      "speaker": "ana",
-      "text": "VPC Peering permite conectar dos VPCs usando la red privada de AWS. La restricción más importante: no es transitivo. Si el VPC A está conectado al VPC B, y el VPC B está conectado al VPC C, el VPC A no puede hablar con el VPC C a través de B. Necesitás un peering directo entre A y C. Además, los CIDR de los dos VPCs no pueden superponerse, y hay que actualizar las route tables de ambos lados."
-    },
-    {
-      "speaker": "carlos",
-      "text": "Esto no lo toqué nunca. ¿Y si necesito conectar muchos VPCs entre sí, tengo que crear un peering para cada par?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Exacto, y eso se vuelve inmanejable rápidamente. Para conectar muchos VPCs la solución es Transit Gateway. Es un hub central — conectás todos tus VPCs al Transit Gateway y todos pueden hablarse entre sí a través del hub. También conecta redes on-premises vía VPN o Direct Connect. El modelo es hub-and-spoke: Transit Gateway es el hub, los VPCs son los spokes."
-    },
-    {
-      "speaker": "carlos",
-      "text": "¿Y cuándo usaría VPC Endpoints? Escuché el nombre pero no lo configuré nunca."
-    },
-    {
-      "speaker": "ana",
-      "text": "VPC Endpoints te permiten acceder a servicios de AWS como S3 o DynamoDB desde una subnet privada sin pasar por internet. Hay dos tipos. Gateway Endpoints: son gratuitos, solo funcionan para S3 y DynamoDB, y se agregan como una entrada en la route table. Interface Endpoints: tienen costo por hora más por datos, funcionan para casi cualquier servicio de AWS, y crean una ENI con IP privada en tu subnet."
-    },
-    {
-      "speaker": "carlos",
-      "text": "¿Por qué usaría un endpoint si mi subnet privada puede salir a internet por el NAT Gateway?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Tres razones. Seguridad: el tráfico nunca sale de la red de AWS. Costo: el Gateway Endpoint para S3 es gratis y evitás pagar el NAT Gateway por ese tráfico. Compliance: algunas regulaciones requieren que ciertos datos nunca transiten por internet. Si tenés una instancia procesando datos en una subnet privada y escribiendo resultados en S3, el Gateway Endpoint es la opción más segura y más económica."
-    },
-    {
-      "speaker": "carlos",
-      "text": "Ah, no sabía que el Gateway Endpoint para S3 era gratis. ¿Y PrivateLink?"
-    },
-    {
-      "speaker": "ana",
-      "text": "AWS PrivateLink es para exponer un servicio de un VPC a otros VPCs de forma segura, sin VPC Peering, sin Internet Gateway, sin NAT. El servicio que querés exponer tiene que estar detrás de un Network Load Balancer. El consumidor crea un Interface Endpoint en su VPC que apunta a ese servicio. Todo el tráfico queda dentro de la red privada de AWS. Es el patrón recomendado cuando un SaaS quiere darle acceso privado a sus clientes."
-    },
-    {
-      "speaker": "carlos",
-      "text": "Dale. Conectividad híbrida — on-premises a AWS. Hay VPN y Direct Connect, ¿no?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Exacto. Site-to-Site VPN es la opción rápida: conecta tu red on-premises al VPC usando un túnel IPsec cifrado sobre internet. Del lado de AWS hay un Virtual Private Gateway, del lado del cliente hay un Customer Gateway — que puede ser una appliance física o software. Se configura en minutos y cuesta poco. La limitación: el rendimiento depende de tu conexión a internet."
-    },
-    {
-      "speaker": "carlos",
-      "text": "¿Y Direct Connect cuándo tiene sentido?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Direct Connect es una conexión dedicada — un cable físico entre tu datacenter y un punto de presencia de AWS, sin pasar por internet. Bandwidths disponibles desde cincuenta megabits hasta cien gigabits. Te da latencia consistente y predecible, y reduce costos de transferencia para volúmenes altos. La contra: tarda más de un mes en instalarse porque requiere trabajo físico de un partner de AWS."
-    },
-    {
-      "speaker": "carlos",
-      "text": "Entonces en el examen, VPN para setup rápido y Direct Connect para performance consistente y alto volumen."
-    },
-    {
-      "speaker": "ana",
-      "text": "Exacto, y hay un tercer patrón: Direct Connect más VPN. Usás el cable dedicado de Direct Connect pero añadís un túnel IPsec por encima para cifrado. Esto es para empresas que necesitan tanto la performance del Direct Connect como la seguridad del cifrado en tránsito para cumplir regulaciones. Para el examen: si ven 'encrypted dedicated connection', esa es la respuesta."
-    },
-    {
-      "speaker": "carlos",
-      "text": "Capté. Dale, Route 53. Esto nunca lo toqué — explicámelo de cero."
-    },
-    {
-      "speaker": "ana",
-      "text": "Route 53 es el servicio de DNS de AWS — convierte nombres de dominio en direcciones IP. El nombre viene del puerto 53 que usa el protocolo DNS. Tiene tres funciones: registro de dominios, gestión de zonas DNS, y health checking. Lo que lo diferencia de un DNS convencional es que también puede hacer routing inteligente basado en latencia, ubicación geográfica, o salud de los endpoints."
-    },
-    {
-      "speaker": "carlos",
-      "text": "¿Qué tipos de records hay que saber para el examen?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Los más importantes: A apunta un nombre a una IPv4. AAAA apunta a IPv6. CNAME es un alias de nombre a nombre, pero no puede usarse en el zone apex — es decir, no podés hacer CNAME del dominio raíz, solo de subdominios. Y Alias, que es específico de Route 53, puede apuntar al zone apex y no cobra por queries. Usás Alias para apuntar a recursos AWS como un ALB o CloudFront."
-    },
-    {
-      "speaker": "carlos",
-      "text": "¿Cuándo usaría Alias en vez de CNAME?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Siempre que el destino sea un recurso de AWS: Application Load Balancer, CloudFront distribution, API Gateway, S3 website. Alias es mejor que CNAME para recursos AWS porque no cobra por queries y puede usarse en el zone apex. Si querés que miempresa.com — sin subdominios — apunte a un ALB, tenés que usar Alias, no CNAME."
-    },
-    {
-      "speaker": "carlos",
-      "text": "¿Y las routing policies? ¿Cuántas hay?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Siete. Simple: una sola respuesta. Weighted: distribuís tráfico por porcentajes, útil para A/B testing o deploys graduales. Latency: Route 53 mide qué región de AWS tiene la menor latencia desde donde está el usuario y envía tráfico ahí. Failover: activo-pasivo, con health check en el primario. Geolocation: basado en la ubicación geográfica del usuario. Geoproximity: geolocation pero con un bias ajustable. Y Multi-Value: devuelve hasta ocho registros saludables."
-    },
-    {
-      "speaker": "carlos",
-      "text": "¿Cuándo usaría Latency versus Geolocation? Me confunden."
-    },
-    {
-      "speaker": "ana",
-      "text": "Son propósitos distintos. Latency enruta al recurso que responde más rápido — si un usuario en Buenos Aires tiene mejor latencia a us-east-1 que a sa-east-1, lo envía a us-east-1. Geolocation enruta según dónde esté el usuario físicamente — independientemente de la latencia. Se usa para servir contenido localizado, o para cumplir regulaciones que requieren que usuarios de un país lleguen solo a ciertos servidores."
-    },
-    {
-      "speaker": "carlos",
-      "text": "Ah, Latency optimiza velocidad, Geolocation optimiza ubicación. ¿Y Failover cómo funciona en práctica?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Tenés un registro Primary con health check y un registro Secondary. Route 53 monitorea el Primary con sus health checkers distribuidos globalmente. Si el Primary falla el check, Route 53 automáticamente sirve el Secondary hasta que el Primary se recupere. Es activo-pasivo: el Secondary solo responde cuando el Primary está caído. Para el examen: Failover siempre va acompañado de health checks."
-    },
-    {
-      "speaker": "carlos",
-      "text": "¿Y los health checks pueden monitorear recursos privados dentro del VPC?"
-    },
-    {
-      "speaker": "ana",
-      "text": "No directamente, porque los health checkers de Route 53 están en internet y no pueden acceder a recursos privados. Para recursos privados, el patrón es crear una CloudWatch alarm que monitoree el recurso desde adentro, y después crear un health check de Route 53 que monitoree esa CloudWatch alarm. Así el health check indirectamente refleja la salud del recurso privado."
-    },
-    {
-      "speaker": "carlos",
-      "text": "Ingeniosa la solución. Dale, CloudFront, que ahí sí tengo experiencia."
-    },
-    {
-      "speaker": "ana",
-      "text": "CloudFront es la CDN de AWS — Content Delivery Network. Tiene más de cuatrocientos puntos de presencia globalmente. Funciona cacheando contenido en edge locations cerca de los usuarios para reducir latencia. También incluye protección DDoS con AWS Shield Standard y se integra con AWS WAF. El contenido puede venir de múltiples tipos de origins: S3, ALB, E.C. 2, o cualquier HTTP backend."
-    },
-    {
-      "speaker": "carlos",
-      "text": "Yo usé CloudFront para la SPA del chatbot con PriceClass_100. ¿Cuándo elegiría Price Class All en vez de cien?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Price Class All usa todos los edge locations globalmente y da la mejor performance pero es el más caro. Price Class 100 solo usa las regiones más económicas — Norteamérica y Europa principalmente. Price Class 200 agrega la mayoría de las regiones excluyendo las más caras. Para una herramienta interna con usuarios en un solo continente, Price Class 100 tiene total sentido. Para una app pública global, Price Class All o 200."
-    },
-    {
-      "speaker": "carlos",
-      "text": "Y para el origin privado de S3, yo creo que usé OAI pero no estoy seguro si era OAI u OAC. Los confundo."
-    },
-    {
-      "speaker": "ana",
-      "text": "OAI es el método legacy, Origin Access Identity. OAC es el actual recomendado, Origin Access Control, introducido en 2022. La diferencia técnica clave: OAC firma las requests con SigV4, el mismo mecanismo de firma que usa toda la API de AWS. OAC también soporta cifrado SSE-KMS en S3, que OAI no soporta. Para el examen, si ven 'secure S3 origin access', OAC es la respuesta correcta."
-    },
-    {
-      "speaker": "carlos",
-      "text": "Dale, OAC es el moderno. ¿Y cómo funciona el caché en CloudFront?"
-    },
-    {
-      "speaker": "ana",
-      "text": "CloudFront cachea las respuestas en cada edge location por el tiempo que define el TTL — Time To Live. Podés configurar el TTL entre cero y un año. El caché se puede personalizar por comportamiento, usando headers, query strings, o cookies como parte de la cache key. Cuando necesitás forzar que los usuarios vean la versión nueva después de un deploy, hacés una invalidación. Las primeras mil paths de invalidación por mes son gratis."
-    },
-    {
-      "speaker": "carlos",
-      "text": "Yo invalidaba con barra asterisco después de cada deploy al bucket. ¿Es mejor invalidar paths específicos?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Para un deploy completo de una SPA, el barra asterisco es lo más práctico — invalida todo de una vez y se cobra como un solo path. Si tenés una aplicación grande donde solo cambia una sección, invalidar paths específicos evita que el resto del caché se vacíe innecesariamente. Pero para SPAs que cambian completamente en cada deploy, el barra asterisco es la forma correcta."
-    },
-    {
-      "speaker": "carlos",
-      "text": "¿Y los Signed URLs versus Signed Cookies?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Signed URL para controlar acceso a un archivo individual — incluye la clave de acceso, expiración e IPs permitidas en la URL misma. Signed Cookie para controlar acceso a múltiples archivos — el usuario recibe una cookie que autoriza acceso a un patrón como barra premium barra asterisco. Para streaming de video o contenido pago donde el usuario accede a muchos archivos, Signed Cookie es más práctico que generar URLs individuales."
-    },
-    {
-      "speaker": "carlos",
-      "text": "¿Y la diferencia entre Viewer Protocol Policy y Origin Protocol Policy?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Son dos conexiones distintas. Viewer Protocol Policy es entre el usuario final y CloudFront — podés forzar redireccionamiento de HTTP a HTTPS o solo aceptar HTTPS. Origin Protocol Policy es entre CloudFront y tu origin — si querés que CloudFront hable con tu origin en HTTP, HTTPS, o que coincida con lo que usó el viewer. Para S3 como origin, HTTPS only en origin protocol es lo recomendado."
-    },
-    {
-      "speaker": "carlos",
-      "text": "¿Y cuándo uso CloudFront versus S3 Cross-Region Replication?"
-    },
-    {
-      "speaker": "ana",
-      "text": "CloudFront es para reducir latencia cacheando en edge locations — el contenido original sigue viviendo en un solo bucket. CRR crea copias reales de los objetos en distintas regiones — el objeto está físicamente replicado. Usás CRR cuando las apps leen S3 directamente sin CloudFront, cuando necesitás copias por compliance, o cuando necesitás que el objeto esté disponible aunque caiga una región. Para distribución de contenido estático al usuario final, CloudFront."
-    },
-    {
-      "speaker": "carlos",
-      "text": "¿Y los Origin Groups?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Origin Groups permiten configurar failover a nivel de origin en CloudFront. Definís un origin primario y un secundario. Si CloudFront recibe un error del primario — status cuatrocientos o quinientos — automáticamente intenta el secundario. Caso de uso típico: primario es tu S3 bucket principal y secundario es un bucket de contingencia en otra región. Esto agrega alta disponibilidad a nivel del content delivery."
-    },
-    {
-      "speaker": "carlos",
-      "text": "Dale. ¿Y Global Accelerator? ¿Es lo mismo que CloudFront?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Son distintos aunque ambos aceleran el acceso global. CloudFront es un CDN — cachea contenido HTTP y HTTPS en edge locations. Global Accelerator opera a nivel de red — ruteó tráfico TCP y UDP por la red backbone privada de AWS en vez de internet, sin cachear nada. Te da dos IPs anycast estáticas. Los usuarios se conectan al edge location más cercano y desde ahí el tráfico va por red privada de AWS hasta tu aplicación."
-    },
-    {
-      "speaker": "carlos",
-      "text": "¿Para qué sirven esas dos IPs estáticas?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Para escenarios donde los clientes tienen whitelists de IPs en sus firewalls — por ejemplo, empresas que solo permiten tráfico desde IPs conocidas. Con CloudFront tenés un dominio DNS que puede resolver a IPs distintas. Con Global Accelerator siempre son las mismas dos IPs, lo que facilita esos acuerdos de empresa a empresa. También es útil para aplicaciones que no son HTTP, como gaming o IoT que usan UDP."
-    },
-    {
-      "speaker": "carlos",
-      "text": "Capté. Entonces CloudFront para HTTP con caché, Global Accelerator para TCP/UDP sin caché con IPs fijas. ¿Los exam tips?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Los puntos más críticos del examen. Primero, Security Groups versus NACLs. Stateful versus stateless es la diferencia central. SGs a nivel de instancia, NACLs a nivel de subnet. SGs solo tienen reglas de allow, NACLs tienen allow y deny. El default NACL permite todo. Un NACL custom deniega todo por default. Y el gotcha: con NACLs stateless tenés que permitir los puertos efímeros en outbound para el tráfico de retorno."
-    },
-    {
-      "speaker": "carlos",
-      "text": "¿Y sobre la conectividad de VPC?"
-    },
-    {
-      "speaker": "ana",
-      "text": "VPC Peering es no transitivo — para conectar A con C necesitás peering directo. Transit Gateway para hub-and-spoke con muchos VPCs. Gateway Endpoint es gratis y solo para S3 y DynamoDB. Interface Endpoint tiene costo y cubre casi cualquier servicio. PrivateLink para exponer servicios entre VPCs sin acceso de red completo. Y los CIDRs de VPCs que van a hacer peering no pueden superponerse."
-    },
-    {
-      "speaker": "carlos",
-      "text": "¿Y VPN versus Direct Connect en el examen?"
-    },
-    {
-      "speaker": "ana",
-      "text": "VPN keywords: setup rápido en minutos, cifrado, sobre internet pública, variable. DX keywords: dedicado, consistente, hasta cien gigabits, tarda un mes. DX más VPN: conexión dedicada con cifrado IPsec adicional, para compliance. Si el examen pregunta 'low latency consistent bandwidth from on-premises', Direct Connect. Si pregunta 'quick secure connection', Site-to-Site VPN."
-    },
-    {
-      "speaker": "carlos",
-      "text": "¿Y Route 53 para el examen?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Tres gotchas importantes. Primero: CNAME no puede usarse en zone apex, Alias sí. Segundo: Latency policy optimiza velocidad, Geolocation policy optimiza ubicación — no son sinónimos. Tercero: Multi-Value Answer no es un sustituto de un load balancer — es un mecanismo DNS, no balancea carga con health awareness sofisticada. Y Failover siempre requiere health checks configurados."
-    },
-    {
-      "speaker": "carlos",
-      "text": "¿Y CloudFront?"
-    },
-    {
-      "speaker": "ana",
-      "text": "OAC para acceso privado a S3, no OAI que es legacy. Signed URL para un archivo, Signed Cookie para múltiples. Price Class para controlar costos por región. Para Global Accelerator versus CloudFront: si el examen dice 'static IPs', 'TCP/UDP', 'gaming', 'non-HTTP' — Global Accelerator. Si dice 'CDN', 'cache', 'static content', 'HTTP' — CloudFront. Los dos usan la red global de AWS pero para propósitos distintos."
-    },
-    {
-      "speaker": "carlos",
-      "text": "Dale. ¿Hacemos el recap?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Dale. Contame la arquitectura básica de un VPC bien diseñado."
-    },
-    {
-      "speaker": "carlos",
-      "text": "VPC es regional, subnets son A.Z.-specific. Subnet pública tiene route al Internet Gateway. Subnet privada sale a internet por NAT Gateway en una A.Z.. Para alta disponibilidad, NAT Gateway en cada A.Z.. Security Groups stateful a nivel de instancia, solo allow. NACLs stateless a nivel de subnet, allow y deny, evaluadas en orden numérico. Por default, el NACL permite todo."
-    },
-    {
-      "speaker": "ana",
-      "text": "Perfecto. ¿Y conectividad?"
-    },
-    {
-      "speaker": "carlos",
-      "text": "VPC Peering para dos VPCs, no es transitivo. Transit Gateway hub-and-spoke para muchos VPCs. VPC Endpoints para acceder a servicios AWS sin internet — Gateway Endpoint gratis para S3 y DynamoDB, Interface Endpoint con costo para otros servicios. Site-to-Site VPN rápido y cifrado pero sobre internet. Direct Connect dedicado y consistente pero tarda un mes. DX más VPN para cifrado sobre la conexión dedicada."
-    },
-    {
-      "speaker": "ana",
-      "text": "¿Y Route 53 y CloudFront?"
-    },
-    {
-      "speaker": "carlos",
-      "text": "Route 53 DNS con siete routing policies: Simple, Weighted para A/B, Latency para menor latencia, Failover activo-pasivo con health check, Geolocation según país, Geoproximity con bias, Multi-Value. Alias puede usarse en zone apex, CNAME no. CloudFront CDN con OAC para S3 privado, Signed URLs para archivos individuales, Signed Cookies para múltiples. Global Accelerator para TCP/UDP con IPs fijas."
-    },
-    {
-      "speaker": "ana",
-      "text": "Impecable. Networking es el módulo más denso del examen — cubre la capa que conecta todos los demás servicios. Si entendés bien VPC, security groups, NACLs, y las diferencias entre los servicios de conectividad y distribución de contenido, vas a poder resolver la mayoría de las preguntas de arquitectura porque siempre hay un componente de red involucrado. Nos vemos en el módulo siete: Security and Compliance."
-    }
+    {"speaker": "ana", "text": "Mirá, te tiro un escenario de examen clásico. Tenés una instancia EC2 en una subnet privada que necesita bajar actualizaciones de internet. No querés que nadie de afuera le pueda entrar. ¿Qué le ponés para que salga?"},
+    {"speaker": "carlos", "text": "Mmm... ¿un Internet Gateway?"},
+    {"speaker": "ana", "text": "Y ahí caés en la trampa. Si le ponés Internet Gateway directo, esa subnet deja de ser privada. La respuesta correcta es NAT Gateway. Hoy te voy a dejar imposible que confundas eso. Bienvenido a Networking and Content Delivery."},
+    {"speaker": "carlos", "text": "Uy, dale, porque networking es justo lo que más me marea de todo el examen."},
+    {"speaker": "ana", "text": "Y con razón. Networking es uno de los dominios más pesados del SAA-C03. Entre V P C, Route 53 y CloudFront te arman una gran parte de las preguntas de arquitectura."},
+    {"speaker": "carlos", "text": "¿En serio tanto?"},
+    {"speaker": "ana", "text": "Fíjate que casi toda pregunta de arquitectura tiene una subnet, un security group o un endpoint escondido adentro. Si dominás la red, dominás medio examen."},
+    {"speaker": "carlos", "text": "A ver, ¿y por dónde arrancamos? Porque yo de esto toqué algunas cosas sueltas en el trabajo, pero un montón no lo vi nunca."},
+    {"speaker": "ana", "text": "Perfecto, arrancamos por los cimientos: la V P C. Después subimos a D N S con Route 53, y cerramos en el borde con CloudFront y Global Accelerator. De abajo hacia arriba."},
+    {"speaker": "carlos", "text": "Dale, me gusta el orden. Empezá."},
+    {"speaker": "ana", "text": "V P C es Virtual Private Cloud. Pensala como tu propio data center privado y aislado dentro de AWS. Vos controlás el rango de IPs, las subnets, las route tables y los gateways. Tu red, tus reglas."},
+    {"speaker": "carlos", "text": "O sea, ¿es como si AWS me diera una red entera para mí solo?"},
+    {"speaker": "ana", "text": "Exacto. Y ojo con un dato de examen: la V P C es un recurso regional. Vive en una Región y se estira por todas las Availability Zones de esa Región."},
+    {"speaker": "carlos", "text": "Esperá, ¿la V P C abarca todas las AZ? Yo la imaginaba más chiquita, atada a un solo lado."},
+    {"speaker": "ana", "text": "Es regional, es grande. Lo que es chiquito y vive en una sola AZ es la subnet. La V P C es el paraguas que cubre toda la Región; las subnets son los pedacitos, uno por AZ."},
+    {"speaker": "carlos", "text": "Capté. V P C grande y regional, subnet chiquita y por zona. ¿Y cuántas V P C puedo tener?"},
+    {"speaker": "ana", "text": "Por default, cinco por Región. Pero es un soft limit: pedís un aumento y AWS te lo sube. Para el examen recordá: cinco, ampliable."},
+    {"speaker": "carlos", "text": "Dale. ¿Y el rango de IPs cómo lo defino?"},
+    {"speaker": "ana", "text": "Con CIDR, que se pronuncia 'cider': Classless Inter-Domain Routing. Es la forma de asignar bloques de IPs. El formato es una dirección con una barra y un número, por ejemplo, diez punto cero punto cero punto cero, barra dieciséis."},
+    {"speaker": "carlos", "text": "¿Y ese barra dieciséis qué me está diciendo?"},
+    {"speaker": "ana", "text": "Cuántos bits quedan fijos. Barra dieciséis te da sesenta y cinco mil IPs. Cuanto más chico el número, más grande la red. En V P C, el rango permitido va de barra dieciséis, el más grande, a barra veintiocho, el más chico."},
+    {"speaker": "carlos", "text": "A ver: barra dieciséis grande, barra veintiocho chico. ¿Y qué IPs uso? ¿Cualquiera que se me ocurra?"},
+    {"speaker": "ana", "text": "Usá siempre rangos privados, los de la RFC mil novecientos dieciocho. Son tres: el diez punto cero, barra ocho; el ciento setenta y dos punto dieciséis, barra doce; y el ciento noventa y dos punto ciento sesenta y ocho, barra dieciséis."},
+    {"speaker": "carlos", "text": "Ese último, el ciento noventa y dos punto ciento sesenta y ocho, lo veo en el router de mi casa."},
+    {"speaker": "ana", "text": "Tal cual, es el mismo concepto. Redes privadas que no salen a internet de forma directa. Buen anclaje, ese te lo vas a acordar siempre."},
+    {"speaker": "carlos", "text": "Dale, bajemos a las subnets entonces."},
+    {"speaker": "ana", "text": "Cada subnet vive en una sola Availability Zone, eso es clave. Y se dividen en dos tipos: pública y privada."},
+    {"speaker": "carlos", "text": "¿Y qué hace que una sea pública y otra privada? ¿Es una opción que prendo?"},
+    {"speaker": "ana", "text": "Una sola cosa: la route table. Si la subnet tiene una ruta hacia un Internet Gateway, es pública. Si no la tiene, es privada. No es un checkbox mágico, es el ruteo."},
+    {"speaker": "carlos", "text": "Ah, o sea que 'pública' no es una propiedad de la subnet en sí, es a dónde apunta su tabla de rutas."},
+    {"speaker": "ana", "text": "Exactísimo. Eso te lo preguntan disfrazado mil veces. Otra cosa de las subnets: AWS te reserva cinco IPs en cada una."},
+    {"speaker": "carlos", "text": "¿Cinco? ¿Y para qué se las queda?"},
+    {"speaker": "ana", "text": "La primera, la dirección de red. La segunda, el router de la V P C. La tercera, el D N S. La cuarta, reservada a futuro. Y la última de todas, el broadcast. En un barra veinticuatro perdés cinco de doscientas cincuenta y seis."},
+    {"speaker": "carlos", "text": "Uy, eso no lo sabía. Entonces si hago subnets muy chiquitas, esas cinco IPs me empiezan a doler."},
+    {"speaker": "ana", "text": "Por eso no bajes tanto el tamaño de la subnet. Buen reflejo el tuyo. Sigamos con la puerta a internet."},
+    {"speaker": "carlos", "text": "El Internet Gateway."},
+    {"speaker": "ana", "text": "El Internet Gateway, el IGW, es la puerta entre tu V P C y el internet. Una sola por V P C. Es horizontalmente escalable, redundante y altamente disponible: no te preocupás por su disponibilidad, AWS te la garantiza."},
+    {"speaker": "carlos", "text": "¿Y hace esa traducción de IP que mencionaste al principio?"},
+    {"speaker": "ana", "text": "Sí, hace NAT para las instancias que tienen IP pública. Pero ojo: el IGW da entrada y salida para subnets públicas. Para que una subnet privada salga sin exponerse, necesitás otra cosa."},
+    {"speaker": "carlos", "text": "El NAT Gateway, ¿no? El del escenario del principio."},
+    {"speaker": "ana", "text": "Ahí vamos. Pero antes, un detalle de IPv6: el Egress-Only Internet Gateway."},
+    {"speaker": "carlos", "text": "Esperá, ¿eso qué es?"},
+    {"speaker": "ana", "text": "Es el equivalente al NAT Gateway pero para IPv6. Da salida solo de ida, outbound, y bloquea cualquier conexión que venga desde internet hacia adentro. Stateful."},
+    {"speaker": "carlos", "text": "¿Y por qué para IPv6 necesito uno aparte?"},
+    {"speaker": "ana", "text": "Porque en IPv6 todas las direcciones son públicas, no existe el NAT tradicional. Entonces, si querés que una instancia IPv6 salga pero nadie le entre, usás el Egress-Only. Para el examen: ves IPv6 más outbound, pensás Egress-Only."},
+    {"speaker": "carlos", "text": "Capté: IPv6 más salida sola, igual Egress-Only. Ahora sí, contame del NAT Gateway."},
+    {"speaker": "ana", "text": "Servicio managed que deja a las instancias de subnet privada salir a internet, pero solo de salida. Nadie de afuera inicia una conexión hacia ellas."},
+    {"speaker": "carlos", "text": "Pará, esto te lo quiero preguntar bien. Yo en un par de scrapers que corrí en Fargate nunca puse NAT Gateway. Los metí en subnet pública con assignPublicIp en true para que salgan. ¿Estuvo mal?"},
+    {"speaker": "ana", "text": "No estuvo mal, fue un trade-off de costo válido. El NAT Gateway se paga por hora más por gigabyte procesado, y para un scraper que arranca y termina, te ahorrás esa plata sin drama."},
+    {"speaker": "carlos", "text": "Ah, menos mal. ¿Pero entonces cuándo sí me conviene el NAT Gateway?"},
+    {"speaker": "ana", "text": "Cuando tenés workloads sensibles que NO querés en una subnet pública, pero que igual necesitan salir a internet. Ahí el NAT te da salida sin exponer las instancias. Para tus scrapers descartables, tu atajo fue legítimo."},
+    {"speaker": "carlos", "text": "Dale, me quedo tranquilo. Contame el NAT Gateway en serio, porque nunca lo configuré de verdad."},
+    {"speaker": "ana", "text": "Va. Se crea dentro de una AZ específica, usa una Elastic IP, y arranca con cinco Gbps que escalan solos hasta cien. Dato importantísimo de examen: es altamente disponible, pero solo dentro de su AZ."},
+    {"speaker": "carlos", "text": "A ver, ¿qué significa eso de 'solo dentro de su AZ'?"},
+    {"speaker": "ana", "text": "Que si esa AZ se cae, te quedás sin NAT para todo lo que dependa de él. Para alta disponibilidad real, ponés un NAT Gateway en cada AZ. Uno por zona."},
+    {"speaker": "carlos", "text": "Ah, claro, sino tengo un single point of failure escondido sin darme cuenta."},
+    {"speaker": "ana", "text": "Esa es la frase mágica: single point of failure. El examen ama esa trampa. Cada vez que veas un solo recurso en una sola AZ, encendé la alarma."},
+    {"speaker": "carlos", "text": "Anotado. ¿Y el NAT Instance, que lo vi nombrado, qué es?"},
+    {"speaker": "ana", "text": "Es el primo viejo: una EC2 que vos manejás haciendo de NAT. La diferencia clave: el NAT Gateway es managed por AWS; el NAT Instance lo administrás vos a mano."},
+    {"speaker": "carlos", "text": "¿Y por qué usaría el manual hoy?"},
+    {"speaker": "ana", "text": "Casi nunca. Pero dos diferencias que caen: al NAT Instance le podés asociar security groups, al Gateway no. Y el NAT Instance lo podés usar de bastion host; el Gateway no."},
+    {"speaker": "carlos", "text": "Esperá, ¿bastion host es esa instancia para entrar por SSH a la red privada?"},
+    {"speaker": "ana", "text": "Exacto, el saltador. El NAT Gateway no sirve para eso. Pero para el día a día, el managed gana: más banda, alta disponibilidad y cero mantenimiento."},
+    {"speaker": "carlos", "text": "Capté. ¿Y la route table de cada subnet cómo se ve por dentro?"},
+    {"speaker": "ana", "text": "Cada subnet se asocia a una route table. Si no le asociás una explícita, cae en la main route table por default. La de una subnet pública tiene dos líneas."},
+    {"speaker": "carlos", "text": "¿Cuáles?"},
+    {"speaker": "ana", "text": "Una: tu rango local, por ejemplo diez punto cero, barra dieciséis, con target 'local', que es el tráfico interno. Y dos: cero punto cero punto cero punto cero, barra cero, o sea 'todo lo demás', apuntando al Internet Gateway."},
+    {"speaker": "carlos", "text": "Y en la subnet privada, esa segunda línea apunta al NAT Gateway en vez del IGW, ¿no?"},
+    {"speaker": "ana", "text": "Clavado. Cambiás el target de igw a nat, y la subnet pasa de pública a privada con salida. Te repito: todo termina siendo ruteo."},
+    {"speaker": "carlos", "text": "Bien. ¿Y para ver qué pasa en la red, hay algo?"},
+    {"speaker": "ana", "text": "Sí, los V P C Flow Logs. Capturan metadata del tráfico IP: qué se aceptó y qué se rechazó. A nivel de V P C, de subnet, o de Elastic Network Interface, la E N I."},
+    {"speaker": "carlos", "text": "Esperá, ¿metadata? ¿No guarda el contenido de los paquetes?"},
+    {"speaker": "ana", "text": "No, y eso es pregunta de examen. Flow Logs NO ve el contenido, solo metadata: IPs, puertos, si el tráfico pasó o no. Para inspeccionar paquetes de verdad necesitás otra herramienta aparte."},
+    {"speaker": "carlos", "text": "¿Y a dónde van a parar esos logs?"},
+    {"speaker": "ana", "text": "A CloudWatch Logs, a S3, o a Data Firehose. Se usan para troubleshooting de conectividad y para forensia de seguridad. Tipo: ¿por qué no me entra este tráfico? Mirás los Flow Logs y ves quién lo está rechazando."},
+    {"speaker": "carlos", "text": "Ah, buenísimo para debuggear cuando algo no conecta."},
+    {"speaker": "ana", "text": "Ahora vamos a seguridad de red, que acá tenés tu fuerte. Dos capas: Security Groups y Network ACLs. Empecemos por los Security Groups. Contame qué te acordás."},
+    {"speaker": "carlos", "text": "A ver... yo armé el security group de un scraper una vez. Lo dejé con egress 443 nada más, para que salga por HTTPS, y el mismo security group lo compartí entre varias tasks. Eso se puede, ¿no?"},
+    {"speaker": "ana", "text": "Se puede y está bien. Un mismo Security Group asociado a varias instancias o tasks es totalmente normal. Y fijate que pusiste solo el egress que necesitabas: eso es least privilege aplicado a la red."},
+    {"speaker": "carlos", "text": "Buenísimo. ¿Y lo de stateful qué era exactamente? Lo escucho y no lo termino de explicar bien."},
+    {"speaker": "ana", "text": "Stateful significa que, si dejás salir una conexión, la respuesta vuelve automáticamente, sin necesidad de una regla de vuelta. Vos abriste egress 443; cuando el servidor te contesta, el Security Group deja entrar esa respuesta, aunque no tengas regla de inbound para ella."},
+    {"speaker": "carlos", "text": "Ah, o sea que el security group se 'acuerda' de la conexión que salió y por eso deja volver la respuesta."},
+    {"speaker": "ana", "text": "Esa es la idea: se acuerda del estado. Por eso, 'stateful'. Tres cosas más de examen: opera a nivel de instancia o E N I, solo tiene reglas de allow, no podés escribir un deny, y puede referenciar a otro Security Group."},
+    {"speaker": "carlos", "text": "Esperá, ¿referenciar a otro security group? ¿Cómo es eso?"},
+    {"speaker": "ana", "text": "En vez de poner una IP como origen, ponés otro Security Group. Por ejemplo: dejá entrar al puerto tres mil solo desde el security group del web tier. Así el app tier confía en el web tier sin importar sus IPs."},
+    {"speaker": "carlos", "text": "Uy, eso está buenísimo, no lo sabía. Encadenás los tiers por security group en vez de por IP."},
+    {"speaker": "ana", "text": "Tal cual. Y por default: todo el inbound bloqueado, todo el outbound permitido. Ahora el otro guardia."},
+    {"speaker": "carlos", "text": "Las Network ACLs."},
+    {"speaker": "ana", "text": "Las Network ACLs, o sea, Access Control Lists, las N A C L. Son el firewall a nivel de subnet, y son stateless."},
+    {"speaker": "carlos", "text": "Stateless... o sea, lo contrario al security group. ¿La respuesta NO vuelve sola?"},
+    {"speaker": "ana", "text": "Exacto. En una N A C L tenés que permitir explícitamente el tráfico de ida Y el de vuelta. Por eso siempre ves reglas para los puertos efímeros, del mil veinticuatro al sesenta y cinco mil, para dejar volver las respuestas."},
+    {"speaker": "carlos", "text": "A ver, dejame ordenar esto. Security Group: nivel instancia, stateful, solo allow. N A C L: nivel subnet, stateless, allow y deny."},
+    {"speaker": "ana", "text": "Perfecto resumen. Esa tablita es oro de examen. Agrego: las N A C L se evalúan por número de regla, de menor a mayor, y se frenan en la primera que matchea."},
+    {"speaker": "carlos", "text": "¿Y la N A C L default cómo viene de fábrica?"},
+    {"speaker": "ana", "text": "La default deja pasar todo, inbound y outbound. Pero si creás una custom, arranca negando todo hasta que vos agregás reglas. Ojo con esa diferencia, que confunde."},
+    {"speaker": "carlos", "text": "¿Y cuándo uso una N A C L en vez de un security group?"},
+    {"speaker": "ana", "text": "El Security Group es tu herramienta del día a día. La N A C L la usás cuando necesitás un deny explícito, por ejemplo bloquear una IP maliciosa, porque el Security Group no tiene deny. Son capas complementarias."},
+    {"speaker": "carlos", "text": "Ahhh. O sea, el security group no puede bloquear, solo permitir. Si quiero banear una IP puntual, voy a la N A C L."},
+    {"speaker": "ana", "text": "Esa es la jugada exacta. Y la sabés explicar, mejor todavía. Subamos a conectividad entre redes."},
+    {"speaker": "carlos", "text": "Dale."},
+    {"speaker": "ana", "text": "Primero, V P C Peering. Conecta dos V P C de forma privada usando la red interna de AWS, como si fueran una sola red."},
+    {"speaker": "carlos", "text": "¿Y puedo conectarlas en cadena? Tipo A con B, B con C, y que A llegue a C de rebote?"},
+    {"speaker": "ana", "text": "¡No! Y esa es LA trampa. El peering es no transitivo. A con B no te da A con C, aunque B y C estén peereadas. Tenés que crear una conexión por cada par."},
+    {"speaker": "carlos", "text": "Uy, o sea, si tengo cuatro V P C todas conectadas, necesito un montón de pares distintos."},
+    {"speaker": "ana", "text": "Sí, crece feo, en forma de malla. Por eso, a escala, se usa otra cosa que ya vamos a ver. Dos datos más: podés peerear entre Regiones y entre cuentas. Y los CIDR no pueden solaparse."},
+    {"speaker": "carlos", "text": "¿Por qué no se pueden solapar los rangos?"},
+    {"speaker": "ana", "text": "Porque si las dos V P C usan diez punto cero, barra dieciséis, el ruteo no sabe a cuál mandar una IP repetida. Tienen que ser rangos distintos. Y acordate de actualizar las route tables de los dos lados."},
+    {"speaker": "carlos", "text": "Capté. ¿Y cuál es esa 'otra cosa' que escala mejor?"},
+    {"speaker": "ana", "text": "Pará, antes una pieza que cae muchísimo: los V P C Endpoints. Te dejan acceder a servicios de AWS sin pasar por Internet Gateway ni NAT. El tráfico se queda dentro de la red privada de AWS."},
+    {"speaker": "carlos", "text": "Esperá, ¿entonces, para que mi instancia hable con S3, no necesito salir a internet?"},
+    {"speaker": "ana", "text": "Correcto, y eso es más seguro y más barato. Hay dos tipos, y la diferencia es oro de examen: Gateway Endpoints e Interface Endpoints."},
+    {"speaker": "carlos", "text": "A ver, dale, explicame los dos bien, que esto no lo toqué nunca."},
+    {"speaker": "ana", "text": "El Gateway Endpoint es un target en tu route table. Es gratis. Y solo sirve para dos servicios: S3 y DynamoDB. Nada más que esos dos."},
+    {"speaker": "carlos", "text": "Gratis, y solo S3 y DynamoDB. ¿Y el otro?"},
+    {"speaker": "ana", "text": "El Interface Endpoint usa una E N I con IP privada dentro de tu subnet, está powered by PrivateLink, sirve para casi todos los demás servicios, le podés poner Security Groups... pero se paga por hora más por datos procesados."},
+    {"speaker": "carlos", "text": "Entonces, si la pregunta dice 'acceder a S3 desde subnet privada, lo más barato', la respuesta es..."},
+    {"speaker": "ana", "text": "Gateway Endpoint. Gratis. Si en esa pregunta te ofrecen Interface Endpoint para S3, es el distractor caro. Memorizá: S3 y DynamoDB con qualifier de costo, Gateway; cualquier otro servicio, Interface."},
+    {"speaker": "carlos", "text": "Clavado. Gateway para S3 y DynamoDB y gratis; Interface para el resto y se paga."},
+    {"speaker": "ana", "text": "Y nombré PrivateLink. Es la forma más segura de exponer un servicio TUYO a muchísimas otras V P C, sin peering, sin IGW, sin NAT. Del lado del proveedor ponés un Network Load Balancer; del lado del consumidor, un Interface Endpoint."},
+    {"speaker": "carlos", "text": "O sea, ¿yo tengo un servicio y quiero que mil clientes lo consuman privado, sin armar mil peerings?"},
+    {"speaker": "ana", "text": "Exacto, ese es el caso. PrivateLink escala a miles de V P C sin el lío del peering no transitivo. Network Load Balancer adelante, Interface Endpoint del otro lado."},
+    {"speaker": "carlos", "text": "Ah, y ahí se entiende para qué sirve, ya que el peering no escalaba. ¿Y para conectar muchas V P C entre sí?"},
+    {"speaker": "ana", "text": "Para eso está el Transit Gateway, la 'otra cosa' que te debía. Topología hub-and-spoke: un nodo central y todas las V P C colgando de él."},
+    {"speaker": "carlos", "text": "Esperá, esto tampoco lo configuré nunca. ¿En qué se diferencia del peering?"},
+    {"speaker": "ana", "text": "El peering es punto a punto y no transitivo: explota en cantidad de conexiones. El Transit Gateway es un hub central: conectás miles de V P C y redes on-premises a un solo lugar, y todo se rutea por ahí."},
+    {"speaker": "carlos", "text": "Ah, en vez de cables cruzados entre todos, todos enchufados al centro."},
+    {"speaker": "ana", "text": "Esa es la analogía perfecta. Como un aeropuerto hub. Es regional, podés peerear Transit Gateways entre Regiones, y trabaja junto con Direct Connect y VPN."},
+    {"speaker": "carlos", "text": "Justo, ¿qué son Direct Connect y VPN? Eso es full nuevo para mí."},
+    {"speaker": "ana", "text": "Es conectividad híbrida: unir tu data center on-premises con AWS. Dos caminos grandes: Site-to-Site VPN y Direct Connect. ¿Vamos uno por uno?"},
+    {"speaker": "carlos", "text": "Sí, porque esto nunca lo configuré, explicámelo de cero. ¿Qué es el Site-to-Site VPN?"},
+    {"speaker": "ana", "text": "Una conexión encriptada entre tu red on-premises y AWS, viajando por el internet público. Lo bueno: se levanta en minutos. Y trae dos túneles VPN para redundancia."},
+    {"speaker": "carlos", "text": "¿Y lo malo?"},
+    {"speaker": "ana", "text": "Que va por internet público: el ancho de banda y la latencia son variables, dependés de tu conexión. Dos componentes para recordar: del lado AWS, el Virtual Private Gateway; del lado tuyo, el Customer Gateway."},
+    {"speaker": "carlos", "text": "Virtual Private Gateway en AWS, Customer Gateway en mi oficina. ¿Y el Direct Connect?"},
+    {"speaker": "ana", "text": "Esa es la conexión privada dedicada: un cable físico de tu data center a AWS. Performance consistente y predecible, y baja los costos de transferencia para tráfico de alto volumen."},
+    {"speaker": "carlos", "text": "Suena ideal. ¿Cuál es el catch?"},
+    {"speaker": "ana", "text": "Tarda más de un mes en establecerse, porque hay que tender infraestructura física. Y atención: Direct Connect NO viene encriptado por default. Si querés cifrado, le corrés un VPN por encima."},
+    {"speaker": "carlos", "text": "Pará, eso es raro. ¿Privado pero no encriptado al mismo tiempo?"},
+    {"speaker": "ana", "text": "Privado de ruta, sí: no pasa por internet público. Pero el dato viaja en claro, salvo que le sumes VPN por encima. Es una distinción fina que el examen explota seguido."},
+    {"speaker": "carlos", "text": "Entonces, si la pregunta pide 'ancho de banda consistente y bajar costos para tráfico alto y constante', voy a Direct Connect."},
+    {"speaker": "ana", "text": "Esas son las frases gatillo: 'consistent', 'predictable bandwidth', 'high volume'. Direct Connect. Si en cambio dicen 'rápido de montar' o 'algo temporal encriptado por internet', Site-to-Site VPN."},
+    {"speaker": "carlos", "text": "Y si necesito que sea súper confiable, ¿pongo dos Direct Connect?"},
+    {"speaker": "ana", "text": "Muy buena pregunta. Sí: para alta disponibilidad, o dos Direct Connect, o un Direct Connect con un Site-to-Site VPN de backup. Que un solo cable nunca te corte todo."},
+    {"speaker": "carlos", "text": "Tiene sentido. ¿Y había un tercero, el Client VPN?"},
+    {"speaker": "ana", "text": "Sí, más chico. Es OpenVPN managed, para conectar usuarios individuales, vos en tu laptop, a la red de AWS u on-premises, por una conexión TLS segura."},
+    {"speaker": "carlos", "text": "Ah, o sea, Site-to-Site une redes enteras, y Client VPN conecta a una persona suelta."},
+    {"speaker": "ana", "text": "Exactamente esa es la diferencia. Red contra red: Site-to-Site. Usuario suelto contra la red: Client VPN. Ahora subimos a D N S con Route 53. ¿Esto lo tocaste?"},
+    {"speaker": "carlos", "text": "No, esto nunca lo configuré, explicámelo de cero. D N S lo entiendo de leerlo, pero Route 53 no lo abrí en mi vida."},
+    {"speaker": "ana", "text": "Dale, de cero. Route 53 es el servicio de D N S de AWS: altamente disponible y escalable. Tiene un dato único: un Service Level Agreement, el S L A, de cien por ciento de disponibilidad. El único servicio de AWS con esa promesa."},
+    {"speaker": "carlos", "text": "¿Cien por ciento? ¿Por qué justo el D N S se la juega tanto?"},
+    {"speaker": "ana", "text": "Porque si el D N S se cae, no resolvés nada, se cae todo lo demás. Es tan crítico que AWS apuesta al cien. Route 53 hace tres cosas: registrar dominios, rutear D N S, y health checks. Y el número sale del puerto cincuenta y tres del D N S."},
+    {"speaker": "carlos", "text": "Ah, mirá, Route 53 por el puerto cincuenta y tres. Buen truco para acordarme del nombre."},
+    {"speaker": "ana", "text": "Sí, ese nombre no es casual. Vamos a los record types. Los básicos: A apunta a una IPv4, AAAA, cuádruple A, a una IPv6. CNAME mapea un hostname a otro hostname. Y el estrella de AWS: el Alias."},
+    {"speaker": "carlos", "text": "¿Qué tiene de especial el Alias?"},
+    {"speaker": "ana", "text": "Dos cosas de examen. Uno: el Alias puede apuntar a recursos de AWS, un load balancer, CloudFront, S3, y sus queries son gratis. Dos: el Alias SÍ funciona en el zone apex; el CNAME NO puede."},
+    {"speaker": "carlos", "text": "Esperá, ¿qué es el zone apex?"},
+    {"speaker": "ana", "text": "El dominio raíz pelado, sin www adelante. Por ejemplo, 'miempresa punto com' a secas. El CNAME no puede vivir ahí, es regla del D N S. Entonces, para apuntar tu dominio raíz a un load balancer, usás Alias, no CNAME."},
+    {"speaker": "carlos", "text": "Ahhh. Dominio pelado apuntando a un recurso de AWS, siempre Alias. Capté."},
+    {"speaker": "ana", "text": "Esa sale casi seguro. Hay más records, NS, MX para mail, TXT, SOA, CAA, pero el que te cambia la respuesta es Alias contra CNAME. Esos records viven en hosted zones."},
+    {"speaker": "carlos", "text": "¿Y qué es una hosted zone?"},
+    {"speaker": "ana", "text": "Un contenedor de records. Dos tipos: la Public Hosted Zone rutea tráfico de internet; la Private Hosted Zone rutea adentro de una o más V P C, para nombres internos."},
+    {"speaker": "carlos", "text": "O sea, ¿la privada es para nombres internos que no quiero que vea internet?"},
+    {"speaker": "ana", "text": "Tal cual. Resolución interna, tipo 'database punto interno', que solo existe dentro de tus V P C. La pública es la que el mundo entero consulta. Ahora, lo más jugoso de Route 53: las routing policies."},
+    {"speaker": "carlos", "text": "Dale, pero despacio, que sé que son varias."},
+    {"speaker": "ana", "text": "Son siete, y el examen vive de que las distingas. Uno: Simple. Rutea a un solo recurso. Puede devolver varios valores y el cliente elige uno al azar, pero no soporta health checks. La más básica."},
+    {"speaker": "carlos", "text": "Sin health check. ¿La dos?"},
+    {"speaker": "ana", "text": "Dos: Weighted. Repartís el tráfico por pesos, de cero a doscientos cincuenta y cinco. Setenta por ciento acá, treinta allá. Ideal para A/B testing o para un rollout gradual de una versión nueva. Soporta health checks."},
+    {"speaker": "carlos", "text": "Ah, weighted para sacar una versión de a poquito. ¿La tres?"},
+    {"speaker": "ana", "text": "Tres: Latency. Rutea al recurso que le da menor latencia al usuario. AWS mide la latencia del usuario a cada Región y lo manda a la más rápida. Cuidado: es latencia, no distancia en el mapa."},
+    {"speaker": "carlos", "text": "Esperá, ¿no es lo mismo el más cercano que el de menor latencia?"},
+    {"speaker": "ana", "text": "No siempre, y ahí está la trampa. El más cercano en el mapa puede tener peor ruta de red. Latency routing mide latencia real, no kilómetros. Esa distinción te la preguntan."},
+    {"speaker": "carlos", "text": "Buenísimo el matiz. ¿La cuatro?"},
+    {"speaker": "ana", "text": "Cuatro: Failover. Activo-pasivo. Tenés un record primario y uno secundario. Le ponés un health check al primario; si se cae, Route 53 manda automático al secundario. Disaster recovery clásico."},
+    {"speaker": "carlos", "text": "Esa era la respuesta del escenario tres de las practice questions, ¿no? Active-passive failover."},
+    {"speaker": "ana", "text": "Bien visto, esa misma. Active-passive failover, Failover routing policy. ¿Seguimos?"},
+    {"speaker": "carlos", "text": "Dale, voy anotando. ¿La cinco?"},
+    {"speaker": "ana", "text": "Cinco: Geolocation. Rutea según de DÓNDE está el usuario: continente, país, o estado de Estados Unidos. Sirve para localizar contenido o para restringir distribución. Definís una location default por si no matchea ninguna."},
+    {"speaker": "carlos", "text": "O sea, geolocation mira la ubicación del usuario. ¿Y la seis no es parecida?"},
+    {"speaker": "ana", "text": "Parecida pero distinta, ojo. Seis: Geoproximity. Rutea según la ubicación geográfica de los usuarios Y de los recursos, y te deja meter un 'bias' para correr tráfico hacia o desde una Región. Necesita Route 53 Traffic Flow."},
+    {"speaker": "carlos", "text": "A ver, ¿en qué se diferencia de geolocation entonces? Las confundo."},
+    {"speaker": "ana", "text": "Geolocation es por fronteras fijas: este país va acá, punto. Geoproximity es elástica: con el bias agrandás o achicás el área que cubre un recurso, para empujar más o menos tráfico a una Región. Es de ajuste fino."},
+    {"speaker": "carlos", "text": "Ah, geolocation son reglas duras por país, geoproximity es una perilla que muevo. Capté."},
+    {"speaker": "ana", "text": "Perfecta esa imagen. Y la siete: Multi-Value Answer. Devuelve hasta ocho valores, cada uno con su health check, y el cliente elige. Es como un balanceo del lado del cliente."},
+    {"speaker": "carlos", "text": "Suena a un load balancer. ¿Reemplaza a un ELB?"},
+    {"speaker": "ana", "text": "¡No, y esa es la trampa exacta! Multi-Value NO es un sustituto de un load balancer. Hace un balanceo client-side básico con health checks, pero no tiene la inteligencia de un ELB. Si te lo ofrecen como reemplazo de un ELB, está mal."},
+    {"speaker": "carlos", "text": "Anotado fuerte: Multi-Value no es un ELB. ¿Y los health checks cómo funcionan?"},
+    {"speaker": "ana", "text": "Monitorean si un endpoint está sano. Tres tipos: monitoreo de endpoint por IP o dominio, calculated, que combina otros health checks, y los basados en alarma de CloudWatch, para recursos privados."},
+    {"speaker": "carlos", "text": "¿Por qué necesito uno basado en CloudWatch para lo privado?"},
+    {"speaker": "ana", "text": "Porque los health checkers de Route 53 viven afuera, en internet, en muchas ubicaciones del mundo. No llegan a un recurso privado dentro de tu V P C. Entonces mirás una métrica en CloudWatch y disparás el health check desde ahí."},
+    {"speaker": "carlos", "text": "Ahhh, claro, el chequeador externo no puede entrar a mi red privada. Buen workaround."},
+    {"speaker": "ana", "text": "Y dos features más de Route 53 que caen en preguntas híbridas. El Resolver, para D N S entre on-premises y AWS. Inbound endpoints: dejan que tu data center resuelva nombres privados de AWS. Outbound endpoints: mandan queries de la V P C hacia tu resolver on-premises."},
+    {"speaker": "carlos", "text": "Esperá, inbound y outbound... ¿desde el punto de vista de quién?"},
+    {"speaker": "ana", "text": "Desde AWS. Inbound: las queries ENTRAN a AWS, las hace on-premises preguntando por nombres de AWS. Outbound: las queries SALEN de AWS hacia on-premises. Se usa sobre Direct Connect o VPN, para resolver nombres en los dos sentidos."},
+    {"speaker": "carlos", "text": "Capté: inbound entra a AWS, outbound sale de AWS. Para D N S híbrido."},
+    {"speaker": "ana", "text": "Y dos cositas finales. Traffic Flow: un editor visual para armar routing complejo, con versionado y reutilizable. Y DNSSEC, que protege contra D N S spoofing, que alguien te falsifique respuestas D N S."},
+    {"speaker": "carlos", "text": "¿DNSSEC viene activado solo?"},
+    {"speaker": "ana", "text": "No, y ojo con eso. El signing de DNSSEC hay que configurarlo, no es automático. Route 53 lo soporta para registro de dominios y para firmar, pero lo prendés vos a mano."},
+    {"speaker": "carlos", "text": "Anotado, no es automático. Llegamos a CloudFront, ¿no?"},
+    {"speaker": "ana", "text": "Llegamos al borde: CloudFront. Es el Content Delivery Network de AWS, el CDN. Tiene cientos de Points of Presence, edge locations, por todo el mundo, y cachea contenido cerca del usuario para bajar la latencia."},
+    {"speaker": "carlos", "text": "Esto sí lo toqué, eh. ¿Por dónde lo agarramos?"},
+    {"speaker": "ana", "text": "Por los origins. CloudFront sirve desde un origin. Puede ser un bucket S3, o un Custom Origin por HTTP: un A L B, una EC2, un static website de S3, cualquier backend HTTP."},
+    {"speaker": "carlos", "text": "El de S3 es el que yo armé. Y ahí va esa seguridad del Origin Access Control, ¿no?"},
+    {"speaker": "ana", "text": "Esa misma, el O A C. Contame cómo lo hiciste."},
+    {"speaker": "carlos", "text": "A ver... esto lo toqué cuando armé un chatbot interno con Bedrock. El front era una single page application en S3, con Block Public Access todo en true, y el acceso entraba solo por CloudFront con O A C. Pero te confieso: siempre mezclo O A C con O A I. ¿Cuál es el moderno?"},
+    {"speaker": "ana", "text": "El moderno es el O A C: Origin Access Control. El O A I, Origin Access Identity, es el legacy, el viejo. AWS recomienda O A C para todo lo nuevo. Vos usaste el correcto, tranquilo."},
+    {"speaker": "carlos", "text": "Uf, menos mal, siempre los doy vuelta. ¿Y por qué funcionaba el bucket si estaba privado del todo?"},
+    {"speaker": "ana", "text": "Ahí está la elegancia. El bucket queda privado, Block Public Access en true, y le ponés una Bucket Policy que solo le permite leer a CloudFront. El usuario nunca toca S3 directo: pega contra CloudFront, y CloudFront, con su identidad O A C, va y lee el bucket."},
+    {"speaker": "carlos", "text": "Ah, claro, entonces yo de cliente jamás veo el bucket, solo veo CloudFront. Por eso andaba aunque estuviera todo bloqueado."},
+    {"speaker": "ana", "text": "Exacto. Y un mito que tira mucha gente: 'para servir con CloudFront, el bucket tiene que ser público'. Falso. Block Public Access en true, acceso solo vía O A C. Que no te lo vendan al revés en el examen."},
+    {"speaker": "carlos", "text": "Buenísimo. Volviendo a la teoría: ¿el caching cómo decide qué guardar?"},
+    {"speaker": "ana", "text": "El caching guarda en cada edge location, y podés basar la cache en headers, query strings o cookies. Cada objeto tiene un Time To Live, el T T L, que va de cero segundos hasta un año entero."},
+    {"speaker": "carlos", "text": "¿Y si subo una versión nueva y el cache todavía tiene la vieja?"},
+    {"speaker": "ana", "text": "Hacés una invalidation: le decís a CloudFront que tire ese path, completo o parcial. Por ejemplo, barra asterisco para tirar todo."},
+    {"speaker": "carlos", "text": "¿Y eso se propaga al toque o tarda?"},
+    {"speaker": "ana", "text": "Puede tardar un rato, hasta varios minutos. Por eso la buena práctica es versionar los assets, pero la invalidation es tu botón de emergencia cuando hace falta forzar."},
+    {"speaker": "carlos", "text": "Capté. ¿Y la parte de seguridad de CloudFront?"},
+    {"speaker": "ana", "text": "Varios temas de examen. Primero, Geo Restriction: permitís o bloqueás países enteros. Caso de uso típico: derechos de autor o licencias por región."},
+    {"speaker": "carlos", "text": "Esperá, ¿esto es lo mismo que el geolocation routing de Route 53?"},
+    {"speaker": "ana", "text": "Muy buena, se confunden feo. No. Geolocation de Route 53 DECIDE a qué servidor mandarte. Geo Restriction de CloudFront BLOQUEA o deja pasar según el país. Uno rutea, el otro restringe el acceso al contenido."},
+    {"speaker": "carlos", "text": "Ah, capté: Route 53 te manda a un lado, CloudFront te deja entrar o no. ¿Y el HTTPS?"},
+    {"speaker": "ana", "text": "Dos políticas. La Viewer Protocol Policy, entre el usuario y CloudFront: podés forzar redirect de HTTP a HTTPS, o HTTPS only. Y la Origin Protocol Policy, entre CloudFront y tu origin: HTTP only, HTTPS only, o match viewer."},
+    {"speaker": "carlos", "text": "Capté, redirect a HTTPS entre usuario y CloudFront. ¿Y para contenido privado, de pago?"},
+    {"speaker": "ana", "text": "Signed URLs y Signed Cookies. Controlás el acceso a contenido privado. La Signed URL da acceso a UN archivo; la Signed Cookie, a MÚLTIPLES archivos. Les pegás una policy con expiración, rangos de IP, signers de confianza."},
+    {"speaker": "carlos", "text": "A ver: un archivo, Signed URL; varios archivos, Signed Cookie."},
+    {"speaker": "ana", "text": "Esa es la distinción que preguntan. Un video suelto, Signed URL. Toda una biblioteca de videos premium, Signed Cookie."},
+    {"speaker": "carlos", "text": "¿Y en qué se diferencia de las pre-signed URL de S3? Porque suenan igual."},
+    {"speaker": "ana", "text": "Se parecen pero no. La pre-signed URL de S3 te da acceso directo al objeto en S3. La Signed URL de CloudFront sirve el contenido por el CDN, cacheado en el edge, con controles tipo rango de IP. Si querés CDN, CloudFront; si es acceso puntual al bucket, pre-signed de S3."},
+    {"speaker": "carlos", "text": "Capté: CDN cacheado contra acceso directo al objeto. ¿Algo más de seguridad?"},
+    {"speaker": "ana", "text": "El Field-Level Encryption: encripta campos específicos en el edge, con criptografía asimétrica de clave pública, hasta diez campos. Caso de uso: proteger datos sensibles, tipo número de tarjeta de crédito, desde el borde mismo."},
+    {"speaker": "carlos", "text": "Ah, encripta el campo apenas entra, en el edge. ¿Y los Price Classes esos?"},
+    {"speaker": "ana", "text": "Controlan el costo según qué edge locations usás. Price Class All: todas las ubicaciones, mejor performance. Price Class 200: la mayoría, saca las más caras. Price Class 100: solo las más baratas."},
+    {"speaker": "carlos", "text": "¿Y cómo elijo cuál me conviene?"},
+    {"speaker": "ana", "text": "Depende del público. Si tu audiencia es regional, o es algo interno, Price Class 100 te ahorra plata. Si servís a todo el mundo de cara al público y querés la mejor latencia global, Price Class All."},
+    {"speaker": "carlos", "text": "Ah, interno o regional, el 100; global y público, el All. ¿Y para alta disponibilidad del origin?"},
+    {"speaker": "ana", "text": "Los Origin Groups: un origin primario y uno secundario, con failover automático si el primario falla. Le da resiliencia a tu distribution."},
+    {"speaker": "carlos", "text": "Ah, como el failover routing, pero a nivel de origin de CloudFront."},
+    {"speaker": "ana", "text": "Buena conexión, mismo espíritu. Y por último, dos formas de correr código en el edge: CloudFront Functions y Lambda@Edge. Functions, para cosas livianas y ultrarrápidas. Lambda@Edge, más pesado y potente, para lógica compleja."},
+    {"speaker": "carlos", "text": "O sea, ¿Functions liviano y veloz, Lambda@Edge pesado y flexible?"},
+    {"speaker": "ana", "text": "Esa es la regla rápida. Manipulación simple de un header o un redirect a millones de requests, Functions. Lógica más rica, Lambda@Edge. Y nos queda un servicio que confunden mucho con CloudFront."},
+    {"speaker": "carlos", "text": "¿Cuál?"},
+    {"speaker": "ana", "text": "Global Accelerator. Mejora la disponibilidad y la performance global. Te da dos IPs estáticas anycast y mete el tráfico en la red global de AWS lo antes posible."},
+    {"speaker": "carlos", "text": "Esperá, ¿y en qué se diferencia de CloudFront? Los dos suenan a 'rápido y global'."},
+    {"speaker": "ana", "text": "Acá está la clave de examen. CloudFront CACHEA contenido: es para HTTP y HTTPS. Global Accelerator NO cachea: mejora el transporte para tráfico TCP y UDP, cualquier protocolo, y te da IPs estáticas."},
+    {"speaker": "carlos", "text": "A ver, dame la regla limpia para el examen."},
+    {"speaker": "ana", "text": "Si ves 'cache', 'contenido web', 'HTTP', pensá CloudFront. Si ves 'IP estática', 'TCP o UDP no-HTTP', 'gaming', 'baja latencia global sin cache', pensá Global Accelerator. Los dos usan la red de AWS, pero uno cachea y el otro acelera transporte."},
+    {"speaker": "carlos", "text": "Capté: CloudFront cachea contenido HTTP, Global Accelerator acelera transporte TCP y UDP con IP fija."},
+    {"speaker": "ana", "text": "Un apunte rápido: el Elastic Load Balancing también es categoría Networking. A L B en capa siete para HTTP, N L B en capa cuatro para TCP y UDP, y Gateway Load Balancer para appliances de seguridad de terceros. El detalle lo vemos en el módulo de Compute."},
+    {"speaker": "carlos", "text": "Dale, eso lo dejamos para Compute. Igual me llevo: A L B capa siete, N L B capa cuatro."},
+    {"speaker": "ana", "text": "Perfecto. Vamos a los exam tips, que es donde se gana o se pierde. Te listo los qualifiers que más caen en Networking y a qué te tienen que disparar."},
+    {"speaker": "carlos", "text": "Dale, esta parte la quiero grabada a fuego."},
+    {"speaker": "ana", "text": "Uno. 'Acceder a S3 o DynamoDB desde subnet privada, lo más barato, sin NAT ni IGW.' Respuesta: Gateway Endpoint. Gratis. El Interface Endpoint ahí es el distractor caro."},
+    {"speaker": "carlos", "text": "Gateway Endpoint para S3 y DynamoDB. Listo."},
+    {"speaker": "ana", "text": "Dos. 'Conexión on-premises con ancho de banda consistente y predecible, alto volumen, bajar costos de transferencia.' Direct Connect. Si dicen 'rápido de montar' o 'encriptado por internet', es Site-to-Site VPN."},
+    {"speaker": "carlos", "text": "Consistente y predecible, Direct Connect. Rápido y encriptado, VPN."},
+    {"speaker": "ana", "text": "Tres. 'Active-passive failover' en D N S. Failover routing policy. No la confundas con weighted ni con latency."},
+    {"speaker": "carlos", "text": "Failover routing. ¿La cuatro?"},
+    {"speaker": "ana", "text": "Cuatro. Security Group contra N A C L. Si dice 'permitir tráfico a nivel de instancia y que la respuesta vuelva sola', Security Group, stateful. Si dice 'bloquear explícitamente una IP a nivel de subnet', N A C L, que tiene deny."},
+    {"speaker": "carlos", "text": "Security Group stateful a nivel instancia, N A C L stateless con deny a nivel subnet."},
+    {"speaker": "ana", "text": "Cinco. Latencia global más baja. Si es contenido web cacheable, CloudFront. Si es TCP o UDP no-HTTP, o piden IP estática, Global Accelerator. Y si es sub-millisecond a nivel de datos, ojo, eso ya es ElastiCache, otro módulo."},
+    {"speaker": "carlos", "text": "Web cacheable, CloudFront; transporte TCP y UDP, Global Accelerator."},
+    {"speaker": "ana", "text": "Seis. 'Highly available across Regions', o 'global', o 'que sobreviva la caída de una Región'. Ahí necesitás multi-Región: Route 53 failover entre Regiones, no Multi-AZ. Si dice 'Region failure', Multi-AZ no alcanza."},
+    {"speaker": "carlos", "text": "Esperá, ¿Multi-AZ no me cubre la caída de una Región entera?"},
+    {"speaker": "ana", "text": "No. Multi-AZ te cubre la caída de una zona dentro de UNA Región. Si se cae la Región completa, necesitás algo multi-Región. Esa confusión la explotan muchísimo. Una AZ no es lo mismo que una Región."},
+    {"speaker": "carlos", "text": "Uf, clave. AZ para una zona, multi-Región para una Región entera."},
+    {"speaker": "ana", "text": "Y siete, más sutil. 'Most secure' en red. Te van a tentar con instancias en subnet pública con IP pública. Lo correcto casi siempre: subnets privadas, salida por NAT si hace falta, y acceso por V P C Endpoints o bastion. No exponer de más."},
+    {"speaker": "carlos", "text": "O sea, default mental: todo privado, salvo que haya una razón concreta para lo público."},
+    {"speaker": "ana", "text": "Esa mentalidad te salva un montón de preguntas. Privado por default. Buenísimo, hagamos el recap. Cerrame vos los puntos grandes, a ver qué quedó."},
+    {"speaker": "carlos", "text": "Dale, arranco. V P C es regional, abarca todas las AZ; la subnet es la que vive en una sola AZ. Una subnet es pública o privada según su route table, no por un checkbox."},
+    {"speaker": "ana", "text": "Impecable. Seguí."},
+    {"speaker": "carlos", "text": "Internet Gateway para que las subnets públicas salgan; NAT Gateway para que las privadas salgan sin exponerse, y uno por AZ para que no sea single point of failure. Egress-Only para lo mismo, pero en IPv6."},
+    {"speaker": "ana", "text": "Tal cual. Dale con seguridad."},
+    {"speaker": "carlos", "text": "Security Groups: nivel instancia, stateful, solo allow, pueden referenciar otros Security Groups. Network ACLs: nivel subnet, stateless, allow y deny, evaluadas por número de regla. Si quiero banear una IP, voy a la N A C L."},
+    {"speaker": "ana", "text": "Perfecto. Conectividad."},
+    {"speaker": "carlos", "text": "V P C Peering es no transitivo y sin CIDR solapados. Para muchas V P C, Transit Gateway en hub-and-spoke. Para exponer un servicio propio privado, PrivateLink con Network Load Balancer. Y para S3 o DynamoDB barato desde subnet privada, Gateway Endpoint gratis."},
+    {"speaker": "ana", "text": "Te luciste. Híbrido y D N S."},
+    {"speaker": "carlos", "text": "On-premises: Site-to-Site VPN, rápido y encriptado por internet; Direct Connect, dedicado, consistente, pero más de un mes y sin cifrado por default. Route 53: S L A de cien por ciento, Alias para el zone apex, y siete routing policies. Failover para active-passive."},
+    {"speaker": "ana", "text": "¿Y el borde?"},
+    {"speaker": "carlos", "text": "CloudFront cachea contenido HTTP en edge locations, con O A C, el moderno, no el O A I viejo, para servir un S3 privado. Global Accelerator no cachea: acelera transporte TCP y UDP con dos IPs estáticas. Y para Región entera caída, multi-Región, no Multi-AZ."},
+    {"speaker": "ana", "text": "Me dejaste sin nada para corregir. Eso es exactamente lo que el examen quiere que tengas en la cabeza."},
+    {"speaker": "carlos", "text": "Y eso que la mitad de esto no lo había tocado nunca. Me quedó mucho más claro de dónde sale cada decisión de arquitectura."},
+    {"speaker": "ana", "text": "Esa es la idea: que no memorices suelto, que entiendas el porqué. Cuando veas el qualifier en el enunciado, la arquitectura te va a salir sola. Gracias por la charla, Carlos."},
+    {"speaker": "carlos", "text": "Gracias a vos, Ana. Me voy a practicar endpoints y routing policies, que son mi punto flojo."},
+    {"speaker": "ana", "text": "Hacelo, y nos vemos en el módulo de Security and Compliance. Cuídense, sigan estudiando, que falta poco para esa certificación. ¡Un abrazo, y chau!"}
   ]
 }

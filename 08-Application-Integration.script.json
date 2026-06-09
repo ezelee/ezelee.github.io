@@ -1,602 +1,145 @@
 {
   "module_title": "Module 08: Application Integration",
-  "estimated_duration_min": 38,
+  "estimated_duration_min": 39,
   "turns": [
-    {
-      "speaker": "ana",
-      "text": "Imaginate que es Black Friday. Tu e-commerce recibe diez mil órdenes por minuto. El equipo de pagos procesa rápido, pero el equipo de inventario tarda más. Sin nada en el medio, el sistema de pagos queda bloqueado esperando al de inventario — y todo colapsa bajo la carga. Hoy vemos cómo AWS resuelve exactamente eso: mensajería, eventos y orquestación. Bienvenido al Módulo 08, Application Integration."
-    },
-    {
-      "speaker": "carlos",
-      "text": "Ese escenario del Black Friday es muy gráfico. O sea, la idea es que los componentes no se esperen uno al otro directamente, ¿no? ¿Qué vamos a cubrir hoy?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Exacto, eso se llama loose coupling. Vamos a ver Amazon SQS para colas de mensajes, SNS para pub/sub, EventBridge para eventos, Step Functions para orquestación de workflows, Amazon MQ para migraciones, Kinesis para streaming, AppSync para GraphQL, y API Gateway. Es un módulo amplio pero muy presente en el examen — estos servicios aparecen en casi todos los dominios del examen."
-    },
-    {
-      "speaker": "carlos",
-      "text": "¿Cuánto pesa en el examen, más o menos?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Application Integration es transversal — aparece en Design Resilient Architectures, en High-Performing Architectures, y en Cost Optimization. SQS y SNS son los favoritos para escenarios de resiliencia y decoupling. API Gateway domina los escenarios serverless. EventBridge aparece en automatización. No los estudies en silos — el examen los combina con Lambda, ECS y S3 en preguntas de múltiples capas."
-    },
-    {
-      "speaker": "carlos",
-      "text": "Dale, son la argamasa que une los otros servicios. ¿Arrancamos con SQS?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Vamos. La idea central de todo este módulo es simple: en lugar de que los sistemas se llamen directamente entre sí — lo que crea acoplamiento fuerte — los conectás a través de servicios intermediarios. Un sistema produce un mensaje o evento, y otros lo consumen cuando pueden, a su propio ritmo. Con esa idea en mente, Amazon SQS — Simple Queue Service."
-    },
-    {
-      "speaker": "carlos",
-      "text": "SQS nunca lo toqué, te pregunto desde cero. ¿Qué es exactamente?"
-    },
-    {
-      "speaker": "ana",
-      "text": "SQS es el servicio de message queuing fully managed de AWS. Un producer manda mensajes a una queue, y uno o más consumers los van leyendo y procesando de forma independiente. El producer no espera al consumer — manda y sigue. Throughput ilimitado, retención de mensajes de un minuto a catorce días, latencia por debajo de diez milisegundos. Existe desde los primeros días de AWS."
-    },
-    {
-      "speaker": "carlos",
-      "text": "O sea, es como una sala de espera entre componentes. ¿Qué tipos de queues hay?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Dos tipos. Standard Queue: throughput ilimitado, pero at-least-once delivery — el mismo mensaje puede llegar más de una vez — y best-effort ordering, pueden llegar desordenados. FIFO Queue: exactly-once processing garantizado y orden estricto, pero el throughput baja a trescientos mensajes por segundo — o tres mil con batching. Elegís según si el orden y la unicidad importan."
-    },
-    {
-      "speaker": "carlos",
-      "text": "Entonces para transacciones bancarias donde el orden importa, FIFO. Para notificaciones donde no importa, Standard. ¿Hay algún gotcha de FIFO que deba saber?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Sí, y es un gotcha clásico de examen: el nombre de una FIFO queue tiene que terminar exactamente en punto fifo — por ejemplo, orders.fifo. Si el examen te da opciones de nombre, ese sufijo discrimina. Y otra cosa: si combinás SNS FIFO con SQS, los subscribers solo pueden ser SQS FIFO queues. No podés mezclar tipos."
-    },
-    {
-      "speaker": "carlos",
-      "text": "Anotado. ¿Y el tamaño máximo de un mensaje?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Doscientos cincuenta y seis kilobytes por mensaje. Si necesitás mandar algo más grande — una imagen, un archivo JSON enorme — usás el SQS Extended Client, que es una biblioteca Java. Guarda el payload en S3 y en la queue manda solo el reference. El consumer lee el reference, va a S3, baja el payload. Para el examen: payload grande con SQS implica S3."
-    },
-    {
-      "speaker": "carlos",
-      "text": "Capté. Ahora, ¿qué es el visibility timeout? El nombre me suena a que el mensaje se vuelve invisible temporalmente."
-    },
-    {
-      "speaker": "ana",
-      "text": "Exacto, bien intuido. Cuando un consumer recibe un mensaje, ese mensaje se vuelve invisible para todos los demás consumers durante el visibility timeout — treinta segundos por defecto, máximo doce horas. El consumer tiene ese tiempo para procesarlo y borrarlo explícitamente. Si no lo borra antes de que expire, el mensaje vuelve a aparecer en la queue y otro consumer puede tomarlo."
-    },
-    {
-      "speaker": "carlos",
-      "text": "Ah, eso previene el doble procesamiento siempre que el consumer borre el mensaje al terminar. ¿Y si sabe que va a tardar más de treinta segundos?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Puede llamar a ChangeMessageVisibility para extender el timeout antes de que expire. Ojo con esto: si el timeout es muy corto, el mismo mensaje puede procesarse dos veces. Si es muy largo y el consumer falla sin borrar el mensaje, ese mensaje tarda mucho en estar disponible nuevamente. Es un balance que depende de cuánto tarda tu processing."
-    },
-    {
-      "speaker": "carlos",
-      "text": "Tiene sentido. ¿Y el Dead Letter Queue?"
-    },
-    {
-      "speaker": "ana",
-      "text": "El Dead Letter Queue, o D L Q, es una queue separada donde van los mensajes que fallaron múltiples veces. Configurás Maximum Receives en la queue original — si un mensaje fue recibido más veces de ese threshold sin ser borrado exitosamente, se mueve al D L Q. Ahí lo podés debuggear o alertar. Importante: si la queue original es FIFO, el D L Q también tiene que ser FIFO."
-    },
-    {
-      "speaker": "carlos",
-      "text": "Es la bandeja de mensajes problemáticos. ¿Y long polling? Sé que reduce costos."
-    },
-    {
-      "speaker": "ana",
-      "text": "Por defecto SQS usa short polling: el consumer pregunta si hay mensajes y la queue responde de inmediato aunque esté vacía — muchas API calls vacías. Con long polling, el consumer espera hasta veinte segundos antes de que la queue responda, solo si hay mensajes. Muchas menos API calls, mismo resultado. Para activarlo, ponés ReceiveMessageWaitTimeSeconds mayor a cero."
-    },
-    {
-      "speaker": "carlos",
-      "text": "Dale. ¿Y las Delay Queues?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Un Delay Queue hace que los mensajes nuevos sean invisibles por un tiempo configurable — hasta quince minutos — antes de estar disponibles para consumers. Útil cuando necesitás un período de gracia antes de procesar: esperar confirmación antes de notificar, dar tiempo a un sistema externo para procesarse. Podés configurarlo a nivel de queue o per-message con DelaySeconds."
-    },
-    {
-      "speaker": "carlos",
-      "text": "¿Y la seguridad de SQS?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Dos capas. IAM policies para controlar quién puede llamar a las APIs de SQS. Y SQS Access Policies — similar a las bucket policies de S3 — que permiten cross-account access y que otros servicios escriban en la queue, como S3 enviando notificaciones o SNS haciendo fanout. Encriptación en tránsito con HTTPS, en reposo con K M S."
-    },
-    {
-      "speaker": "carlos",
-      "text": "Pasemos a SNS. ¿La diferencia principal con SQS es que es push en lugar de pull?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Exacto. Amazon SNS, Simple Notification Service, es pub/sub — publish/subscribe. Un publisher manda un mensaje a un Topic, y todos los subscribers reciben ese mensaje de forma simultánea. Es push: el mensaje llega a los subscribers sin que ellos lo busquen. SQS es pull: el consumer va activamente a buscar mensajes de la queue. Diferentes modelos para diferentes necesidades."
-    },
-    {
-      "speaker": "carlos",
-      "text": "¿Qué puede ser subscriber de un SNS topic?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Bastante variedad: SQS queues, funciones Lambda, endpoints HTTP o HTTPS para webhooks, email, SMS, mobile push para iOS y Android, y Kinesis Data Firehose. Esa diversidad es la fortaleza de SNS — con un único mensaje podés notificar a una queue, disparar una Lambda, mandar un email y streamear a S3 vía Firehose, todo al mismo tiempo."
-    },
-    {
-      "speaker": "carlos",
-      "text": "Poderoso. ¿Se puede filtrar para que cada subscriber reciba solo los mensajes que le importan?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Sí, Message Filtering. Cada subscriber puede tener un filter policy en JSON que define qué atributos de mensaje acepta. Por ejemplo, un subscriber que solo quiere mensajes donde el atributo event sea order_placed y el price sea mayor a cien. Los mensajes que no matchean el filtro simplemente no llegan a ese subscriber. Muy útil para no sobrecargar sistemas con eventos que no les interesan."
-    },
-    {
-      "speaker": "carlos",
-      "text": "A ver, y el fanout pattern con SNS y SQS — ¿cómo funciona exactamente?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Acá viene lo importante para el examen. Tenés un SNS topic con múltiples SQS queues como subscribers. Un evento llega al topic, SNS lo replica automáticamente a todas las queues suscritas. Cada queue tiene sus propios consumers independientes que procesan a su ritmo. Completamente desacoplado: si un consumer cae, los mensajes esperan en su queue. Si agregás un pipeline nuevo, solo suscribís otra queue."
-    },
-    {
-      "speaker": "carlos",
-      "text": "O sea, SNS más SQS es el patrón cuando un evento tiene que disparar múltiples pipelines de procesamiento independientes. ¿Y cuándo usarías SNS sin SQS?"
-    },
-    {
-      "speaker": "ana",
-      "text": "SNS solo tiene sentido para notificaciones directas: mandar un SMS a un admin, enviar email, llamar a un webhook. Cuando necesitás que el procesamiento sea asíncrono con retry y D L Q — que cada consumer procese a su ritmo sin perder mensajes — combinás con SQS. Regla práctica para el examen: mensaje a múltiples destinos con procesamiento desacoplado es fanout, o sea SNS más SQS."
-    },
-    {
-      "speaker": "carlos",
-      "text": "Ahora EventBridge. Ahí sí tengo algo de contexto — cuando armé los scrapers que corrí en Fargate usé EventBridge para disparar las tasks según un cron. Aunque ahora que lo pienso, no recuerdo bien si usé Rules o Scheduler. Los confundo bastante."
-    },
-    {
-      "speaker": "ana",
-      "text": "Mirá, esa confusión es muy común. EventBridge Rules y EventBridge Scheduler son distintos aunque están relacionados. Las Rules evalúan event patterns — cosas que pasan en tu cuenta AWS — y también pueden tener schedules. Scheduler es un servicio separado, optimizado para tareas programadas de alta escala con más features de scheduling. ¿Usaste expresiones cron?"
-    },
-    {
-      "speaker": "carlos",
-      "text": "Sí, cron con seis campos en UTC. Pero la verdad que no sé si era una Rule o Scheduler, los puse los dos en proyectos distintos y los confundí. Para el examen, ¿qué necesito entender de EventBridge?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Lo central. EventBridge es el serverless event bus de AWS, sucesor de CloudWatch Events. Misma API, mismo pricing, pero EventBridge agrega Schema Registry y soporte para SaaS partners. La arquitectura: un Event Bus recibe eventos, las Rules los evalúan, y cuando una Rule hace match, manda el evento a uno o más Targets. Eso es el núcleo."
-    },
-    {
-      "speaker": "carlos",
-      "text": "¿Cuántos tipos de Event Bus hay?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Tres. El Default Event Bus recibe eventos de servicios AWS — cuando una instancia E.C. 2 cambia de estado, cuando S3 recibe un objeto. El Partner Event Bus recibe eventos de SaaS partners — Datadog, Zendesk, Auth0 — que integran directamente con EventBridge. El Custom Event Bus lo creás vos para los eventos de tus propias aplicaciones. Podés configurar permisos cross-account en cada bus."
-    },
-    {
-      "speaker": "carlos",
-      "text": "¿Y cómo funciona una Rule? ¿Es un filtro en JSON sobre los eventos?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Exacto. El Event Pattern es JSON que define qué eventos le interesan a esa Rule. Por ejemplo: source igual a aws.ec2, detail-type igual a E.C. 2 Instance State-change Notification, y dentro del detail que el state sea terminated. Cuando llega un evento que matchea ese patrón, la Rule lo manda a sus Targets. También podés poner una schedule — cron o rate — en lugar de un event pattern."
-    },
-    {
-      "speaker": "carlos",
-      "text": "¿Y qué puede ser Target de una Rule?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Más de veinte opciones. Lambda para procesar el evento con código. Step Functions para arrancar un workflow. SQS o SNS para mensajería. Kinesis para streaming. ECS Tasks para correr containers — que es exactamente el patrón que usaste vos con los scrapers. CodePipeline para CI/CD. Systems Manager Run Command. API Gateway. La lista es larga y crece con cada actualización del servicio."
-    },
-    {
-      "speaker": "carlos",
-      "text": "Dale, ya entiendo mejor cómo funcionan. ¿Y el Schema Registry?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Fijate que el Schema Registry de EventBridge te permite descubrir y gestionar los schemas de los eventos que llegan al bus — la estructura de los JSONs. Podés generar code bindings automáticamente para que tus aplicaciones sepan qué campos esperar de cada evento. Tiene versioning de schemas. Para el examen no es el feature más crítico, pero si aparece, recordá que está en EventBridge y sirve para auto-discovery de event shapes."
-    },
-    {
-      "speaker": "carlos",
-      "text": "Entendido. EventBridge es el event bus reactivo. Pasemos a Step Functions."
-    },
-    {
-      "speaker": "ana",
-      "text": "AWS Step Functions es el servicio de orquestación de workflows serverless. Coordinás múltiples servicios AWS — Lambda, ECS, Fargate, Batch, SageMaker — en flujos de trabajo con lógica, manejo de errores y ejecución paralela. Tenés un editor visual donde ves el state machine completo. Es el director de orquesta: sabe exactamente en qué paso está el proceso y qué sigue."
-    },
-    {
-      "speaker": "carlos",
-      "text": "Yo esto no lo toqué, así que te pregunto desde cero. ¿Por qué no simplemente hacer que una Lambda llame a otras Lambdas en cadena?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Porque Lambda-llamando-Lambda tiene problemas serios. Acoplamiento fuerte entre funciones. Error handling manual y propenso a errores. Si algo falla en el medio, no sabés en qué paso exacto. No tenés visibilidad del estado del workflow. Y con el límite de quince minutos de Lambda, coordinar algo que dura horas se vuelve un malabarismo. Step Functions resuelve todo eso out of the box."
-    },
-    {
-      "speaker": "carlos",
-      "text": "O sea el valor es la visibilidad y el error handling centralizado. ¿Y los tipos de workflows?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Dos tipos. Standard Workflows: duran hasta un año, dos mil ejecuciones por segundo, se cobra por state transition, auditoría completa de cada transición — útil para procesos long-running como aprobar una orden compleja o procesar un reclamo de seguro. Express Workflows: duran hasta cinco minutos, más de cien mil ejecuciones por segundo, se cobra por ejecución — para alta frecuencia y duración corta."
-    },
-    {
-      "speaker": "carlos",
-      "text": "¿Cómo diferencio en el examen cuándo usar Standard versus Express?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Simple. Si el workflow dura horas o días, necesita aprobación humana, o requiere auditoría completa de cada paso — Standard. Si son millones de eventos pequeños por día que duran segundos o minutos — procesamiento IoT, transformación de datos en tiempo real — Express. Standard paga por cada transición de estado. Express paga por la ejecución completa. El caso de uso lo dice todo."
-    },
-    {
-      "speaker": "carlos",
-      "text": "Dale. ¿Y cuántos tipos de estados hay en un state machine?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Ocho. Task: hace trabajo real — invocar Lambda, ECS, una API. Choice: lógica condicional — si inStock es true, ir a ShipOrder, sino a OrderFailed. Parallel: ejecutar ramas en paralelo. Wait: pausar por un tiempo o hasta una fecha. Map: iterar sobre un array aplicando el mismo procesamiento a cada elemento. Pass: pasa input al output sin cambios. Y Succeed y Fail para terminar el workflow."
-    },
-    {
-      "speaker": "carlos",
-      "text": "¿Y el error handling? Dijiste que era una ventaja clave sobre Lambda-calling-Lambda."
-    },
-    {
-      "speaker": "ana",
-      "text": "Muy sofisticado. En el state definition configurás Retry: cuántas veces reintentar, con IntervalSeconds entre intentos y BackoffRate para exponential backoff. Si después de todos los retries sigue fallando, Catch te redirige a otro estado para manejar el error gracefully. Y TimeoutSeconds para que ningún estado se quede colgado infinitamente. Todo esto sin una línea de código extra, solo configuración del state machine."
-    },
-    {
-      "speaker": "carlos",
-      "text": "Eso es muy poderoso. ¿Pasamos a Amazon MQ?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Amazon MQ es el servicio de message broker managed de AWS. Soporta Apache ActiveMQ y RabbitMQ. Usa protocolos estándar de industria: MQTT, AMQP, STOMP, OpenWire. El caso de uso principal es migración: si tenés una aplicación on-premises usando un broker de mensajes tradicional, Amazon MQ te permite migrar sin cambiar el código de mensajería de la aplicación."
-    },
-    {
-      "speaker": "carlos",
-      "text": "Esto no lo toqué nunca, te pregunto desde cero. ¿Y por qué no siempre usar SQS en lugar de MQ?"
-    },
-    {
-      "speaker": "ana",
-      "text": "SQS tiene su propia API propietaria de AWS. Si tenés una aplicación que habla AMQP o MQTT — porque usaba RabbitMQ o ActiveMQ on-premises — no podés simplemente apuntarla a SQS sin reescribir la capa de mensajería. Amazon MQ te da un broker compatible con esos protocolos, entonces migrás la infraestructura sin cambiar el código de la aplicación. Es lift-and-shift del message broker."
-    },
-    {
-      "speaker": "carlos",
-      "text": "Perfecto. Cloud-native nuevo va con SQS o SNS. Migración con protocolos legacy va con MQ. ¿Y tiene alta disponibilidad?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Sí. Amazon MQ soporta Multi-A.Z. con failover automático. Encriptación en reposo con K M S y en tránsito con TLS. Para el examen la regla es simple: si el escenario menciona migración de on-premises con AMQP, MQTT, STOMP u OpenWire — Amazon MQ. Si es una aplicación cloud-native nueva — SQS o SNS. Ese es el discriminador."
-    },
-    {
-      "speaker": "carlos",
-      "text": "Muy claro. Pasemos a Kinesis."
-    },
-    {
-      "speaker": "ana",
-      "text": "Amazon Kinesis es la familia de servicios para streaming de datos. El caso de uso: flujos continuos de datos — logs de aplicaciones, métricas, clics de usuarios, datos de sensores IoT, transacciones en tiempo real. Cuatro productos: Kinesis Data Streams, Kinesis Data Firehose, Kinesis Data Analytics, y Kinesis Video Streams."
-    },
-    {
-      "speaker": "carlos",
-      "text": "No, esto nunca lo configuré — explicámelo de cero. ¿Por dónde arrancamos?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Con Kinesis Data Streams, que es el núcleo. Capturás y procesás datos en tiempo real, con retención configurable de uno a trescientos sesenta y cinco días. La unidad de throughput es el shard: cada shard soporta un megabyte por segundo de input y dos megabytes por segundo de output. Aprovisionás shards según tu volumen. Lo clave: múltiples consumers pueden leer el mismo stream simultáneamente."
-    },
-    {
-      "speaker": "carlos",
-      "text": "Esperá — múltiples consumers leyendo el mismo stream. En SQS cuando un consumer toma el mensaje, ese mensaje desaparece. ¿En Kinesis no?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Exacto, esa es la diferencia clave. En SQS el mensaje se consume y se borra — un solo consumer lo procesa. En Kinesis Data Streams, los datos persisten por el período de retención configurado, y múltiples consumers pueden leerlos independientemente — uno para analytics, otro para alertas, otro para archivado. Cada consumer mantiene su propio checkpoint de hasta dónde leyó en el stream."
-    },
-    {
-      "speaker": "carlos",
-      "text": "Ah, eso es muy poderoso para analytics. ¿Y Kinesis Data Firehose?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Firehose es para cargar streaming data a destinos sin código custom. Es near real-time — latencia mínima de sesenta segundos — pero completamente managed: escala automáticamente, sin shards que gestionar. Destinos: S3, Redshift, OpenSearch, Splunk, o cualquier endpoint HTTP. Podés transformar los datos con Lambda antes de cargarlos. Firehose es el ETL de streaming, Kinesis Data Streams es el processing en tiempo real."
-    },
-    {
-      "speaker": "carlos",
-      "text": "¿Cuándo uso Data Streams versus Firehose?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Si necesitás procesar los datos en tiempo real con lógica custom y múltiples consumers leyendo el mismo stream — Data Streams. Si necesitás cargar datos a S3 o Redshift sin código custom — Firehose. El gotcha del examen: Firehose no es real-time, tiene mínimo sesenta segundos de latencia. Si la pregunta dice real-time puro con milisegundos, es Data Streams."
-    },
-    {
-      "speaker": "carlos",
-      "text": "Capté. ¿Y Kinesis Data Analytics?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Kinesis Data Analytics te permite hacer análisis en tiempo real sobre streams usando SQL estándar o Apache Flink. Leés de Data Streams o Firehose, aplicás queries — detección de anomalías, aggregations, windowing —, y mandás los resultados a otro stream o a un destino. Útil para dashboards en tiempo real o alertas basadas en patrones en el stream. Para el examen: SQL sobre streaming, es Kinesis Analytics."
-    },
-    {
-      "speaker": "carlos",
-      "text": "¿Y Video Streams?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Kinesis Video Streams es para ingestar y procesar streams de video desde dispositivos — cámaras de seguridad, drones, smart home devices. Una vez en AWS podés aplicar ML con Rekognition Video o procesamiento frame by frame. Para el examen lo más importante es recordar que existe para IoT y video analytics. Si ves cámaras de seguridad o video streaming en un escenario, es Kinesis Video Streams."
-    },
-    {
-      "speaker": "carlos",
-      "text": "¿Y cómo resumirías Kinesis versus SQS para el examen?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Kinesis: real-time analytics, múltiples consumers del mismo dato, datos persisten días, ordering por shard. SQS: decoupling de tasks, mensajes se borran al consumirse, más simple, un solo consumer por mensaje típicamente. Regla del examen: tiempo real con múltiples consumidores y retención de datos, Kinesis. Desacoplamiento de microservicios con un procesador por mensaje, SQS."
-    },
-    {
-      "speaker": "carlos",
-      "text": "¿Y AppSync? Sé que es GraphQL pero nunca lo toqué."
-    },
-    {
-      "speaker": "ana",
-      "text": "AppSync es el servicio managed de GraphQL. En REST tenés múltiples endpoints, uno por recurso. En GraphQL tenés un único endpoint y el cliente especifica exactamente qué datos quiere — podés pedir datos de múltiples entidades en una sola request, o pedir solo los campos que necesitás. Eso reduce el over-fetching típico de APIs REST. Data sources: DynamoDB, Lambda, RDS, HTTP, OpenSearch."
-    },
-    {
-      "speaker": "carlos",
-      "text": "¿Y para qué sirven las Subscriptions en AppSync?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Las Subscriptions son para real-time. El cliente se suscribe a un tipo de datos — por ejemplo, nuevos comentarios en un post. Cuando otro cliente muta esos datos, AppSync notifica automáticamente a todos los subscribers vía WebSocket. Esto hace que AppSync sea ideal para apps colaborativas. También tiene sync offline para mobile — cuando el dispositivo recupera conexión, sincroniza automáticamente."
-    },
-    {
-      "speaker": "carlos",
-      "text": "¿Cuándo usaría AppSync versus API Gateway WebSocket?"
-    },
-    {
-      "speaker": "ana",
-      "text": "AppSync es para apps data-driven con queries flexibles y sync offline — típicamente SPA o mobile donde necesitás el modelo GraphQL. WebSocket en API Gateway es para casos donde el protocolo bidireccional importa pero no necesitás GraphQL — chat en tiempo real, gaming, live dashboards. Si el examen dice GraphQL, AppSync. Si dice bidireccional en tiempo real sin mencionar GraphQL, WebSocket API en API Gateway."
-    },
-    {
-      "speaker": "carlos",
-      "text": "Muy claro. Vamos a API Gateway que sé que pesa mucho en el examen. Nunca lo configuré — explicámelo de cero."
-    },
-    {
-      "speaker": "ana",
-      "text": "API Gateway es el servicio fully managed para crear, publicar, monitorear y asegurar APIs a cualquier escala. Es la puerta de entrada — el front door — para backends serverless con Lambda, backends HTTP externos, o integración directa con servicios AWS. Manejás autenticación, throttling, caching, versioning, todo en un lugar. Muy presente en el examen, especialmente en escenarios serverless."
-    },
-    {
-      "speaker": "carlos",
-      "text": "¿Cuáles son los tipos de API que soporta?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Cuatro. REST API: el más completo, todos los features. HTTP API: más simple, más barato — alrededor de setenta por ciento menos — y más rápido, pero perdés caching nativo, WAF integration y usage plans built-in. WebSocket API: comunicación bidireccional en tiempo real para chat, dashboards en vivo, gaming. Y REST API Private: igual que REST pero solo accesible desde una VPC via interface VPC endpoint."
-    },
-    {
-      "speaker": "carlos",
-      "text": "¿Cuándo el examen me pide REST versus HTTP API?"
-    },
-    {
-      "speaker": "ana",
-      "text": "La shortcut es esta: si la pregunta menciona caching de responses, throttling por cliente con API Keys, WAF integration, request validation, o mutual TLS — es REST API. Si dice proxy simple a Lambda o HTTP con el menor costo posible y no necesitás esos features — es HTTP API. Setenta por ciento más barato es una pista fuerte. También: edge-optimized endpoint solo existe en REST, no en HTTP API."
-    },
-    {
-      "speaker": "carlos",
-      "text": "¿Y los tipos de endpoint?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Tres. Edge-optimized: el default para REST API, el request entra por los edge locations de CloudFront antes de llegar a API Gateway — mejor para clientes distribuidos globalmente. Regional: el request va directo a la Region, mejor si tus clientes están concentrados en una Region o si montás tu propio CloudFront adelante. Private: solo accesible desde una VPC via interface VPC endpoint — para APIs internas."
-    },
-    {
-      "speaker": "carlos",
-      "text": "Ahora los authorizers, porque ahí sé que hay varias opciones."
-    },
-    {
-      "speaker": "ana",
-      "text": "Cuatro authorizers. IAM: el caller firma el request con SigV4, API Gateway verifica la firma contra IAM — para llamadas AWS-to-AWS, desde CLI o SDK. Cognito User Pool: el cliente manda un JWT de Cognito en el header Authorization, API Gateway lo valida directamente con Cognito — para apps web y mobile. Lambda Authorizer: una función Lambda custom valida cualquier token y retorna una IAM policy — para Identity Providers externos como Okta o Auth0."
-    },
-    {
-      "speaker": "carlos",
-      "text": "¿Y el cuarto?"
-    },
-    {
-      "speaker": "ana",
-      "text": "JWT Authorizer — solo disponible en HTTP API. Es validación built-in de JWT para proveedores OIDC y OAuth dos punto cero sin necesitar una Lambda. La regla para el examen: Cognito User Pool Authorizer es para Cognito nativo. Lambda Authorizer es para cualquier Identity Provider externo o lógica de autorización custom. JWT Authorizer es para HTTP API con OAuth dos punto cero estándar."
-    },
-    {
-      "speaker": "carlos",
-      "text": "Uy, esto me suena a lo que armé cuando hice el chatbot con Bedrock — el frontend mandaba el JWT de Cognito, aunque en ese caso no pasaba por API Gateway sino directo al Bedrock Agent. ¿Cómo funciona exactamente el Cognito authorizer acá?"
-    },
-    {
-      "speaker": "ana",
-      "text": "El patrón estándar: el usuario hace login en el Cognito User Pool, Cognito devuelve un JWT — access token o id token. El cliente incluye ese JWT en el header Authorization de cada request a API Gateway. API Gateway lo valida automáticamente contra el User Pool configurado, sin código extra. Si el token es válido y no expiró, el request pasa al backend. Si no, API Gateway devuelve cuatrocientos uno directo."
-    },
-    {
-      "speaker": "carlos",
-      "text": "Perfecto. ¿Y cuando el examen dice Okta o Auth0 en lugar de Cognito?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Lambda Authorizer. O si es HTTP API con OIDC estándar, JWT Authorizer. La regla: Cognito User Pool Authorizer es solo para Cognito nativo. Para cualquier Identity Provider externo — Okta, Auth0, PingFederate, o lógica custom — Lambda Authorizer porque vos controlás la validación del token en código. Eso es lo que discrimina esas opciones en el examen."
-    },
-    {
-      "speaker": "carlos",
-      "text": "Dale. ¿Y el throttling de API Gateway?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Multi-nivel. Account level: por defecto diez mil requests por segundo con burst de cinco mil, por Region y por cuenta. Podés sobreescribir a nivel de Stage para toda una versión de tu API. O a nivel de Method individual para endpoints específicos — más granular. Cuando se supera el límite, API Gateway devuelve HTTP cuatrocientos veintinueve, Too Many Requests. Para throttling por cliente individual, usás Usage Plans con API Keys."
-    },
-    {
-      "speaker": "carlos",
-      "text": "¿Cómo funcionan los Usage Plans y API Keys exactamente?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Creás un Usage Plan con límites: throttling en requests por segundo y quotas en requests por día, semana o mes. Por ejemplo, free tier con mil requests por día, paid tier con un millón. Después creás API Keys — identificadores únicos por cliente — y los asociás al Usage Plan correspondiente. El cliente incluye su API Key en el header x-api-key. API Gateway aplica los límites del plan de esa key."
-    },
-    {
-      "speaker": "carlos",
-      "text": "Genial, es un sistema de pricing por tier directo desde API Gateway. ¿Y el caching?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Solo en REST API. Habilitás caching a nivel de Stage. La cache key es la combinación de método, path, query string y headers — configurable. TTL de cero a tres mil seiscientos segundos, con trescientos como default. Cache size de medio gigabyte a doscientos treinta y siete gigabytes. Responses cacheadas no llegan al backend — reducís costo y mejorás latencia. Pero el caching tiene costo adicional."
-    },
-    {
-      "speaker": "carlos",
-      "text": "¿Y si alguien quiere forzar un request fresco saltándose el cache?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Puede incluir el header Cache-Control con max-age igual a cero, pero para que funcione necesita un permiso IAM específico — execute-api:InvalidateCache. Si no tiene ese permiso, el header se ignora y API Gateway sigue devolviendo el response cacheado. Ojo con esto en el examen: invalidar el cache requiere autorización explícita. No es una operación pública que cualquier cliente puede hacer."
-    },
-    {
-      "speaker": "carlos",
-      "text": "Interesante. ¿Y Stages y Deployments?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Un Stage es una versión nombrada de tu API — dev, prod, v1. Un Deployment es un snapshot de la configuración que promovés a un Stage. Stage Variables son como variables de entorno del Stage — por ejemplo, apuntás el Stage prod a un Lambda alias de producción y el Stage dev a otro alias. Y Canary Deployments te permiten routear un porcentaje del tráfico — digamos diez por ciento — a una nueva versión para testearla antes del corte completo."
-    },
-    {
-      "speaker": "carlos",
-      "text": "Los canary deployments son poderosos para rollouts controlados. ¿Y los tipos de integración con el backend?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Seis tipos. Lambda Proxy: manda el request completo a Lambda y devuelve la respuesta tal cual — el más común para serverless. Lambda Custom: vos escribís mapping templates para transformar request y response. HTTP Proxy: proxy transparente a un backend HTTP externo. AWS Service: integración directa a servicios AWS sin Lambda en el medio. Mock: respuesta hardcodeada para testing. VPC Link para alcanzar recursos privados en una VPC."
-    },
-    {
-      "speaker": "carlos",
-      "text": "Esperá, AWS Service integration — ¿eso significa que API Gateway puede escribir directamente en SQS sin Lambda?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Exacto, y es un patrón importante para el examen. El request llega a API Gateway, y en lugar de invocar Lambda, API Gateway llama directamente a la API de SQS para poner el mensaje en la queue, luego devuelve respuesta al cliente. Cero Lambda, menor costo, menor latencia. También funciona con DynamoDB PutItem directo, SNS Publish directo. El patrón más eficiente para decoupling sin Lambda del medio."
-    },
-    {
-      "speaker": "carlos",
-      "text": "Eso es muy elegante. ¿Y las features de seguridad adicionales más allá de los authorizers?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Varias. Integración con WAF para REST API — protección capa siete, bloqueo de IPs, reglas contra SQL injection y X S S. Resource Policies para allow o deny por source IP, VPC o cuenta AWS. Mutual TLS — m T L S — donde el cliente también presenta un certificado, para escenarios B2B. Request Validation para validar body y query params contra un schema JSON antes de llegar al backend, sin costo de invocar Lambda."
-    },
-    {
-      "speaker": "carlos",
-      "text": "Muy completo. ¿Hacemos la sección de exam tips ahora?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Vamos. Arrancamos con SQS. Gotcha uno: FIFO queue, el nombre tiene que terminar exactamente en punto fifo — si el examen muestra opciones de nombre, ese sufijo discrimina. Gotcha dos: visibility timeout y message retention son conceptos distintos. El timeout es cuánto tiempo el mensaje está invisible durante el procesamiento — máximo doce horas. La retención es cuánto persiste en la queue antes de expirar — hasta catorce días."
-    },
-    {
-      "speaker": "carlos",
-      "text": "Esa confusión entre visibility timeout y retention es clásica. ¿Y el D L Q?"
-    },
-    {
-      "speaker": "ana",
-      "text": "El D L Q es otra queue normal que designás como destino para mensajes fallidos. El threshold es Maximum Receives: si un mensaje fue recibido ese número de veces sin borrarse, va al D L Q. Importante: si la queue original es FIFO, el D L Q también tiene que ser FIFO. Si es Standard, Standard. Ese matching de tipo aparece en opciones de examen y es fácil de pasar por alto."
-    },
-    {
-      "speaker": "carlos",
-      "text": "¿Y el fanout con SNS para el examen?"
-    },
-    {
-      "speaker": "ana",
-      "text": "El patrón fanout es uno de los más frecuentes en el examen. La pregunta típica: cómo mandás un único evento a múltiples sistemas de procesamiento independientes. La respuesta es SNS topic con múltiples SQS queues como subscribers. Cada queue tiene sus propios consumers. Si el examen dice evento a múltiples destinos con procesamiento asíncrono desacoplado, casi siempre es SNS más SQS."
-    },
-    {
-      "speaker": "carlos",
-      "text": "¿Y EventBridge versus CloudWatch Events en el examen?"
-    },
-    {
-      "speaker": "ana",
-      "text": "En las preguntas pueden usar los dos nombres — son el mismo servicio. EventBridge es el nombre actual, CloudWatch Events es el legacy. Misma API, mismo pricing. La diferencia: EventBridge agrega Schema Registry y soporte para SaaS partners. Si el escenario menciona integración con Datadog, Auth0, Zendesk usando un event bus, es EventBridge con Partner Event Bus. Si es evento de servicio AWS, puede aparecer cualquiera de los dos nombres."
-    },
-    {
-      "speaker": "carlos",
-      "text": "¿Y para Step Functions?"
-    },
-    {
-      "speaker": "ana",
-      "text": "La pregunta más común: Standard versus Express. Standard para workflows long-running — hasta un año, auditoría completa, paga por state transition — y cuando necesitás wait for human approval o auditoría regulatoria. Express para alta frecuencia y corta duración — más de cien mil ejecuciones por segundo, hasta cinco minutos, paga por ejecución. Si el escenario dice workflow que dura días con pasos de aprobación, Standard. Millones de eventos diarios de pocos segundos, Express."
-    },
-    {
-      "speaker": "carlos",
-      "text": "¿Y Kinesis?"
-    },
-    {
-      "speaker": "ana",
-      "text": "El diccionario del examen: real-time analytics con múltiples consumers sobre el mismo dato — Kinesis Data Streams. Cargar streaming data a S3, Redshift o Splunk sin código custom — Kinesis Firehose. Análisis SQL o Flink sobre el stream — Kinesis Analytics. Cámaras o video IoT — Kinesis Video Streams. Y la diferencia con SQS: Kinesis persiste los datos y múltiples consumers los leen independientemente; SQS borra el mensaje al consumirse."
-    },
-    {
-      "speaker": "carlos",
-      "text": "¿Y los tips específicos de API Gateway?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Los más frecuentes: throttling por cliente individual va con Usage Plans más API Keys. Caching de responses es solo en REST API, no en HTTP API. Cognito User Pool Authorizer para usuarios propios de Cognito. Lambda Authorizer para Identity Providers externos — Okta, Auth0. La opción más barata para proxy simple a Lambda es HTTP API. Real-time bidireccional es WebSocket API. Alcanzar backend privado en VPC es VPC Link con N L B o A L B."
-    },
-    {
-      "speaker": "carlos",
-      "text": "¿Algún gotcha final de API Gateway que sea trampa?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Dos importantes. Primero: edge-optimized no significa que API Gateway corra en el edge — sigue siendo en una Region. Solo significa que el routing inicial pasa por la red de CloudFront. El backend Lambda o E.C. 2 sigue en la misma Region. Segundo: VPC Link necesita un Network Load Balancer o un Application Load Balancer como intermediario para alcanzar recursos privados. No podés apuntar directamente a una instancia o Lambda privada."
-    },
-    {
-      "speaker": "carlos",
-      "text": "Ese segundo gotcha no lo hubiese dicho. ¿Hacemos el recap?"
-    },
-    {
-      "speaker": "ana",
-      "text": "Dale, arrancá."
-    },
-    {
-      "speaker": "carlos",
-      "text": "SQS: queue para desacoplar producers y consumers. Standard para throughput sin orden garantizado. FIFO para orden estricto y exactly-once con menos throughput — nombre termina en punto fifo. Visibility timeout es el tiempo de invisibilidad durante el procesamiento. D L Q para mensajes que fallaron el threshold de intentos. Long polling para reducir API calls. Mensaje máximo doscientos cincuenta y seis kilobytes, payloads grandes via S3."
-    },
-    {
-      "speaker": "ana",
-      "text": "Perfecto. Seguí."
-    },
-    {
-      "speaker": "carlos",
-      "text": "SNS: pub/sub, un topic y múltiples subscribers reciben el mismo mensaje simultáneamente. Message Filtering para que cada subscriber elija qué recibe. Fanout combina SNS con múltiples SQS queues para procesamiento paralelo desacoplado — el patrón favorito del examen para múltiples pipelines desde un solo evento. EventBridge es el serverless event bus sucesor de CloudWatch Events, con Rules, Event Buses y más de veinte tipos de Targets."
-    },
-    {
-      "speaker": "ana",
-      "text": "Muy bien. ¿Y Step Functions, MQ, Kinesis?"
-    },
-    {
-      "speaker": "carlos",
-      "text": "Step Functions orquesta workflows multi-paso con lógica, retry automático con exponential backoff y visibilidad completa. Standard hasta un año para long-running, Express hasta cinco minutos para alta frecuencia. Amazon MQ para migrar apps on-premises con protocolos AMQP o MQTT — cloud-native nuevo va con SQS o SNS. Kinesis Data Streams para real-time con múltiples consumers, Firehose para cargar near real-time a destinos sin código custom."
-    },
-    {
-      "speaker": "ana",
-      "text": "¿Y API Gateway?"
-    },
-    {
-      "speaker": "carlos",
-      "text": "API Gateway es el front door de las APIs. REST API full-featured con caching, WAF, usage plans. HTTP API más barato para proxies simples. WebSocket para bidireccional en tiempo real. Authorizers: IAM para AWS-to-AWS, Cognito User Pool para apps con usuarios Cognito, Lambda Authorizer para Identity Providers externos, JWT Authorizer para HTTP API con OAuth. Usage Plans más API Keys para throttling per-cliente. AppSync para GraphQL."
-    },
-    {
-      "speaker": "ana",
-      "text": "Excelente resumen. Lo que quiero recalcar antes de cerrar: estos servicios se combinan. En producción vas a ver API Gateway más Lambda más SQS para desacoplar el procesamiento. SNS más SQS para fanout. EventBridge disparando Step Functions para workflows complejos. Kinesis Firehose cargando datos a S3 con Lambda transformando en el medio. El examen te pone patrones combinados — no los estudies en silos."
-    },
-    {
-      "speaker": "carlos",
-      "text": "Sí, lo que más me quedó es que cada servicio tiene su sweet spot. No es que Kinesis reemplace a SQS o viceversa — son herramientas para necesidades diferentes. El examen te pone todas las opciones juntas para ver si entendés cuándo usar cada una."
-    },
-    {
-      "speaker": "ana",
-      "text": "Exactamente. Y con eso cerramos el Módulo 08, Application Integration. Vieron SQS, SNS, EventBridge, Step Functions, Amazon MQ, Kinesis, AppSync y API Gateway — los pilares de la arquitectura event-driven en AWS. En el próximo episodio arrancamos con Módulo 09, Monitoring and Management: CloudWatch, CloudTrail, AWS Config y todo lo que necesitás para observar y operar sistemas en producción. Hasta la próxima."
-    }
+    {"speaker": "ana", "text": "Escuchá este clásico de examen. Tenés una app donde el frontend le pega directo a un backend que procesa pedidos. Llega un pico de tráfico, el backend no da abasto y se cae todo. ¿Cómo lo desacoplás para que no se caiga nunca?"},
+    {"speaker": "carlos", "text": "Mmm... ¿pongo el backend más grande? ¿O más instancias?"},
+    {"speaker": "ana", "text": "Esa es la trampa típica. Agrandar no resuelve el acoplamiento. La respuesta es meter una cola en el medio: S Q S. El frontend deja mensajes, el backend los procesa a su ritmo, y el pico se amortigua. Bienvenido a Application Integration."},
+    {"speaker": "carlos", "text": "Ah, mirá, una cola de mensajes. Dale, que esto es justo lo de 'loosely coupled' que veo en las preguntas y no termino de pescar bien."},
+    {"speaker": "ana", "text": "Y le pegaste al tema central. Este módulo es el corazón del Dominio dos, Design Resilient Architectures, que pesa el veintiséis por ciento del examen. Todo gira alrededor de una palabra: desacoplar."},
+    {"speaker": "carlos", "text": "¿Por qué tanto énfasis en desacoplar?"},
+    {"speaker": "ana", "text": "Porque un sistema acoplado es frágil: si una pieza se cae, arrastra al resto. Desacoplado, cada parte falla y se recupera sola. Hoy vemos S Q S, S N S, EventBridge, Step Functions, Kinesis y A P I Gateway."},
+    {"speaker": "carlos", "text": "Uf, son un montón. Te aviso: de estos casi todos los vi de lejos, solo EventBridge lo toqué de verdad en el laburo."},
+    {"speaker": "ana", "text": "Perfecto, entonces vas a aprender un montón hoy. Arrancamos por la reina del desacople: S Q S."},
+    {"speaker": "carlos", "text": "Dale, empezá."},
+    {"speaker": "ana", "text": "S Q S es Simple Queue Service: una cola de mensajes fully managed. Un producer deja mensajes, un consumer los saca y los procesa. En el medio, la cola los guarda. Throughput ilimitado, latencia menor a diez milisegundos."},
+    {"speaker": "carlos", "text": "A ver, ¿y cuánto tiempo se quedan los mensajes en la cola?"},
+    {"speaker": "ana", "text": "Retention de un minuto a catorce días, por default cuatro. Si nadie los procesa en ese tiempo, se borran. Hay dos tipos de cola, y el examen te hace elegir: Standard y FIFO."},
+    {"speaker": "carlos", "text": "¿Qué diferencia hay entre las dos?"},
+    {"speaker": "ana", "text": "La Standard tiene throughput ilimitado, pero dos costos: at-least-once delivery, o sea un mensaje puede llegar más de una vez, y best-effort ordering, puede llegar desordenado. Es para alto volumen donde el orden no importa."},
+    {"speaker": "carlos", "text": "Esperá, ¿un mensaje puede llegar duplicado? ¿Eso no es un problema serio?"},
+    {"speaker": "ana", "text": "Puede pasar, por eso tu código tiene que ser idempotente: procesar el mismo mensaje dos veces no debe romper nada. Si en cambio el orden y el no-duplicado son críticos, vas a la FIFO."},
+    {"speaker": "carlos", "text": "¿Y qué me da la FIFO?"},
+    {"speaker": "ana", "text": "First-In-First-Out: orden estricto garantizado y exactly-once processing, sin duplicados. El costo: throughput limitado, trescientos mensajes por segundo, o tres mil con batching. Y el nombre de la cola tiene que terminar en punto fifo. Caso típico: transacciones bancarias."},
+    {"speaker": "carlos", "text": "Ah, orden estricto, FIFO, y termina en punto fifo. ¿Y para qué usaría Standard si FIFO es más segura?"},
+    {"speaker": "ana", "text": "Porque la Standard escala infinito y la FIFO no. Si tenés millones de eventos y el orden no importa, Standard. Esa era la práctica dos: exactly-once con orden estricto, S Q S FIFO. Memorizá: orden o no-duplicado, FIFO."},
+    {"speaker": "carlos", "text": "Capté. Volumen, Standard; orden, FIFO. ¿Y qué pasa cuando un consumer agarra un mensaje?"},
+    {"speaker": "ana", "text": "Ahí entra el visibility timeout, concepto clave. Cuando un consumer recibe un mensaje, ese mensaje se vuelve invisible para los demás consumers, por default treinta segundos. El consumer lo procesa y lo borra. Si no lo borra a tiempo, vuelve a la cola."},
+    {"speaker": "carlos", "text": "Pará, ¿y para qué se vuelve invisible?"},
+    {"speaker": "ana", "text": "Para que dos consumers no procesen el mismo mensaje al mismo tiempo. Mientras uno trabaja, los otros no lo ven. Si el trabajo tarda más, extendés el timeout con la A P I ChangeMessageVisibility. Máximo doce horas."},
+    {"speaker": "carlos", "text": "Ahhh, el timeout evita el doble procesamiento mientras uno está laburando. ¿Y si el mensaje falla siempre?"},
+    {"speaker": "ana", "text": "Ahí va la Dead Letter Queue, la D L Q. Configurás un umbral de Maximum Receives: si un mensaje falla y vuelve a la cola, digamos, cinco veces, en vez de reintentar para siempre, lo mandás a la D L Q para debuggearlo aparte."},
+    {"speaker": "carlos", "text": "O sea, la D L Q es el rincón de los mensajes problemáticos."},
+    {"speaker": "ana", "text": "Tal cual, el cementerio de los mensajes que no se pudieron procesar. Buenísimo para no trabar la cola principal. Dos features más, rápidas: long polling y delay queue."},
+    {"speaker": "carlos", "text": "Dale, contá."},
+    {"speaker": "ana", "text": "Long polling: en vez de preguntar hay mensajes mil veces por segundo, el consumer espera hasta veinte segundos a que llegue algo. Reduce llamadas a la A P I y baja el costo. Y la delay queue retrasa la entrega de un mensaje hasta quince minutos."},
+    {"speaker": "carlos", "text": "Capté. Long polling para ahorrar llamadas, delay queue para postergar. ¿Y el tamaño de los mensajes?"},
+    {"speaker": "ana", "text": "Doscientos cincuenta y seis kilobytes máximo por mensaje, ese número cae. Esa era la práctica uno. Si necesitás mandar algo más grande, usás el SQS Extended Client y guardás el payload en S3, dejando solo un puntero en la cola."},
+    {"speaker": "carlos", "text": "Ah, lo gordo va a S3 y en la cola dejo la referencia. Inteligente."},
+    {"speaker": "ana", "text": "Y el patrón estrella de S Q S: desacoplar con auto scaling. El consumer es un Auto Scaling Group que escala según la profundidad de la cola. Muchos mensajes esperando, más instancias; cola vacía, menos. La carga maneja la capacidad."},
+    {"speaker": "carlos", "text": "Eso está buenísimo. La cola se vuelve la señal para escalar."},
+    {"speaker": "ana", "text": "Ahora el complemento de S Q S: S N S, Simple Notification Service. Es pub/sub: publicás un mensaje a un topic, y todos los subscribers de ese topic lo reciben."},
+    {"speaker": "carlos", "text": "Esperá, ¿cuál es la diferencia con S Q S entonces?"},
+    {"speaker": "ana", "text": "Grande. En S Q S un mensaje lo procesa UN solo consumer y se borra. En S N S un mensaje se entrega a MUCHOS subscribers a la vez. S Q S es uno a uno, pull; S N S es uno a muchos, push."},
+    {"speaker": "carlos", "text": "Ah, S Q S es una cola que vacía uno solo, S N S es un megáfono que le grita a todos. ¿Y quiénes pueden ser subscribers?"},
+    {"speaker": "ana", "text": "Un montón: colas S Q S, funciones Lambda, endpoints HTTP, email, S M S, push a celulares, Data Firehose. Un mismo mensaje sale para todos ellos. A S N S, ¿lo configuraste alguna vez?"},
+    {"speaker": "carlos", "text": "No, esto nunca lo configuré, explicámelo de cero. Lo vi nombrado como target de una alarma de CloudWatch, pero nunca lo armé yo."},
+    {"speaker": "ana", "text": "Dale, de cero. Igual que S Q S, S N S tiene topics Standard y FIFO: el FIFO da orden estricto y exactly-once, pero solo acepta colas S Q S FIFO como subscribers. Y tiene message filtering: cada subscriber recibe solo los mensajes que le importan, según un filtro JSON sobre atributos."},
+    {"speaker": "carlos", "text": "A ver, ¿el filtering para qué sirve en concreto?"},
+    {"speaker": "ana", "text": "Imaginá un topic de pedidos. Un subscriber quiere solo los mayores a cien dólares; otro, solo los de cierta región. Con un filter policy, cada uno recibe lo suyo y nada más. Evitás que todos reciban todo y filtren ellos."},
+    {"speaker": "carlos", "text": "Buenísimo, filtra el topic y no el consumer. ¿Y el patrón ese de fanout?"},
+    {"speaker": "ana", "text": "El fanout es la joya: combinás S N S más S Q S. Publicás un mensaje a un topic de S N S, y ese topic tiene varias colas S Q S suscriptas. El mensaje se copia a todas, cada una con su consumer, todo desacoplado y sin perder datos porque queda durable en las colas."},
+    {"speaker": "carlos", "text": "Pará, ¿por qué meto colas en el medio en vez de mandar directo a Lambda desde S N S?"},
+    {"speaker": "ana", "text": "Porque la cola te da durabilidad y buffer. Si un consumer se cae, el mensaje espera en su cola; con entrega directa lo podrías perder. Esa era la práctica tres: un mensaje a múltiples colas S Q S, un topic S N S con varios subscribers. Fanout."},
+    {"speaker": "carlos", "text": "Capté: fanout igual a S N S adelante, varias colas S Q S atrás. Durable y desacoplado."},
+    {"speaker": "ana", "text": "Y acá viene la tercera pata, la que decide muchas preguntas: EventBridge. Antes, la regla de oro. S Q S: cola punto a punto, un consumer. S N S: pub/sub fanout, muchos subscribers. EventBridge: router de eventos con filtrado por contenido."},
+    {"speaker": "carlos", "text": "Esperá, ¿EventBridge no es lo mismo que S N S? Los dos mandan eventos a varios lados."},
+    {"speaker": "ana", "text": "Se parecen, pero EventBridge es más inteligente. Rutea según el CONTENIDO del evento, tiene schema registry, scheduling, y se conecta con más de noventa fuentes, incluidas apps SaaS de terceros. S N S es fanout simple; EventBridge es ruteo por reglas."},
+    {"speaker": "carlos", "text": "Esto sí lo toqué, eh. EventBridge lo usé para disparar unos scrapers con cron. Pero te hago una confesión: nunca tuve claro si lo que usé fue EventBridge Rules o EventBridge Scheduler. Los confundo. ¿Son lo mismo?"},
+    {"speaker": "ana", "text": "Muy buena, y los confunde medio mundo. No son lo mismo. EventBridge Rules matchea patrones de eventos y también puede tener schedule. EventBridge Scheduler es más nuevo, dedicado solo a agendar: más escalable, con timezones, más opciones de cron. Para puro cron, Scheduler es lo recomendado hoy."},
+    {"speaker": "carlos", "text": "Ah, entonces capaz usé Rules con schedule en uno y Scheduler en otro, por eso me mezclaba. ¿Y el cron de AWS cómo es?"},
+    {"speaker": "ana", "text": "Seis campos, siempre en UTC. Y dos formas: cron, para horarios fijos tipo todos los días a las dos de la mañana, y rate, para intervalos tipo cada cinco minutos. Vos con los scrapers usaste esto sin darte cuenta de qué pieza exacta era."},
+    {"speaker": "carlos", "text": "Tal cual, andaba pero no sabía bien qué era. Volvamos a la teoría: ¿qué más tiene EventBridge?"},
+    {"speaker": "ana", "text": "Volvés a pregunta, perfecto. Tiene event buses: el default para eventos de servicios de AWS, partner buses para SaaS, y custom buses para tus apps. Las rules matchean un patrón de evento y lo mandan a uno o más targets: Lambda, Step Functions, S N S, S Q S, ECS, y veinte más."},
+    {"speaker": "carlos", "text": "O sea, EventBridge escucha eventos y los reparte según lo que digan las reglas."},
+    {"speaker": "ana", "text": "Esa es la esencia. Y tiene un Schema Registry: descubre y versiona los esquemas de tus eventos, y te genera bindings de código. Dato de examen: EventBridge es el sucesor de CloudWatch Events, misma A P I por debajo, pero con SaaS y schema registry encima."},
+    {"speaker": "carlos", "text": "Anotado. ¿Y cuándo elijo EventBridge sobre S N S?"},
+    {"speaker": "ana", "text": "Cuando necesitás rutear por el contenido del evento o integrar fuentes SaaS. Esa era la práctica cinco: rutear eventos según su contenido e ingerir de AWS y de SaaS de terceros, EventBridge. Si es fanout simple y rápido, S N S alcanza."},
+    {"speaker": "carlos", "text": "Capté. Fanout simple S N S, ruteo por contenido EventBridge."},
+    {"speaker": "ana", "text": "Sigamos con orquestación: Step Functions. Imaginá un proceso de diez pasos, con condiciones, reintentos, ramas en paralelo. Coordinar eso a mano es un infierno. Step Functions lo hace con un workflow visual, serverless."},
+    {"speaker": "carlos", "text": "Esto no lo toqué nunca, te pregunto desde cero. ¿Qué coordina exactamente?"},
+    {"speaker": "ana", "text": "Coordina servicios: Lambda, ECS, Fargate, Batch, SageMaker. Vos definís una máquina de estados, y Step Functions ejecuta paso a paso, manejando errores, reintentos con backoff, y ejecución en paralelo. Si un paso falla, lo captura y decide qué hacer."},
+    {"speaker": "carlos", "text": "A ver, ¿qué tipo de pasos hay?"},
+    {"speaker": "ana", "text": "Estados. Los principales: Task, que hace el trabajo, tipo invocar una Lambda. Choice, lógica condicional, un if. Parallel, ramas en paralelo. Wait, esperar un tiempo. Map, iterar sobre una lista. Y Succeed o Fail para terminar."},
+    {"speaker": "carlos", "text": "Ah, es como programar un flujo con bloques. ¿Y hay variantes?"},
+    {"speaker": "ana", "text": "Dos, y el examen las compara. Standard Workflows: duran hasta un año, ideales para procesos largos y auditables, se paga por transición de estado. Express Workflows: hasta cinco minutos, pero cien mil ejecuciones por segundo, para eventos de alto volumen y corta duración."},
+    {"speaker": "carlos", "text": "Esperá, dame el gatillo: ¿cuándo cada uno?"},
+    {"speaker": "ana", "text": "Proceso largo, auditable, que dura horas o días, Standard. Procesamiento de eventos masivo y cortito, Express. La duración y el volumen mandan: largo igual Standard, rápido y masivo igual Express."},
+    {"speaker": "carlos", "text": "Capté. Largo Standard, masivo y corto Express."},
+    {"speaker": "ana", "text": "Hay un servicio de mensajería que confunden con S Q S y S N S: Amazon M Q. Es un message broker managed que corre Apache ActiveMQ o RabbitMQ, con protocolos estándar tipo MQTT, AMQP, JMS."},
+    {"speaker": "carlos", "text": "¿Y cuándo usaría eso en vez de S Q S?"},
+    {"speaker": "ana", "text": "Esa es justo la pregunta de examen. Amazon M Q es para cuando MIGRÁS una app que ya usa esos protocolos abiertos desde un broker on-premises. Para apps nuevas cloud-native, vas a S Q S y S N S. La palabra clave es migrar con protocolos estándar."},
+    {"speaker": "carlos", "text": "Ah, M Q para migrar lo viejo que ya habla esos protocolos; S Q S y S N S para lo nuevo."},
+    {"speaker": "ana", "text": "Esa es la regla, clavada. M Q te da Multi-AZ con failover automático para no reescribir la app. Pero si arrancás de cero, no te metas en M Q, andá a los servicios nativos."},
+    {"speaker": "carlos", "text": "Dale. ¿Y lo de streaming en tiempo real?"},
+    {"speaker": "ana", "text": "Esa es otra familia: Kinesis. Sirve para datos en tiempo real que fluyen constante, tipo logs, clicks, telemetría. Tiene varios sabores."},
+    {"speaker": "carlos", "text": "Esto tampoco lo configuré nunca. ¿Cuáles son los sabores?"},
+    {"speaker": "ana", "text": "Cuatro. Kinesis Data Streams: streaming en tiempo real, con shards que te dan throughput, retention de hasta trescientos sesenta y cinco días. Amazon Data Firehose: carga el stream a destinos, near real-time, sin manejar shards. Data Analytics: análisis en vivo con SQL o Flink. Y Video Streams para video."},
+    {"speaker": "carlos", "text": "Pará, son muchos. ¿La diferencia clave entre Data Streams y Firehose?"},
+    {"speaker": "ana", "text": "Fundamental para el examen. Data Streams es tiempo real de verdad, vos manejás los shards y los consumers, y podés reprocesar los datos. Firehose es near real-time, con un buffer de unos sesenta segundos, y su trabajo es CARGAR a un destino: S3, Redshift, OpenSearch. Sin servidores, sin shards."},
+    {"speaker": "carlos", "text": "O sea, Data Streams para procesar en vivo, Firehose para depositar en un destino."},
+    {"speaker": "ana", "text": "Esa es la distinción. Firehose es el camión que lleva los datos al data lake o al warehouse, hace E T L básico y los descarga. Data Streams es la cinta transportadora en vivo que muchos consumers leen a la vez."},
+    {"speaker": "carlos", "text": "¿Y en qué se diferencia Kinesis de S Q S? Las dos manejan mensajes."},
+    {"speaker": "ana", "text": "Gran pregunta de examen. En S Q S el mensaje se borra después de consumirlo, lo lee un consumer, sin replay. En Kinesis los datos quedan retenidos, MUCHOS consumers leen el MISMO dato, hay orden por shard, y podés reproducir desde atrás. Kinesis para streaming analítico; S Q S para desacoplar tareas."},
+    {"speaker": "carlos", "text": "Ahhh. S Q S borra y uno lo lee; Kinesis retiene y muchos lo releen. ¿Y el M S K ese qué es?"},
+    {"speaker": "ana", "text": "Amazon M S K es Managed Streaming for Apache Kafka: Kafka gestionado por AWS. La regla: si necesitás compatibilidad con Kafka, o migrás workloads de Kafka que ya tenés, M S K. Si arrancás nativo en AWS y querés algo más simple, Kinesis Data Streams."},
+    {"speaker": "carlos", "text": "Capté: Kafka existente, M S K; nativo y simple, Kinesis."},
+    {"speaker": "ana", "text": "Ahora un servicio grande, la puerta de entrada de las A P I serverless: A P I Gateway. Crea, publica, asegura y monitorea A P Is a cualquier escala. Es el portero adelante de tu backend, sea Lambda, HTTP, o un servicio de AWS."},
+    {"speaker": "carlos", "text": "Esto lo vi de lejos, nunca lo armé. ¿Hay tipos distintos?"},
+    {"speaker": "ana", "text": "Dos principales, con un atajo de examen. La HTTP API es más barata y de menor latencia, para proxies simples. La REST API tiene más features: caching, request validation, integración con WAF, usage plans. Más cara, más completa."},
+    {"speaker": "carlos", "text": "O sea, ¿simple y barato HTTP, completo y caro REST?"},
+    {"speaker": "ana", "text": "Esa es la regla rápida. Y hay tres tipos de endpoint: edge-optimized, que rutea por los edges de CloudFront, para clientes distribuidos por el mundo; regional, para clientes en la misma Región; y private, accesible solo desde una V P C por un interface endpoint."},
+    {"speaker": "carlos", "text": "¿Y cómo controlo quién puede llamar a la A P I?"},
+    {"speaker": "ana", "text": "Con authorizers, y esto cae mucho. Si validás un J W T de Cognito, usás un Cognito User Pool Authorizer. Si el token viene de un proveedor externo tipo Okta o Auth0, un Lambda Authorizer. Y para servicios internos, un I A M Authorizer."},
+    {"speaker": "carlos", "text": "A ver: Cognito propio, Cognito Authorizer; externo, Lambda Authorizer. ¿Y para no morir bajo el tráfico?"},
+    {"speaker": "ana", "text": "Throttling, en varios niveles. Por default, diez mil requests por segundo por cuenta y Región. Podés afinar por stage, por método, y lo más útil: por cliente, con Usage Plans más A P I Keys. Cuando te pasás del límite, devuelve un HTTP cuatro veintinueve, Too Many Requests."},
+    {"speaker": "carlos", "text": "Esperá, ¿los Usage Plans para qué exactamente?"},
+    {"speaker": "ana", "text": "Para rate limiting por cliente. Por ejemplo: el tier gratis, mil requests por día; el tier pago, un millón. Cada cliente tiene su A P I Key asociada a un Usage Plan con su cuota. Regla de examen: throttle por cliente, Usage Plans más A P I Keys."},
+    {"speaker": "carlos", "text": "Buenísimo, cuota por cliente con A P I Keys. ¿Y el caching?"},
+    {"speaker": "ana", "text": "Solo en REST API. Cachea las respuestas, con un T T L de cero a tres mil seiscientos segundos. Reduce la carga del backend y baja la latencia, a costa de un cargo extra. Regla: cachear respuestas GET para bajar el costo del backend, caching de A P I Gateway."},
+    {"speaker": "carlos", "text": "Capté, caching solo en REST. ¿Y para lo bidireccional en tiempo real, tipo un chat?"},
+    {"speaker": "ana", "text": "WebSocket API. Conexión bidireccional persistente: el server puede pushear al cliente. Para un chat en tiempo real, A P I Gateway WebSocket más Lambda más DynamoDB. Y un detalle: para alcanzar un backend privado en una V P C, usás un VPC Link contra un N L B o A L B."},
+    {"speaker": "carlos", "text": "Y si necesito un canary release para probar una versión nueva, ¿hay algo?"},
+    {"speaker": "ana", "text": "Sí, en los stages: canary settings, mandás un porcentaje del tráfico a la versión nueva para testear antes de promover. Y stage variables para apuntar, por ejemplo, el stage prod a un alias de Lambda y el dev a otro. Mucha herramienta fina acá."},
+    {"speaker": "carlos", "text": "Tremendo. ¿Y qué más nos queda?"},
+    {"speaker": "ana", "text": "Dos servicios para cerrar. AppSync: A P I de GraphQL managed. Un solo endpoint flexible donde el cliente pide exactamente los campos que quiere, con sincronización en tiempo real y soporte offline para apps móviles. Fuentes: DynamoDB, Lambda, RDS."},
+    {"speaker": "carlos", "text": "¿GraphQL en vez de REST? ¿Cuándo conviene?"},
+    {"speaker": "ana", "text": "Cuando el cliente, sobre todo mobile, necesita queries flexibles y datos en tiempo real sin pedir mil endpoints distintos. Para el examen alcanza con: AppSync igual GraphQL managed con real-time y offline. Y el último: AppFlow."},
+    {"speaker": "carlos", "text": "¿Qué hace AppFlow?"},
+    {"speaker": "ana", "text": "Integración de datos no-code entre apps SaaS y AWS. Transferís datos de Salesforce, SAP, Slack, Zendesk hacia S3 o Redshift, sin escribir código de integración, en schedule o por evento. Regla de examen, directa: mover datos de Salesforce o un SaaS a S3 sin escribir código, AppFlow."},
+    {"speaker": "carlos", "text": "Ah, esa era la práctica seis. Salesforce a S3 sin código, AppFlow."},
+    {"speaker": "ana", "text": "Esa misma, limpio y directo. Vamos a los exam tips, que en este módulo son casi todos de elegí el servicio correcto. Te tiro los gatillos."},
+    {"speaker": "carlos", "text": "Dale, grabá."},
+    {"speaker": "ana", "text": "Uno, el más importante: decouple o loosely coupled. Buffer de mensajes punto a punto, S Q S. La trampa: meten un A L B pensando que balancear es desacoplar. No: load balancing no es decoupling."},
+    {"speaker": "carlos", "text": "Decouple igual S Q S, no A L B. Esa la tenía dudosa."},
+    {"speaker": "ana", "text": "Dos: un mensaje a muchos a la vez, S N S, o S N S más S Q S para fanout durable. Rutear por contenido del evento o integrar SaaS, EventBridge. Esos tres no los confundas."},
+    {"speaker": "carlos", "text": "S Q S uno, S N S muchos, EventBridge ruteo por contenido."},
+    {"speaker": "ana", "text": "Tres: exactly-once con orden estricto, S Q S FIFO. Cuatro: orquestar un workflow con pasos, reintentos y ramas, Step Functions; largo y auditable Standard, masivo y corto Express."},
+    {"speaker": "carlos", "text": "FIFO para orden; Step Functions para workflows."},
+    {"speaker": "ana", "text": "Cinco, streaming: tiempo real con replay y muchos consumers, Kinesis Data Streams. Solo cargar a S3 o Redshift near real-time, Firehose. Kafka existente, M S K. Y ojo: S Q S no es streaming, borra el mensaje y no hay replay."},
+    {"speaker": "carlos", "text": "Data Streams tiempo real, Firehose carga, M S K Kafka."},
+    {"speaker": "ana", "text": "Seis, A P I Gateway: throttle por cliente, Usage Plans más A P I Keys. J W T de Cognito, Cognito Authorizer; de un IdP externo, Lambda Authorizer. Simple y barato, HTTP API; con caching y WAF, REST. Y mover SaaS a S3 sin código, AppFlow."},
+    {"speaker": "carlos", "text": "Uf, completísimo. Con los gatillos se ordena todo."},
+    {"speaker": "ana", "text": "Esa es la idea: cada qualifier, un servicio. No memorices features sueltas, memorizá el disparador. Hagamos el recap. Cerrame los bloques grandes."},
+    {"speaker": "carlos", "text": "Dale. Mensajería: S Q S es una cola, un consumer por mensaje, para desacoplar; Standard escala infinito pero puede duplicar y desordenar, FIFO da orden estricto y exactly-once. El visibility timeout evita el doble procesamiento, y la D L Q junta los mensajes que fallan."},
+    {"speaker": "ana", "text": "Impecable. Pub/sub y eventos."},
+    {"speaker": "carlos", "text": "S N S es pub/sub, un mensaje a muchos subscribers; el fanout combina S N S adelante con varias colas S Q S atrás, durable. EventBridge rutea eventos por contenido, con buses, rules y schema registry, e integra SaaS. Y maneja scheduling con cron o rate."},
+    {"speaker": "ana", "text": "Te luciste. Workflows y streaming."},
+    {"speaker": "carlos", "text": "Step Functions orquesta workflows con estados, errores y reintentos; Standard largo, Express masivo y corto. Kinesis Data Streams para streaming en vivo con replay; Firehose para cargar a destinos; M S K para Kafka. Y S Q S no hace replay."},
+    {"speaker": "ana", "text": "Y las puertas de entrada."},
+    {"speaker": "carlos", "text": "A P I Gateway adelante del backend: HTTP barato, REST completo con caching; authorizers de Cognito o Lambda; Usage Plans para throttle por cliente; WebSocket para tiempo real. AppSync para GraphQL, AppFlow para mover SaaS a S3 sin código. Y Amazon M Q para migrar brokers viejos."},
+    {"speaker": "ana", "text": "Me dejaste sin nada para corregir. Y eso que dijiste que casi todo lo veías de lejos."},
+    {"speaker": "carlos", "text": "Sí, EventBridge era lo único que había tocado, y encima confundía Rules con Scheduler. Pero pensar todo desde desacoplar me ordenó el resto solo."},
+    {"speaker": "ana", "text": "Esa es la mentalidad: en el Dominio dos, todo es loose coupling y resiliencia. Cuando veas el qualifier, el servicio salta solo. Nos vemos en el módulo de Monitoring and Management. Cuídense, sigan estudiando, que ya falta menos. ¡Un abrazo, y chau!"}
   ]
 }
